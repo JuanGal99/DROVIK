@@ -1,0 +1,32 @@
+flowchart TB
+    UI["Angular Web App<br/>TypeScript · PrimeNG · Leaflet"] --> GW["YARP API Gateway"]
+
+    GW --> ID["Identity Service"]
+    GW --> FL["Fleet Service"]
+    GW --> SH["Shipment Service"]
+    GW --> SIM["Simulation Service"]
+    GW --> INC["Incident Service"]
+
+    ID --> IDDB[("Identity DB · SQL Server")]
+    FL --> FLDB[("Fleet DB · SQL Server")]
+    SH --> SHDB[("Shipment DB · SQL Server")]
+    SIM --> SIMDB[("Simulation DB · SQL Server")]
+    INC --> INCDB[("Incident DB · SQL Server")]
+
+    FL <--> MQ[("RabbitMQ · Event Bus")]
+    SH <--> MQ
+    SIM <--> MQ
+    INC <--> MQ
+
+    SIM --> REDIS[("Redis · Optional")]
+    MQ --> RT["SignalR Realtime Hub"]
+    RT --> UI
+
+    subgraph INFRA["Supporting infrastructure"]
+      OBS["OpenTelemetry + Serilog"]
+      DOCKER["Docker Compose"]
+      CI["GitHub Actions"]
+    end
+
+    NOTE["Synthetic demo data · No real GPS or live traffic"]
+    SIM -.-> NOTE

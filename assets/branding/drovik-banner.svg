@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="500" viewBox="0 0 1600 500">
+<defs>
+  <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+    <stop offset="0" stop-color="#081522"/><stop offset=".55" stop-color="#101d2b"/><stop offset="1" stop-color="#17283a"/>
+  </linearGradient>
+  <linearGradient id="accent" x1="0" y1="0" x2="1" y2="1">
+    <stop offset="0" stop-color="#42a5ff"/><stop offset="1" stop-color="#2563eb"/>
+  </linearGradient>
+  <radialGradient id="glow"><stop stop-color="#2563eb" stop-opacity=".24"/><stop offset="1" stop-color="#2563eb" stop-opacity="0"/></radialGradient>
+  <pattern id="grid" width="44" height="44" patternUnits="userSpaceOnUse">
+    <path d="M44 0H0V44" fill="none" stroke="#a8c4df" stroke-opacity=".07" stroke-width="1"/>
+  </pattern>
+</defs>
+<rect width="1600" height="500" fill="url(#bg)"/>
+<rect width="1600" height="500" fill="url(#grid)"/>
+<circle cx="1260" cy="220" r="390" fill="url(#glow)"/>
+<!-- abstract connected logistics network -->
+<g fill="none" stroke="#5baeff" stroke-opacity=".35" stroke-width="2">
+ <path d="M950 360 L1090 270 L1220 320 L1370 190 L1510 240"/>
+ <path d="M1090 270 L1115 110 L1290 80 L1370 190"/>
+ <path d="M1220 320 L1280 430 L1460 400 L1510 240"/>
+ <path d="M1115 110 L980 70"/>
+</g>
+<g fill="#0c1b2a" stroke="#55a8ff" stroke-width="3">
+ <circle cx="950" cy="360" r="8"/><circle cx="1090" cy="270" r="11"/><circle cx="1220" cy="320" r="8"/>
+ <circle cx="1370" cy="190" r="12"/><circle cx="1510" cy="240" r="8"/><circle cx="1115" cy="110" r="8"/>
+ <circle cx="1290" cy="80" r="7"/><circle cx="1280" cy="430" r="7"/><circle cx="1460" cy="400" r="8"/><circle cx="980" cy="70" r="6"/>
+</g>
+<g stroke="url(#accent)" stroke-width="5" fill="none" stroke-linecap="round" stroke-linejoin="round">
+ <path d="M1070 205h38l24 24v42h-62z" opacity=".9"/>
+ <path d="M1082 220h30M1082 234h30M1082 248h18" opacity=".9"/>
+</g>
+<g font-family="Inter,Segoe UI,Arial,sans-serif">
+ <text x="118" y="205" fill="#ffffff" font-size="76" font-weight="800" letter-spacing="7">DROVIK</text>
+ <rect x="120" y="232" width="86" height="5" rx="2.5" fill="url(#accent)"/>
+ <text x="120" y="286" fill="#c7d5e3" font-size="27" font-weight="500" letter-spacing="3">LOGISTICS INTELLIGENCE PLATFORM</text>
+ <text x="120" y="350" fill="#8fa6bb" font-size="19" letter-spacing="1.2">Fleet operations · Shipment visibility · Intelligent simulation</text>
+</g>
+<path d="M0 470H1600" stroke="#5baeff" stroke-opacity=".22"/>
+</svg>
