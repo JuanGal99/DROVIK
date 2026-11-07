@@ -1,22 +1,28 @@
-<main class="foundation-shell">
-  <header class="topbar">
-    <a class="brand" href="/" aria-label="DROVIK, inicio">
-      <span class="brand-mark" aria-hidden="true">D</span>
-      <span>DROVIK</span>
+<div class="app-frame">
+  <button class="mobile-scrim" [class.is-visible]="menuOpen()" (click)="closeMenu()" aria-label="Cerrar navegación"></button>
+  <aside class="sidebar" [class.is-open]="menuOpen()" aria-label="Navegación principal">
+    <a class="brand" routerLink="/overview" (click)="closeMenu()" aria-label="DROVIK, overview">
+      <span class="brand-symbol" aria-hidden="true"><span></span><span></span><span></span></span><span class="brand-name">DROVIK</span><span class="brand-edition">OPS</span>
     </a>
-    <span class="environment-label"><span class="status-dot"></span> Entorno local</span>
-  </header>
-
-  <section class="foundation-content" aria-labelledby="page-title">
-    <p class="eyebrow">PLATAFORMA DE INTELIGENCIA LOGÍSTICA</p>
-    <h1 id="page-title">Fundación técnica</h1>
-    <p class="intro">La base de DROVIK está en preparación. Las funcionalidades operativas todavía no están implementadas.</p>
-
-    <div class="status-line" role="status">
-      <span class="status-dot" aria-hidden="true"></span>
-      <span>Fase 1 · Fundaciones</span>
+      <div class="workspace-switcher"><span class="workspace-mark">N</span><span class="workspace-copy"><strong>Northline Logistics</strong><small>Operación principal</small></span></div>
+    <p class="nav-label">OPERACIÓN</p>
+    <nav class="primary-nav">
+      @for (item of navigation; track item.route) {
+        <a class="nav-item" [routerLink]="item.route" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }" (click)="closeMenu()"><i [class]="item.icon" aria-hidden="true"></i><span>{{ item.label }}</span>@if (item.route === '/incidents') { <span class="nav-count">{{ data.openIncidentCount }}</span> }</a>
+      }
+    </nav>
+    <div class="sidebar-bottom">
+      <div class="system-health"><span class="health-light"></span><span><strong>Modo demostración</strong><small>Backend aún no conectado</small></span></div>
+      <a class="nav-item" [routerLink]="settings.route" routerLinkActive="active" (click)="closeMenu()"><i [class]="settings.icon" aria-hidden="true"></i><span>{{ settings.label }}</span></a>
+      <div class="profile-row"><span class="avatar">MR</span><span class="profile-copy"><strong>María Rodríguez</strong><small>Administrator · perfil de demo</small></span></div>
     </div>
-
-    <router-outlet />
-  </section>
-</main>
+  </aside>
+  <div class="main-column">
+    <header class="topbar">
+      <button class="icon-button menu-trigger" (click)="menuOpen.set(true)" aria-label="Abrir navegación"><i class="pi pi-bars"></i></button>
+      <div class="breadcrumb"><span>Workspace</span><i class="pi pi-angle-right" aria-hidden="true"></i><strong>{{ pageTitle }}</strong></div>
+      <div class="topbar-actions"><span class="simulation-pill"><span></span> Escenario simulado</span><span class="icon-button notification-indicator" role="img" aria-label="Notificaciones de demostración"><i class="pi pi-bell"></i><span class="notification-dot"></span></span><span class="topbar-divider"></span><span class="topbar-date">Jue, 6 nov 2026</span></div>
+    </header>
+    <main class="page-content"><router-outlet /></main>
+  </div>
+</div>
