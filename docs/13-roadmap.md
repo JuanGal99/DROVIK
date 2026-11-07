@@ -19,9 +19,10 @@ Las fases se completan localmente. Capturas/video son materiales de portafolio; 
 - **Salida verificable:** los diez criterios de esta fase se cumplieron. El árbol de código versionado restaura y compila desde un clon limpio; la guía local está documentada. El reporte de 16 vulnerabilidades moderadas de npm queda como seguimiento de dependencias y no impidió la instalación o compilación. No se adelantaron funcionalidades de negocio.
 
 ## Fase 2 — Gateway e identidad
-- Configurar YARP, Identity, roles y policies.
+- **Gateway (completado en `feature/backend-next`):** YARP 2.3.0 enruta los prefijos versionados a los cinco servicios; destinos locales configurables; pruebas de proxy y ruta desconocida.
+- **Pendiente:** Identity, roles, policies y sesión de navegador. Las duraciones de sesión y el procedimiento para crear el primer Administrator todavía deben concretarse antes de implementar autenticación.
 - Implementar sesión, renovación, logout y protección CSRF/CORS aprobados.
-- **Salida verificable:** login/logout y expiración/revocación demostrables; endpoints protegidos por rol en backend; pruebas de autorización.
+- **Salida verificable:** login/logout y expiración/revocación demostrables; endpoints protegidos por rol en backend; pruebas de autorización. Fase 2 sigue en progreso hasta cumplir todos estos criterios.
 
 ## Fase 3 — Fleet Service
 - Vehículos, conductores, centros, migraciones, seed, CRUD y eventos.

@@ -4,6 +4,8 @@
 
 Angular consume una URL estable de YARP; no expone los servicios internos. Rutas REST en inglés con prefijo `/api/v1/`. Cada servicio publica/valida su OpenAPI. Cambios aditivos compatibles permanecen en v1; cambios incompatibles incrementan la versión de ruta y se documentan antes de migrar consumidores.
 
+El Gateway enruta los prefijos de dominio versionados al servicio propietario sin reescribir la ruta: `/api/v1/auth` y `/api/v1/users` a Identity; `/api/v1/vehicles`, `/drivers`, `/centers` y `/reservations` a Fleet; `/api/v1/shipments` a Shipment; `/api/v1/simulations` a Simulation; `/api/v1/incidents` a Incident. Los destinos locales predeterminados usan los puertos 5201–5205; se pueden sobrescribir mediante configuración `ReverseProxy:Clusters:<service>:Destinations:local:Address`. Las rutas solo proxyan; no implican que los endpoints de dominio ya estén implementados.
+
 Usar respuestas de error Problem Details con código y detalle seguro. Validación de entrada retorna 400; sesión ausente 401; permiso insuficiente 403; recurso inexistente 404; conflicto de estado/reserva 409. Listados siempre paginados y con límites máximos.
 
 Rutas conceptuales: Identity `/api/v1/auth/login`, `/api/v1/users`; Fleet `/api/v1/vehicles`, `/drivers`, `/centers`, `/reservations`; Shipment `/api/v1/shipments`, `/{id}/assign`, `/{id}/status`; Simulation `/api/v1/simulations/{id}/start|pause|resume|cancel`; Incident `/api/v1/incidents`. Los contratos detallados se especifican por fase antes de integrar consumidores.
