@@ -58,20 +58,18 @@ En esta máquina `.env` se creó localmente con contraseñas aleatorias y está 
 
 Se ejecutó `docker compose down` seguido de `docker compose up -d` sin `-v`: ambos contenedores regresaron a `healthy` y una consulta posterior confirmó que las cinco bases persistieron.
 
-## 12.8 Estado de validación desde el commit de fundación
+## 12.8 Verificación desde clon limpio y cierre de Fase 1
 
-El 2026-11-07 se validó el commit `39ecc65` en el directorio de trabajo. La solución y configuración necesarias quedaron versionadas en ese commit: `compose.yaml`, `.env.example`, `global.json`, `.nvmrc`, solución y proyectos backend, migraciones, workspace Angular, `package.json` y lockfiles. Esta validación no se ejecutó desde una carpeta recién clonada; la comprobación específica de clon limpio sigue pendiente.
+El 2026-11-07 se clonó `main` desde GitHub en una carpeta temporal fuera de OneDrive y se validó el contenido versionado sin usar credenciales reales. Se copió `.env.example` como `.env` con sus valores ficticios. En el repositorio, `.env` está ignorado y `.env.example` está versionado.
 
-Resultados ejecutados en Windows con .NET SDK 10.0.403 y Node.js 24.11.1/npm 11.6.2:
+Resultados del clon limpio en Windows:
 - `dotnet tool restore`: correcto; restauró dotnet-ef 10.0.14.
 - `dotnet restore --locked-mode`: correcto para los siete proyectos.
 - `dotnet build --no-restore`: correcto, cero advertencias y cero errores.
 - `dotnet test --no-build`: correcto, 5/5 pruebas.
-- `npm ci`: correcto tras un primer intento fallido con `ENOTEMPTY` al limpiar `node_modules` bajo OneDrive; el reintento terminó normalmente.
+- `npm ci`: correcto; se instalaron 485 paquetes. npm informó 16 vulnerabilidades moderadas; no se cambiaron dependencias. Un `npm audit` posterior confirmó el mismo recuento.
 - `npm run build`: correcto.
 - `npm test -- --watch=false`: correcto, 2/2 pruebas.
-- `docker compose config --quiet`: correcto. La CLI de Docker no estaba en el `PATH` de PowerShell; al añadir temporalmente la ruta de Docker Desktop, se confirmó que SQL Server y RabbitMQ existentes estaban `healthy`. No se reiniciaron ni modificaron contenedores, bases ni volúmenes.
+- `docker compose config --quiet`: correcto después de añadir temporalmente al `PATH` la carpeta CLI de Docker Desktop. SQL Server y RabbitMQ del entorno principal ya estaban `healthy`. No se levantaron contenedores desde el clon y no se tocaron bases ni volúmenes.
 
-`npm ci` reportó 16 vulnerabilidades moderadas en el árbol de dependencias. No se actualizaron dependencias; revisar el informe de `npm audit` en un cambio dedicado antes de considerar actualizaciones. El `.env` local permanece excluido por Git y no se versiona; `.env.example` sí está incluido. No se copiaron secretos al repositorio.
-
-Fase 1 permanece abierta hasta ejecutar y documentar la verificación desde un clon limpio y cerrar los criterios restantes del roadmap.
+Los cinco servicios ya habían aplicado sus migraciones fundacionales y sus health checks respondieron correctamente según la validación local registrada en 12.7. La verificación limpia demuestra restauración, compilación, pruebas y configuración Compose desde GitHub. Con los diez criterios de salida de Fase 1 satisfechos, Fase 1 se considera completada. El aviso moderado de npm queda registrado para evaluación de dependencias; no impide la restauración ni compilación y no se actualizó ningún paquete.

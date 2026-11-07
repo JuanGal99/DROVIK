@@ -41,7 +41,7 @@ Las capturas se añadirán cuando exista una implementación que mostrar. No hay
 
 ## Ejecución local
 
-La Fase 1 está en curso. Se han creado shells técnicos y migraciones iniciales vacías por servicio. SQL Server y RabbitMQ fueron validados en Docker Compose; los cinco servicios aplicaron sus migraciones y sus health checks de readiness respondieron correctamente. No hay tablas de negocio ni datos seed.
+La Fase 1 de fundación técnica está completada. Se han creado shells técnicos y migraciones iniciales vacías por servicio. SQL Server y RabbitMQ fueron validados en Docker Compose; los cinco servicios aplicaron sus migraciones y sus health checks de readiness respondieron correctamente. La restauración desde un clon limpio de GitHub, compilación y pruebas backend/frontend también pasaron. No hay tablas de negocio ni datos seed.
 
 1. Instalar Git, Docker Desktop con Compose v2, .NET SDK 10.0.403 y Node.js 24.11.1/npm 11.6.2.
 2. Clonar este repositorio y crear `.env` copiando `.env.example`; sustituir todos los placeholders por secretos locales. `.env` está excluido de Git.
@@ -57,7 +57,7 @@ El backend podrá ofrecer también ejecución íntegra mediante contenedores com
 
 ## Estado del proyecto
 
-**Fase 1 — Fundación técnica en progreso.** El commit `39ecc65` versiona la solución .NET, los cinco servicios, Gateway, migraciones iniciales, workspace Angular, lockfiles y Compose. En el entorno local se verificaron restauración NuGet bloqueada, compilación backend, 5/5 pruebas xUnit, `npm ci`, compilación Angular y 2/2 pruebas frontend; SQL Server y RabbitMQ estaban saludables y `docker compose config --quiet` pasó. La verificación específica desde un clon limpio sigue pendiente, por lo que Fase 1 no está cerrada. No existen todavía interfaces operativas ni funcionalidades de negocio.
+**Fase 1 — Fundación técnica completada.** La solución, cinco servicios, Gateway, migraciones iniciales, workspace Angular, lockfiles y Compose están versionados en `main`. La restauración desde un clon limpio de GitHub pasó: .NET compiló con cero advertencias/errores y 5/5 pruebas xUnit; Angular instaló con `npm ci`, compiló y pasó 2/2 pruebas. `docker compose config --quiet` pasó y SQL Server/RabbitMQ locales estaban saludables. No se iniciaron servicios desde el clon para evitar interferir con los contenedores y volúmenes existentes. No hay aún funcionalidades operativas de negocio ni interfaces implementadas.
 
 ## Documentación
 
