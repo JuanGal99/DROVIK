@@ -1,5 +1,6 @@
 import { Routes } from '@angular/router';
 import { Overview } from './features/overview/overview';
+import { FleetPage } from './features/fleet/fleet-page';
 import { SectionPlaceholder } from './shared/section-placeholder/section-placeholder';
 
 export const routes: Routes = [
@@ -7,7 +8,7 @@ export const routes: Routes = [
   { path: 'overview', component: Overview, title: 'Overview | DROVIK' },
   { path: 'operations', component: SectionPlaceholder, data: { title: 'Operación en vivo' }, title: 'Operación en vivo | DROVIK' },
   { path: 'shipments', component: SectionPlaceholder, data: { title: 'Envíos' }, title: 'Envíos | DROVIK' },
-  { path: 'fleet', component: SectionPlaceholder, data: { title: 'Flota' }, title: 'Flota | DROVIK' },
+  { path: 'fleet', component: FleetPage, title: 'Flota | DROVIK' },
   { path: 'drivers', component: SectionPlaceholder, data: { title: 'Conductores' }, title: 'Conductores | DROVIK' },
   { path: 'customers', component: SectionPlaceholder, data: { title: 'Clientes' }, title: 'Clientes | DROVIK' },
   { path: 'incidents', component: SectionPlaceholder, data: { title: 'Incidencias' }, title: 'Incidencias | DROVIK' },

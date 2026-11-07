@@ -26,6 +26,14 @@ npm test -- --watch=false
 - Los datos del dashboard viven en `src/app/core/data/overview-data.service.ts`. No se conectan endpoints ni se guarda estado en backend.
 - El mapa se pospone hasta que Simulation entregue posiciones simuladas y un contrato consumible. No se agrega Leaflet sin ese flujo funcional.
 
+## Módulo Fleet
+
+- `/fleet` lista vehículos sintéticos con búsqueda, filtros por estado/tipo y paginación; permite consultar una ficha y crear/editar los campos documentados del vehículo.
+- El catálogo está centralizado en `src/app/core/data/fleet-data.service.ts`. Los cambios se mantienen en memoria durante la sesión y no se envían al backend.
+- La documentación de dominio enumera estados sugeridos, pero no define transiciones manuales ni sus restricciones. Por ello, la disponibilidad se puede consultar y filtrar, pero este módulo todavía no cambia estados.
+- Pendiente de decisión de producto: qué transiciones manuales de estado se permiten y bajo qué condiciones para vehículos `Available`, `Assigned`, `InTransit`, `Maintenance` e `Inactive`.
+- `npm run build` y `npm test -- --watch=false` pasan; Angular advierte que los estilos de Fleet, Overview y shell superan el presupuesto de 4 KB, aunque permanecen bajo el límite de error de 8 KB.
+
 ## Auditoría de dependencias
 
 En la instalación del 6 de noviembre de 2026, `npm ci` informó 16 vulnerabilidades moderadas. `npm audit` las atribuye a dependencias de desarrollo de `@angular/cli@21.2.29`: la cadena `pacote` → `@npmcli/*` / `cacache` → `glob` y `minimatch`, además de `sigstore` / `tuf-js`. Afectan herramientas de instalación/CLI (entre otros, traversal de archivos después de timeout y amplificación de patrones); `npm audit --omit=dev` encontró 0 vulnerabilidades en dependencias de producción. El arreglo sugerido por npm cambia Angular CLI a 17.3.17, incompatible con la línea Angular 21 fijada en ADR 0007, por lo que este incremento no actualiza dependencias. Conviene evaluar una actualización coordinada del árbol de tooling y validar la matriz Angular antes de resolverlo.
