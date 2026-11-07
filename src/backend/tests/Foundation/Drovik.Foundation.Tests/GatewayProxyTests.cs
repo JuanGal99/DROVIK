@@ -55,6 +55,28 @@ public class GatewayProxyTests
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
 
+    [Fact]
+    public async Task Cors_allows_credentials_only_for_the_local_angular_origin()
+    {
+        using var factory = new WebApplicationFactory<Drovik.Gateway.Api.GatewayAssemblyMarker>();
+        using var client = factory.CreateClient();
+        using var allowedRequest = new HttpRequestMessage(HttpMethod.Options, "/api/v1/auth/refresh");
+        allowedRequest.Headers.Add("Origin", "http://localhost:4200");
+        allowedRequest.Headers.Add("Access-Control-Request-Method", "POST");
+        allowedRequest.Headers.Add("Access-Control-Request-Headers", "content-type,x-csrf-token");
+        using var allowedResponse = await client.SendAsync(allowedRequest);
+
+        Assert.Equal("http://localhost:4200", allowedResponse.Headers.GetValues("Access-Control-Allow-Origin").Single());
+        Assert.Contains("true", allowedResponse.Headers.GetValues("Access-Control-Allow-Credentials"));
+
+        using var rejectedRequest = new HttpRequestMessage(HttpMethod.Options, "/api/v1/auth/refresh");
+        rejectedRequest.Headers.Add("Origin", "http://evil.example");
+        rejectedRequest.Headers.Add("Access-Control-Request-Method", "POST");
+        using var rejectedResponse = await client.SendAsync(rejectedRequest);
+
+        Assert.False(rejectedResponse.Headers.Contains("Access-Control-Allow-Origin"));
+    }
+
     private sealed class StubDestination : IAsyncDisposable
     {
         private readonly WebApplication _application;
