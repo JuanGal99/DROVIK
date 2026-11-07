@@ -22,7 +22,7 @@ npm test -- --watch=false
 ## Primera entrega de interfaz
 
 - La ruta `/overview` ofrece indicadores sintéticos, una tabla de envíos filtrable y actividad de demostración. Exportar resumen descarga un CSV de esos mismos datos sintéticos.
-- `/operations`, `/shipments`, `/fleet`, `/drivers`, `/customers`, `/incidents`, `/simulation` y `/settings` conservan la navegación, pero muestran que el módulo sigue en preparación.
+- `/operations`, `/shipments`, `/customers`, `/incidents`, `/simulation` y `/settings` conservan la navegación, pero muestran que el módulo sigue en preparación. `/fleet` y `/drivers` ya tienen pantallas funcionales de demostración.
 - Los datos del dashboard viven en `src/app/core/data/overview-data.service.ts`. No se conectan endpoints ni se guarda estado en backend.
 - El mapa se pospone hasta que Simulation entregue posiciones simuladas y un contrato consumible. No se agrega Leaflet sin ese flujo funcional.
 
@@ -33,6 +33,14 @@ npm test -- --watch=false
 - La documentación de dominio enumera estados sugeridos, pero no define transiciones manuales ni sus restricciones. Por ello, la disponibilidad se puede consultar y filtrar, pero este módulo todavía no cambia estados.
 - Pendiente de decisión de producto: qué transiciones manuales de estado se permiten y bajo qué condiciones para vehículos `Available`, `Assigned`, `InTransit`, `Maintenance` e `Inactive`.
 - `npm run build` y `npm test -- --watch=false` pasan; Angular advierte que los estilos de Fleet, Overview y shell superan el presupuesto de 4 KB, aunque permanecen bajo el límite de error de 8 KB.
+
+## Módulo Drivers
+
+- `/drivers` presenta el directorio de perfiles sintéticos con búsqueda, filtro por disponibilidad y paginación. La ficha muestra nombre, categoría/vigencia de licencia y el vehículo asociado en el mock.
+- El servicio `src/app/core/data/drivers-data.service.ts` centraliza los registros sintéticos. El formulario permite crear/editar nombre y datos de licencia en memoria y rechaza nombres duplicados.
+- Las categorías de licencia (por ejemplo C1/C2) y las fechas son datos ficticios; disponibilidad de muestra solo es consultable y filtrable. Los cambios permanecen locales a la sesión.
+- Pendiente de decisión de producto: campos de licencia requeridos, estados/transiciones permitidos de disponibilidad y sus restricciones. No hay persistencia backend.
+- Tras Drivers: `npm run build` pasa y `npm test -- --watch=false` pasa con 8 pruebas; los estilos de Drivers superan el presupuesto de aviso de 4 KB y permanecen bajo el límite de error de 8 KB.
 
 ## Auditoría de dependencias
 
