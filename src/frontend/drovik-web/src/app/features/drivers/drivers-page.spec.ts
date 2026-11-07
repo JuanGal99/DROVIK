@@ -8,7 +8,7 @@ describe('DriversPage', () => {
   it('filters synthetic profiles by current availability', () => {
     const page = TestBed.createComponent(DriversPage).componentInstance;
     page.availabilityFilter.set('Available');
-    expect(page.filtered().length).toBe(5);
+    expect(page.filtered().length).toBe(4);
     expect(page.filtered().every((driver) => driver.availability === 'Available')).toBe(true);
   });
 

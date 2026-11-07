@@ -22,7 +22,7 @@ npm test -- --watch=false
 ## Primera entrega de interfaz
 
 - La ruta `/overview` ofrece indicadores sintéticos, una tabla de envíos filtrable y actividad de demostración. Exportar resumen descarga un CSV de esos mismos datos sintéticos.
-- `/operations`, `/shipments`, `/customers`, `/incidents`, `/simulation` y `/settings` conservan la navegación, pero muestran que el módulo sigue en preparación. `/fleet` y `/drivers` ya tienen pantallas funcionales de demostración.
+- `/operations`, `/customers`, `/incidents`, `/simulation` y `/settings` conservan la navegación, pero muestran que el módulo sigue en preparación. `/fleet`, `/drivers` y `/shipments` ya tienen pantallas funcionales de demostración.
 - Los datos del dashboard viven en `src/app/core/data/overview-data.service.ts`. No se conectan endpoints ni se guarda estado en backend.
 - El mapa se pospone hasta que Simulation entregue posiciones simuladas y un contrato consumible. No se agrega Leaflet sin ese flujo funcional.
 
@@ -41,6 +41,13 @@ npm test -- --watch=false
 - Las categorías de licencia (por ejemplo C1/C2) y las fechas son datos ficticios; disponibilidad de muestra solo es consultable y filtrable. Los cambios permanecen locales a la sesión.
 - Pendiente de decisión de producto: campos de licencia requeridos, estados/transiciones permitidos de disponibilidad y sus restricciones. No hay persistencia backend.
 - Tras Drivers: `npm run build` pasa y `npm test -- --watch=false` pasa con 8 pruebas; los estilos de Drivers superan el presupuesto de aviso de 4 KB y permanecen bajo el límite de error de 8 KB.
+
+## Módulo Shipments
+
+- `/shipments` lista envíos sintéticos con búsqueda, filtro por estado y paginación; permite crear borradores, consultar historial, reservar recursos disponibles y simular transiciones permitidas.
+- La reserva de demostración valida disponibilidad y capacidad mediante los servicios locales de Fleet/Drivers; los cambios permanecen en memoria y no llaman todavía al Gateway.
+- Los borradores permanecen en `Draft` porque la activación a `Pending` requiere una decisión de producto documentada. Las posiciones, eventos y estados mostrados son sintéticos.
+- Tras Shipments: `npm run build` pasa y `npm test -- --watch=false` pasa con 11 pruebas. El estilo de Shipments supera el presupuesto de aviso de 4 KB, pero permanece bajo el límite de error de 10 KB.
 
 ## Auditoría de dependencias
 

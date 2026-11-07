@@ -32,5 +32,4 @@ Thumbs.db
 
 # Logs and local data
 *.log
-data/
-!/src/frontend/drovik-web/src/app/core/data/*.service.ts
+/data/

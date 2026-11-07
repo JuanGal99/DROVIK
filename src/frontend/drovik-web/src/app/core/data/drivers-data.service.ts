@@ -22,7 +22,7 @@ const INITIAL_DRIVERS: Driver[] = [
   { id: 'drv-004', fullName: 'Mateo Cárdenas', licenseCategory: 'B1', licenseExpiresOn: '2028-02-11', availability: 'Available', lastUpdated: '2026-11-06T13:20:00Z' },
   { id: 'drv-005', fullName: 'Sofía Herrera', licenseCategory: 'C2', licenseExpiresOn: '2026-12-19', availability: 'Available', lastUpdated: '2026-11-06T12:58:00Z' },
   { id: 'drv-006', fullName: 'Daniel Pardo', licenseCategory: 'C1', licenseExpiresOn: '2027-06-30', availability: 'Assigned', assignedVehicleId: 'veh-003', lastUpdated: '2026-11-06T12:42:00Z' },
-  { id: 'drv-007', fullName: 'Valentina Gil', licenseCategory: 'B1', licenseExpiresOn: '2028-05-06', availability: 'Available', lastUpdated: '2026-11-06T11:55:00Z' },
+  { id: 'drv-007', fullName: 'Valentina Gil', licenseCategory: 'B1', licenseExpiresOn: '2028-05-06', availability: 'Assigned', assignedVehicleId: 'veh-011', lastUpdated: '2026-11-06T11:55:00Z' },
   { id: 'drv-008', fullName: 'Nicolás Torres', licenseCategory: 'C2', licenseExpiresOn: '2027-11-22', availability: 'Available', lastUpdated: '2026-11-06T11:18:00Z' },
 ];
 

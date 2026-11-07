@@ -34,6 +34,6 @@ describe('FleetPage', () => {
     page.setDraft('center', 'Bogotá · Fontibón');
     page.save();
     expect(page.formError()).toContain('Ya existe');
-    expect(service.vehicles().length).toBe(8);
+    expect(service.vehicles().length).toBe(9);
   });
 });
