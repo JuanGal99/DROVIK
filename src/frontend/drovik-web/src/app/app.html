@@ -1,10 +1,11 @@
+@if (auth.isAuthenticated) {
 <div class="app-frame">
   <button class="mobile-scrim" [class.is-visible]="menuOpen()" (click)="closeMenu()" aria-label="Cerrar navegación"></button>
   <aside class="sidebar" [class.is-open]="menuOpen()" aria-label="Navegación principal">
     <a class="brand" routerLink="/overview" (click)="closeMenu()" aria-label="DROVIK, overview">
       <span class="brand-symbol" aria-hidden="true"><span></span><span></span><span></span></span><span class="brand-name">DROVIK</span><span class="brand-edition">OPS</span>
     </a>
-      <div class="workspace-switcher"><span class="workspace-mark">N</span><span class="workspace-copy"><strong>Northline Logistics</strong><small>Operación principal</small></span></div>
+    <div class="workspace-switcher"><span class="workspace-mark">N</span><span class="workspace-copy"><strong>Northline Logistics</strong><small>Operación principal</small></span></div>
     <p class="nav-label">OPERACIÓN</p>
     <nav class="primary-nav">
       @for (item of navigation; track item.route) {
@@ -12,9 +13,9 @@
       }
     </nav>
     <div class="sidebar-bottom">
-      <div class="system-health"><span class="health-light"></span><span><strong>Modo demostración</strong><small>Backend aún no conectado</small></span></div>
+      <div class="system-health"><span class="health-light"></span><span><strong>Gateway conectado</strong><small>Identity activo · datos de dominio en preparación</small></span></div>
       <a class="nav-item" [routerLink]="settings.route" routerLinkActive="active" (click)="closeMenu()"><i [class]="settings.icon" aria-hidden="true"></i><span>{{ settings.label }}</span></a>
-      <div class="profile-row"><span class="avatar">MR</span><span class="profile-copy"><strong>María Rodríguez</strong><small>Administrator · perfil de demo</small></span></div>
+      <div class="profile-row"><span class="avatar">{{ auth.user()?.email?.slice(0, 2)?.toUpperCase() }}</span><span class="profile-copy"><strong>{{ auth.user()?.email }}</strong><small>{{ auth.user()?.roles?.join(' · ') }}</small></span><button class="logout-button" type="button" aria-label="Cerrar sesión" (click)="logout()"><i class="pi pi-sign-out"></i></button></div>
     </div>
   </aside>
   <div class="main-column">
@@ -26,3 +27,8 @@
     <main class="page-content"><router-outlet /></main>
   </div>
 </div>
+} @else if (!auth.ready()) {
+<main class="auth-loading" aria-live="polite">Conectando con el Gateway…</main>
+} @else {
+<router-outlet />
+}

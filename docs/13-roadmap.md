@@ -21,7 +21,7 @@ Las fases se completan localmente. Capturas/video son materiales de portafolio; 
 ## Fase 2 — Gateway e Identity Service (en progreso)
 - **Gateway (integrado en `main`):** YARP 2.3.0 enruta prefijos versionados a los cinco servicios, configura CORS explícito para Angular local y tiene pruebas de proxy y ruta desconocida.
 - **Identity (integrado y validado en `main`):** ASP.NET Core Identity, roles Administrator/Operator, creación administrada de cuentas, login, access JWT RS256 de 15 minutos, refresh hash de siete días con rotación/familia, logout, `/me`, CSRF y bootstrap explícito de primer administrador. Migración aplicada a SQL Server; readiness y pruebas xUnit 25/25.
-- **Contratos:** revisar tabla Identity de `09-api-and-events.md`; el frontend actual sigue usando datos sintéticos en memoria y aún no implementa el cliente Angular para el Gateway, access token en memoria ni refresh por cookie HttpOnly. Las claves se configuran localmente.
+- **Contratos:** revisar tabla Identity de `09-api-and-events.md`; Angular ya implementa el cliente de Identity mediante el Gateway, access token en memoria y refresh por cookie HttpOnly. Las pantallas de dominio siguen usando datos sintéticos porque sus endpoints aún no existen. Las claves se configuran localmente.
 - **Pendiente para cerrar Fase 2:** prueba de flujo autenticado de navegador completo Angular → Gateway → Identity (cookies, CSRF y CORS en cadena); comprobar configuración de claves públicas y permisos en cada servicio de dominio. Fase 2 no se cierra hasta verificar esos puntos además del build/tests.
 
 ## Fase 3 — Fleet Service

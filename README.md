@@ -50,7 +50,7 @@ La Fase 1 de fundación técnica está completada. Se han creado shells técnico
 5. Desde `src/frontend/drovik-web`, ejecutar `npm ci`, `npm run build` y `npm test -- --watch=false`.
 6. Configurar las connection strings de cada API y claves JWT locales según [guía de ejecución](docs/12-deployment-and-operations.md). La clave privada solo se guarda en User Secrets de Identity; los servicios validadores reciben la clave pública.
 7. Inicializar el primer administrador una sola vez mediante el comando explícito documentado en la guía local. No hay endpoint público de bootstrap ni credenciales predeterminadas.
-8. Ejecutar APIs/gateway desde el IDE o `dotnet run --project <ruta-csproj>` y Angular con `npm start`. Los health checks `/health/live` y `/health/ready` permiten comprobar el proceso y SQL donde aplique.
+8. Ejecutar las APIs en los puertos 5201–5205, Gateway en 5200 y Angular con `npm start` en 4200. Abrir `http://localhost:4200`; el login usa el Gateway y requiere un administrador creado mediante el bootstrap local.
 
 La migración nueva de Identity crea tablas de cuentas, roles y hashes de refresh token; las migraciones de los cuatro servicios de dominio siguen siendo fundacionales. La guía detallada de secretos locales, puertos, JWT y bootstrap está en [docs/12-deployment-and-operations.md](docs/12-deployment-and-operations.md).
 
@@ -58,7 +58,7 @@ El backend podrá ofrecer también ejecución íntegra mediante contenedores com
 
 ## Estado del proyecto
 
-**Fase 1 — Fundación técnica completada. Fase 2 — Gateway e Identity integrada en `main`.** YARP enruta los prefijos de API y Identity tiene login/roles/sesiones con pruebas 25/25; su migración se aplicó a SQL Server local y readiness respondió correctamente. Sigue pendiente verificar el flujo del navegador completo a través del Gateway. El frontend ya contiene el shell responsive, overview, Fleet, Drivers y un módulo de envíos con datos sintéticos en memoria; esas pantallas todavía no consumen el Gateway ni representan datos del backend.
+**Fase 1 — Fundación técnica completada. Fase 2 — Gateway e Identity integrada parcialmente.** YARP enruta los prefijos de API y Identity tiene login/roles/sesiones con pruebas 25/25. El flujo HTTP Angular-contract → Gateway → Identity fue verificado, pero todavía falta una prueba de navegador automatizada. El frontend conecta login, refresh, logout y rutas protegidas; overview, Fleet, Drivers y Shipments siguen usando datos sintéticos porque sus endpoints de negocio aún no existen. Ver el [estado actual de implementación](docs/current-implementation-status.md).
 
 ## Documentación
 

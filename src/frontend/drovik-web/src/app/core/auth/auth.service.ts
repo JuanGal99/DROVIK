@@ -1,0 +1,102 @@
+import { Injectable, signal } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
+import { catchError, finalize, map, Observable, of, shareReplay, switchMap, tap, throwError } from 'rxjs';
+import { environment } from '../../../environments/environment';
+import { AuthResponse, AuthUser, CsrfResponse } from './auth.models';
+
+@Injectable({ providedIn: 'root' })
+export class AuthService {
+  readonly user = signal<AuthUser | null>(null);
+  readonly ready = signal(false);
+  readonly busy = signal(false);
+  readonly error = signal<string | null>(null);
+  private accessToken: string | null = null;
+  private csrfToken: string | null = null;
+  private readonly initialization$: Observable<void>;
+
+  constructor(private readonly http: HttpClient) {
+    this.initialization$ = this.initializeSession().pipe(shareReplay({ bufferSize: 1, refCount: false }));
+  }
+
+  get isAuthenticated(): boolean { return this.user() !== null && this.accessToken !== null; }
+  get token(): string | null { return this.accessToken; }
+
+  initialize(): Observable<void> {
+    return this.initialization$;
+  }
+
+  login(email: string, password: string): Observable<AuthUser> {
+    this.busy.set(true);
+    this.error.set(null);
+    return this.ensureCsrf().pipe(
+      switchMap(() => this.http.post<AuthResponse>(`${environment.gatewayUrl}/api/v1/auth/login`, { email, password }, { withCredentials: true })),
+      tap((response) => this.setSession(response)),
+      map((response) => response.user),
+      catchError((error) => {
+        this.error.set(this.problemMessage(error, 'No se pudo iniciar sesión.'));
+        return throwError(() => error);
+      }),
+      finalize(() => this.busy.set(false)),
+    );
+  }
+
+  refresh(): Observable<AuthUser> {
+    return this.ensureCsrf().pipe(
+      switchMap(() => this.http.post<AuthResponse>(`${environment.gatewayUrl}/api/v1/auth/refresh`, {}, { withCredentials: true })),
+      tap((response) => this.setSession(response)),
+      map((response) => response.user),
+    );
+  }
+
+  logout(): Observable<void> {
+    this.busy.set(true);
+    return this.ensureCsrf().pipe(
+      switchMap(() => this.http.post<void>(`${environment.gatewayUrl}/api/v1/auth/logout`, {}, { withCredentials: true })),
+      catchError((error) => {
+        this.error.set(this.problemMessage(error, 'No se pudo cerrar la sesión.'));
+        return throwError(() => error);
+      }),
+      map(() => undefined),
+      finalize(() => {
+        this.clearSession();
+        this.busy.set(false);
+      }),
+    );
+  }
+
+  clearSession(): void {
+    this.accessToken = null;
+    this.user.set(null);
+  }
+
+  private initializeSession(): Observable<void> {
+    return this.ensureCsrf().pipe(
+      switchMap(() => this.refresh().pipe(catchError(() => of(null)))),
+      tap(() => this.ready.set(true)),
+      map(() => undefined),
+      catchError((error) => {
+        this.error.set(this.problemMessage(error, 'No se pudo conectar con el Gateway.'));
+        this.ready.set(true);
+        return of(undefined);
+      }),
+    );
+  }
+
+  private ensureCsrf(): Observable<string> {
+    if (this.csrfToken) return of(this.csrfToken);
+    return this.http.get<CsrfResponse>(`${environment.gatewayUrl}/api/v1/auth/csrf`, { withCredentials: true }).pipe(
+      tap((response) => this.csrfToken = response.token),
+      map((response) => response.token),
+    );
+  }
+
+  private setSession(response: AuthResponse): void {
+    this.accessToken = response.accessToken;
+    this.user.set(response.user);
+    this.error.set(null);
+  }
+
+  private problemMessage(error: { error?: { detail?: string } }, fallback: string): string {
+    return error.error?.detail ?? fallback;
+  }
+}
