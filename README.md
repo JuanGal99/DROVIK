@@ -57,7 +57,7 @@ El backend podrá ofrecer también ejecución íntegra mediante contenedores com
 
 ## Estado del proyecto
 
-**Fase 1 — Fundación técnica en progreso.** Fase 0 está cerrada documentalmente. Compose, SQL Server, RabbitMQ, las cinco bases y sus migraciones iniciales se validaron localmente; `/health/live` y `/health/ready` respondieron 200 en los cinco servicios y las cinco pruebas xUnit pasan. Aún no existen sesiones, rutas YARP configuradas, endpoints de negocio, simulación ni interfaces operativas. Falta comprobar restauración desde un clon limpio antes de cerrar Fase 1.
+**Fase 1 — Fundación técnica en progreso.** El commit `39ecc65` versiona la solución .NET, los cinco servicios, Gateway, migraciones iniciales, workspace Angular, lockfiles y Compose. En el entorno local se verificaron restauración NuGet bloqueada, compilación backend, 5/5 pruebas xUnit, `npm ci`, compilación Angular y 2/2 pruebas frontend; SQL Server y RabbitMQ estaban saludables y `docker compose config --quiet` pasó. La verificación específica desde un clon limpio sigue pendiente, por lo que Fase 1 no está cerrada. No existen todavía interfaces operativas ni funcionalidades de negocio.
 
 ## Documentación
 

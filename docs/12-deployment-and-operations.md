@@ -58,10 +58,20 @@ En esta máquina `.env` se creó localmente con contraseñas aleatorias y está 
 
 Se ejecutó `docker compose down` seguido de `docker compose up -d` sin `-v`: ambos contenedores regresaron a `healthy` y una consulta posterior confirmó que las cinco bases persistieron.
 
-## 12.8 Verificación desde worktree limpio
+## 12.8 Estado de validación desde el commit de fundación
 
-El 2026-11-06 se creó un worktree detached desde `HEAD` (`06012956a0075593d107e3e5b922c49eceaa7fc4`) para comprobar la restauración sin incluir cambios locales ni credenciales. El resultado fue **fallido por falta de archivos versionados**: ese commit no contiene `compose.yaml`, `.env.example`, `global.json`, `.nvmrc`, la solución/proyectos de backend ni el workspace/manifest/lockfile de frontend. La guía y el README presentes en ese commit son anteriores a las decisiones aprobadas y todavía mencionan despliegue público y Redis.
+El 2026-11-07 se validó el commit `39ecc65` en el directorio de trabajo. La solución y configuración necesarias quedaron versionadas en ese commit: `compose.yaml`, `.env.example`, `global.json`, `.nvmrc`, solución y proyectos backend, migraciones, workspace Angular, `package.json` y lockfiles. Esta validación no se ejecutó desde una carpeta recién clonada; la comprobación específica de clon limpio sigue pendiente.
 
-En el worktree, `docker compose config --quiet` terminó con “no configuration file provided”; `dotnet restore .../src/backend/Drovik.sln --locked-mode` terminó con MSB1009 porque la solución no existe. No se pudo ejecutar `npm ci`, compilar, probar, iniciar migraciones ni comprobar health checks desde ese estado porque faltan los archivos de proyecto y los servicios. No se iniciaron ni modificaron contenedores, bases de datos o volúmenes con el worktree limpio. La infraestructura preexistente del entorno principal permaneció intacta.
+Resultados ejecutados en Windows con .NET SDK 10.0.403 y Node.js 24.11.1/npm 11.6.2:
+- `dotnet tool restore`: correcto; restauró dotnet-ef 10.0.14.
+- `dotnet restore --locked-mode`: correcto para los siete proyectos.
+- `dotnet build --no-restore`: correcto, cero advertencias y cero errores.
+- `dotnet test --no-build`: correcto, 5/5 pruebas.
+- `npm ci`: correcto tras un primer intento fallido con `ENOTEMPTY` al limpiar `node_modules` bajo OneDrive; el reintento terminó normalmente.
+- `npm run build`: correcto.
+- `npm test -- --watch=false`: correcto, 2/2 pruebas.
+- `docker compose config --quiet`: correcto. La CLI de Docker no estaba en el `PATH` de PowerShell; al añadir temporalmente la ruta de Docker Desktop, se confirmó que SQL Server y RabbitMQ existentes estaban `healthy`. No se reiniciaron ni modificaron contenedores, bases ni volúmenes.
 
-En la carpeta principal existe `.env` local y `.gitignore` lo excluye; `.env.example` existe, pero no está versionado en `HEAD`, por lo que un clon no puede obtener la plantilla. No se copiaron valores secretos al worktree ni se registraron en este documento. Los cambios locales actuales no son parte de un clon desde `HEAD`; deben revisarse e integrarse/versionarse antes de repetir la prueba. Este intento no satisface el criterio de restauración limpia y Fase 1 permanece abierta.
+`npm ci` reportó 16 vulnerabilidades moderadas en el árbol de dependencias. No se actualizaron dependencias; revisar el informe de `npm audit` en un cambio dedicado antes de considerar actualizaciones. El `.env` local permanece excluido por Git y no se versiona; `.env.example` sí está incluido. No se copiaron secretos al repositorio.
+
+Fase 1 permanece abierta hasta ejecutar y documentar la verificación desde un clon limpio y cerrar los criterios restantes del roadmap.
