@@ -1,14 +1,20 @@
 # 8. Seguridad y permisos
 
-## 8.1 Decisiones de sesión aprobadas
+## 8.1 Sesión y comunicación del navegador aprobadas
 
-Identity Service autentica y administra la sesión. El navegador recibe cookie HttpOnly; Secure cuando la conexión usa HTTPS; SameSite se ajusta al modelo de origen. Nunca guardar tokens sensibles en localStorage. Cada servicio valida identidad y aplica sus propias reglas.
+Identity Service autentica y administra sesiones. Angular (`http://localhost:4200`) llama exclusivamente al Gateway (`http://localhost:5200`); no se comunica directamente con servicios internos. El Gateway enruta `/api/v1/auth` a Identity y es el único punto CORS del navegador.
 
-Criterios de implementación aprobados: sesión con expiración definida, renovación protegida, revocación en Identity, cierre de sesión que invalida sesión y expira cookie, y pruebas de expiración/renovación/logout. Las duraciones concretas se fijarán antes de implementar Identity.
+El contrato usa access JWT firmado, de 15 minutos, devuelto en el cuerpo del login/refresh y conservado solo en memoria por el cliente. Se envía como `Authorization: Bearer`; nunca se persiste en `localStorage` o `sessionStorage`. El refresh token opaco dura 7 días, se almacena en Identity solo mediante hash y viaja en cookie `HttpOnly`, con `Path=/api/v1/auth`, `SameSite=Lax`, y `Secure` cuando se usa HTTPS. Para peticiones cross-origin del navegador se envía `credentials: include`; el Gateway permite credenciales únicamente al origen explícito `http://localhost:4200`, nunca wildcard. No existe proxy del Angular CLI configurado actualmente.
 
-Para cookies, proteger operaciones mutables contra CSRF con token anti-CSRF y validación de origen (o mecanismo equivalente probado). CORS permite solo los orígenes explícitos de desarrollo; usar credenciales sin wildcard. SameSite debe ser Lax cuando el flujo local same-site lo permita y ajustarse si el despliegue cambia; no relajar sin documentar la protección CSRF.
+Login rota/emite refresh; refresh rota cada token y su reutilización revoca su familia; logout revoca la sesión de refresh y expira la cookie. Como los servicios de dominio no leen la base de datos de Identity, un access JWT ya emitido puede seguir válido hasta su expiración (máximo 15 minutos) después del logout; no se consultarán tablas de Identity desde otros servicios.
 
-Identity emite/gestiona la sesión; Gateway enruta. Cada servicio valida identidad y aplica policies/claims de dominio. El Gateway no sustituye autorización local.
+Las operaciones autenticadas por Bearer JWT no dependen de cookie. Login, refresh y logout validan un token anti-CSRF enviado en `X-CSRF-TOKEN`, cookie CSRF y `Origin` esperado; refresh/logout además requieren cookie refresh. El endpoint CSRF emite un valor impredecible en JSON y cookie HttpOnly; el cliente conserva el valor en memoria y lo envía en el header. El servidor compara header y cookie en tiempo constante. CORS permite únicamente métodos/headers necesarios, `Authorization`, `Content-Type`, `X-CSRF-TOKEN`, y credenciales desde orígenes explícitos. SameSite se mantiene Lax para el flujo local same-site y no se relaja sin rediseñar/documentar CSRF.
+
+Parámetros aprobados: JWT de 15 minutos, refresh de 7 días, almacenamiento solo hash, rotación, rechazo y revocación ante reutilización, expiración/revocación al cerrar sesión. Las claves de firma se configuran fuera del repositorio; Identity conserva privada y los validadores reciben pública. Validar firma, issuer, audience y expiración.
+
+Configuración inicial de contraseñas para cuentas creadas por Identity: mínimo de 12 caracteres y al menos un dígito, minúscula, mayúscula y carácter no alfanumérico, mediante validadores ASP.NET Core Identity. Login limita a 10 intentos por minuto y por IP con ventana fija; respuestas no revelan si el correo existe.
+
+Cada servicio valida identidad y aplica sus reglas de autorización; Gateway enruta, no autoriza por cuenta de dominio. Roles iniciales: `Administrator` y `Operator`.
 
 ## 8.2 Permisos
 

@@ -8,6 +8,8 @@
 |---|---:|
 | .NET SDK / ASP.NET Core | 10.0.403 / `net10.0` |
 | Entity Framework Core y SQL Server provider | 10.0.14 |
+| YARP Reverse Proxy | 2.3.0 |
+| Microsoft.AspNetCore.Mvc.Testing | 10.0.14 |
 | dotnet-ef | 10.0.14 |
 | xUnit / Visual Studio runner | 2.9.3 / 3.1.4 |
 | Microsoft.NET.Test.Sdk / coverlet.collector | 17.14.1 / 6.0.4 |

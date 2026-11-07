@@ -2,7 +2,7 @@
 
 ## 4.1 Servicios aprobados
 
-- **Identity Service:** usuarios, credenciales, roles y sesiones; no es dueño de perfiles de conductores.
+- **Identity Service:** usuarios, credenciales, roles, JWT access y sesiones de refresh; crea usuarios solo por Administrator y no expone bootstrap público; no es dueño de perfiles de conductores.
 - **Fleet Service:** vehículos, conductores, centros y estados de flota. Publica VehicleAvailabilityChanged, VehicleMaintenanceStatusChanged, DriverAvailabilityChanged.
 - **Shipment Service:** clientes, envíos, asignaciones e historial. Publica ShipmentCreated, ShipmentAssigned, ShipmentStatusChanged, ShipmentDelivered, ShipmentCancelled; mantiene proyecciones locales mínimas de recursos cuando sean necesarias.
 - **Simulation Service:** ejecuciones, estado simulado, geometrías/referencias de ruta y eventos. Consume órdenes/eventos y publica SimulationStarted, VehiclePositionUpdated, VehicleBreakdownDetected, RouteDelayDetected, RouteDeviationDetected, SimulationCompleted y SimulationPaused.

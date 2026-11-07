@@ -10,7 +10,7 @@ El aislamiento físico de bases por servicio en despliegues futuros no es requis
 
 | Servicio | Datos de propiedad |
 |---|---|
-| Identity | Users, Roles, UserRoles, sesiones y revocaciones si se implementan |
+| Identity | Users, Roles, UserRoles, RefreshTokens (solo hashes y estado de revocación) |
 | Fleet | Vehicles, Drivers, DistributionCenters |
 | Shipment | Customers, Shipments, Assignments, StatusHistory |
 | Simulation | SimulationRuns, VehicleStates, SimulationEvents, RouteGeometry |

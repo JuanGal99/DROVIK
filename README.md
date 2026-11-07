@@ -48,16 +48,17 @@ La Fase 1 de fundación técnica está completada. Se han creado shells técnico
 3. En Windows, si PowerShell no reconoce `docker`, añadir al `PATH` de la sesión la carpeta CLI de Docker Desktop con `$env:PATH="$env:LOCALAPPDATA\Programs\DockerDesktop\resources\bin;$env:PATH"`. Iniciar SQL Server y RabbitMQ con `docker compose up -d`; comprobar que ambos aparecen `healthy` con `docker compose ps`.
 4. Desde `src/backend`, ejecutar `dotnet tool restore`, `dotnet restore --locked-mode`, `dotnet build` y `dotnet test`.
 5. Desde `src/frontend/drovik-web`, ejecutar `npm ci`, `npm run build` y `npm test -- --watch=false`.
-6. Configurar `ConnectionStrings:IdentityDatabase`, `FleetDatabase`, `ShipmentDatabase`, `SimulationDatabase` e `IncidentDatabase` mediante User Secrets en cada proyecto API, apuntando a `127.0.0.1,1433`. Los servicios aplican sus migraciones vacías al iniciar en `Development`.
-7. Ejecutar APIs/gateway desde el IDE o `dotnet run --project <ruta-csproj>` y Angular con `npm start`. Los health checks `/health/live` y `/health/ready` permiten comprobar el proceso y SQL donde aplique.
+6. Configurar las connection strings de cada API y claves JWT locales según [guía de ejecución](docs/12-deployment-and-operations.md). La clave privada solo se guarda en User Secrets de Identity; los servicios validadores reciben la clave pública.
+7. Inicializar el primer administrador una sola vez mediante el comando explícito documentado en la guía local. No hay endpoint público de bootstrap ni credenciales predeterminadas.
+8. Ejecutar APIs/gateway desde el IDE o `dotnet run --project <ruta-csproj>` y Angular con `npm start`. Los health checks `/health/live` y `/health/ready` permiten comprobar el proceso y SQL donde aplique.
 
-Las migraciones actuales no contienen entidades de negocio ni datos seed. El gateway todavía no tiene rutas YARP configuradas; eso corresponde a Fase 2. La guía detallada de credenciales locales, puertos y apagado está en [docs/12-deployment-and-operations.md](docs/12-deployment-and-operations.md).
+La migración nueva de Identity crea tablas de cuentas, roles y hashes de refresh token; las migraciones de los cuatro servicios de dominio siguen siendo fundacionales. La guía detallada de secretos locales, puertos, JWT y bootstrap está en [docs/12-deployment-and-operations.md](docs/12-deployment-and-operations.md).
 
 El backend podrá ofrecer también ejecución íntegra mediante contenedores como modalidad alternativa si se documenta y prueba. Redis, OSRM y servicios cloud no son necesarios para los flujos principales. Guía detallada: [docs/12-deployment-and-operations.md](docs/12-deployment-and-operations.md).
 
 ## Estado del proyecto
 
-**Fase 1 — Fundación técnica completada.** La solución, cinco servicios, Gateway, migraciones iniciales, workspace Angular, lockfiles y Compose están versionados en `main`. La restauración desde un clon limpio de GitHub pasó: .NET compiló con cero advertencias/errores y 5/5 pruebas xUnit; Angular instaló con `npm ci`, compiló y pasó 2/2 pruebas. `docker compose config --quiet` pasó y SQL Server/RabbitMQ locales estaban saludables. No se iniciaron servicios desde el clon para evitar interferir con los contenedores y volúmenes existentes. No hay aún funcionalidades operativas de negocio ni interfaces implementadas.
+**Fase 1 — Fundación técnica completada. Fase 2 — Gateway e Identity en curso en `feature/backend-next`.** YARP enruta los prefijos de API y Identity tiene login/roles/sesiones con pruebas 25/25; su migración se aplicó a SQL Server local y readiness respondió correctamente. Sigue pendiente verificar el flujo del navegador completo a través del Gateway. Fleet, Shipment, Simulation e Incident siguen siendo shells técnicos. El frontend aún no contiene pantallas operativas.
 
 ## Documentación
 
