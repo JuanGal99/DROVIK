@@ -78,6 +78,7 @@ export class AuthService {
 
   clearSession(): void {
     this.accessToken = null;
+    this.csrfToken = null;
     this.user.set(null);
   }
 

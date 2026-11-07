@@ -1,13 +1,13 @@
 <section class="fleet-page" aria-labelledby="fleet-title">
   <div class="page-heading">
     <div><div class="heading-meta"><i class="pi pi-truck" aria-hidden="true"></i> RECURSOS OPERATIVOS <span>/</span> CATÁLOGO</div><h1 id="fleet-title">Flota</h1><p>Vehículos registrados y su estado operativo actual.</p></div>
-    <div class="heading-actions"><span class="demo-label"><i class="pi pi-database" aria-hidden="true"></i> Datos sintéticos · sesión local</span><button class="primary-action" type="button" (click)="openCreate()"><i class="pi pi-plus" aria-hidden="true"></i> Registrar vehículo</button></div>
+    <div class="heading-actions"><span class="demo-label"><i class="pi pi-database" aria-hidden="true"></i> Datos persistidos · API de Flota</span><button class="primary-action" type="button" (click)="openCreate()"><i class="pi pi-plus" aria-hidden="true"></i> Registrar vehículo</button></div>
   </div>
   <div class="summary-strip" aria-label="Resumen de flota">
-    <div><span>Vehículos de muestra</span><strong>{{ data.vehicles().length }}</strong></div>
+    <div><span>Vehículos registrados</span><strong>{{ data.vehicles().length }}</strong></div>
     <div><span>Disponibles</span><strong class="text-success">{{ availableCount() }}</strong></div>
     <div><span>En mantenimiento</span><strong class="text-warning">{{ serviceCount() }}</strong></div>
-    <div class="summary-note"><i class="pi pi-info-circle" aria-hidden="true"></i> La disponibilidad se muestra desde el catálogo sintético.</div>
+    <div class="summary-note"><i class="pi pi-info-circle" aria-hidden="true"></i> Estado consultado desde la API de Flota.</div>
   </div>
   <div class="section-heading"><div><h2>Vehículos</h2><p>Consulta fichas y actualiza los datos del catálogo.</p></div><span class="result-count">{{ filtered().length }} resultados</span></div>
   <section class="table-panel" aria-label="Listado de vehículos">
@@ -16,7 +16,7 @@
       <label class="filter-field"><span>Estado</span><select aria-label="Filtrar vehículos por estado" [ngModel]="statusFilter()" (ngModelChange)="statusFilter.set($event); updateFilter()"><option>Todos</option>@for (status of statuses; track status) { <option [value]="status">{{ statusLabel(status) }}</option> }</select></label>
       <label class="filter-field"><span>Tipo</span><select aria-label="Filtrar vehículos por tipo" [ngModel]="typeFilter()" (ngModelChange)="typeFilter.set($event); updateFilter()"><option>Todos</option>@for (type of types; track type) { <option [value]="type">{{ type }}</option> }</select></label>
     </div>
-    @if (data.loading()) { <div class="state-message"><i class="pi pi-spin pi-spinner" aria-hidden="true"></i> Cargando vehículos sintéticos…</div> }
+    @if (data.loading()) { <div class="state-message"><i class="pi pi-spin pi-spinner" aria-hidden="true"></i> Cargando vehículos…</div> }
     @else if (data.error()) { <div class="state-message error-state" role="alert"><i class="pi pi-exclamation-triangle" aria-hidden="true"></i>{{ data.error() }}<button type="button" (click)="data.loadVehicles().subscribe({next: () => data.loading.set(false), error: () => data.error.set('No se pudo cargar la flota de demostración.')})">Reintentar</button></div> }
     @else {
       <div class="table-scroll"><table><thead><tr><th>VEHÍCULO</th><th>TIPO</th><th>CAPACIDAD</th><th>CENTRO</th><th>ODÓMETRO</th><th>ESTADO</th><th><span class="sr-only">Acciones</span></th></tr></thead><tbody>
@@ -24,7 +24,7 @@
         @empty { <tr><td colspan="7" class="empty-row"><i class="pi pi-search" aria-hidden="true"></i><strong>No hay vehículos para mostrar</strong><span>Ajusta los filtros o registra un vehículo nuevo.</span></td></tr> }
       </tbody></table></div>
     }
-    <footer class="table-footer"><span>Datos sintéticos · los cambios viven solo en esta sesión</span>@if (filtered().length) { <div class="pagination"><button type="button" aria-label="Página anterior" [disabled]="page() === 1" (click)="changePage(-1)"><i class="pi pi-angle-left"></i></button><span>Página {{ page() }} de {{ pageCount() }}</span><button type="button" aria-label="Página siguiente" [disabled]="page() === pageCount()" (click)="changePage(1)"><i class="pi pi-angle-right"></i></button></div> }</footer>
+    <footer class="table-footer"><span>Datos persistidos en SQL Server · API de Flota</span>@if (filtered().length) { <div class="pagination"><button type="button" aria-label="Página anterior" [disabled]="page() === 1" (click)="changePage(-1)"><i class="pi pi-angle-left"></i></button><span>Página {{ page() }} de {{ pageCount() }}</span><button type="button" aria-label="Página siguiente" [disabled]="page() === pageCount()" (click)="changePage(1)"><i class="pi pi-angle-right"></i></button></div> }</footer>
   </section>
 
   @if (selected(); as vehicle) {
@@ -49,7 +49,7 @@
         <label>Centro de distribución<input name="center" required maxlength="80" [ngModel]="draft().center" (ngModelChange)="setDraft('center', $event)"></label>
         </div>
         @if (formError()) { <p class="form-error" role="alert">{{ formError() }}</p> }
-        <footer><button class="secondary-action" type="button" (click)="editorOpen.set(false)">Cancelar</button><button class="primary-action" type="submit" [disabled]="vehicleForm.invalid">{{ editingId() ? 'Guardar cambios locales' : 'Añadir al catálogo' }}</button></footer>
+        <footer><button class="secondary-action" type="button" (click)="editorOpen.set(false)">Cancelar</button><button class="primary-action" type="submit" [disabled]="vehicleForm.invalid">{{ editingId() ? 'Guardar cambios' : 'Añadir al catálogo' }}</button></footer>
       </form>
     </section>
   }

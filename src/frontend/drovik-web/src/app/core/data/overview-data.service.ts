@@ -1,4 +1,6 @@
-import { Injectable } from '@angular/core';
+import { computed, Injectable, inject } from '@angular/core';
+import { Observable } from 'rxjs';
+import { FleetDataService } from './fleet-data.service';
 
 export type ShipmentState = 'En tránsito' | 'Pendiente' | 'Retrasado' | 'Entregado';
 export interface ShipmentRow { id: string; destination: string; customer: string; eta: string; state: ShipmentState; vehicle: string; }
@@ -6,14 +8,27 @@ export interface ActivityItem { time: string; title: string; detail: string; ton
 
 @Injectable({ providedIn: 'root' })
 export class OverviewDataService {
+  private readonly fleet = inject(FleetDataService);
   readonly synthetic = true;
   readonly openIncidentCount = 3;
-  readonly metrics = [
-    { label: 'Envíos del día', value: '128', context: '34 en tránsito · 94 pendientes', icon: 'pi pi-box', tone: 'blue' },
-    { label: 'Flota disponible', value: '18 / 24', context: '75% de vehículos listos', icon: 'pi pi-truck', tone: 'green' },
-    { label: 'Incidencias abiertas', value: '3', context: '1 requiere atención prioritaria', icon: 'pi pi-exclamation-circle', tone: 'amber' },
-    { label: 'Entregas a tiempo', value: '92.4%', context: 'En la operación de hoy', icon: 'pi pi-check-circle', tone: 'cyan' },
-  ] as const;
+  readonly fleetLoading = this.fleet.loading;
+  readonly fleetError = this.fleet.error;
+  readonly metrics = computed(() => {
+    const vehicles = this.fleet.vehicles();
+    const available = vehicles.filter((vehicle) => vehicle.status === 'Available').length;
+    const percentage = vehicles.length ? Math.round((available / vehicles.length) * 100) : 0;
+    const fleetUnavailable = this.fleetLoading() || !!this.fleetError();
+    return [
+      { label: 'Envíos del día', value: '128', context: '34 en tránsito · 94 pendientes', icon: 'pi pi-box', tone: 'blue' },
+      { label: 'Flota disponible', value: fleetUnavailable ? '—' : `${available} / ${vehicles.length}`, context: this.fleetLoading() ? 'Consultando API de Flota…' : this.fleetError() ? 'No disponible temporalmente' : `${percentage}% de vehículos listos`, icon: 'pi pi-truck', tone: 'green' },
+      { label: 'Incidencias abiertas', value: '3', context: '1 requiere atención prioritaria', icon: 'pi pi-exclamation-circle', tone: 'amber' },
+      { label: 'Entregas a tiempo', value: '92.4%', context: 'En la operación de hoy', icon: 'pi pi-check-circle', tone: 'cyan' },
+    ] as const;
+  });
+
+  loadFleet(): Observable<unknown> {
+    return this.fleet.loadVehicles();
+  }
 
   readonly shipments: ShipmentRow[] = [
     { id: 'SH-2048', destination: 'Chapinero, Bogotá', customer: 'Mercado Central', eta: '10:24', state: 'En tránsito', vehicle: 'TRK-018' },

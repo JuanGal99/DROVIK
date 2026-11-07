@@ -27,6 +27,73 @@ No existe autorregistro público ni endpoint de bootstrap. Login tiene rate limi
 
 Identity publica el documento OpenAPI en `/openapi/v1.json` en el puerto local 5201 para inspección durante el desarrollo. La tabla anterior define el contrato de integración del navegador a través de YARP.
 
+### Fleet Service v1 — contrato implementado
+
+Las rutas de Fleet se consumen únicamente a través de YARP y requieren el rol `Administrator` u `Operator`. Los listados devuelven `{ items, totalCount, page, pageSize }`; `pageSize` se limita a 100. `DELETE` desactiva el recurso para conservar trazabilidad.
+
+| Método y ruta | Entrada | Éxito |
+|---|---|---|
+| `GET /api/v1/vehicles?search=&status=&type=&page=&pageSize=` | Query opcional | 200 paginado |
+| `GET /api/v1/vehicles/{id}` | — | 200 `VehicleResponse` o 404 |
+| `POST /api/v1/vehicles` | `plate`, `model`, `type`, `capacityKg`, `currentOdometer`, `distributionCenterId` | 201; placa única y centro activo |
+| `PUT /api/v1/vehicles/{id}` | Mismos campos de creación | 200 o 409 |
+| `PATCH /api/v1/vehicles/{id}/status` | `{ status }` | 200 |
+| `DELETE /api/v1/vehicles/{id}` | — | 200 con estado `Inactive` |
+| `GET /api/v1/drivers?search=&availability=&page=&pageSize=` | Query opcional | 200 paginado |
+| `GET /api/v1/drivers/{id}` | — | 200 `DriverResponse` o 404 |
+| `POST /api/v1/drivers` | `fullName`, `licenseCategory`, `licenseExpiresOn` | 201; nombre único |
+| `PUT /api/v1/drivers/{id}` | Mismos campos de creación | 200 o 409 |
+| `PATCH /api/v1/drivers/{id}/availability` | `{ availability }` | 200 |
+| `DELETE /api/v1/drivers/{id}` | — | 200 con disponibilidad `Inactive` |
+| `GET /api/v1/centers` | — | 200 con centros activos |
+
+### Shipment Service v1 — contrato implementado
+
+Las rutas de Shipment requieren `Administrator` u `Operator`. El servicio conserva la propiedad de sus envíos e historial; la disponibilidad de Fleet se consulta únicamente mediante la reserva HTTP explícita.
+
+| Método y ruta | Entrada | Éxito |
+|---|---|---|
+| `GET /api/v1/shipments?search=&status=&priority=&page=&pageSize=` | Query opcional | 200 paginado |
+| `GET /api/v1/shipments/{id}` | — | 200 `ShipmentResponse` o 404 |
+| `POST /api/v1/shipments` | `customerId`, `originCenterId`, `destination`, coordenadas, `weightKg`, `priority` | 201 como `Pending` |
+| `PUT /api/v1/shipments/{id}` | Destino, coordenadas, peso y prioridad | 200; solo pendiente |
+| `POST /api/v1/shipments/{id}/assign` | `vehicleId`, `driverId`, `idempotencyKey` | 200; reserva y confirmación Fleet |
+| `POST /api/v1/shipments/{id}/status` | `status`, `note` opcional | 200; libera Fleet al entregar o cancelar |
+
+Fleet expone `POST /api/v1/reservations`, `/confirm` y `/release` para este flujo. Las reservas tienen clave de idempotencia y TTL; la migración `FleetReservations` completa su persistencia.
+
+La reserva ejecuta una transacción local `Serializable`, consulta la clave de idempotencia dentro de la transacción y aplica un índice único. Las reservas expiradas se liberan al intentar reutilizar sus recursos; `confirm` es idempotente para una reserva ya confirmada y rechaza reservas expiradas. `release` no libera recursos si existe otra reserva activa para el mismo vehículo o conductor.
+
+### Incident Service v1 — contrato implementado
+
+Las rutas de Incident se consumen mediante YARP y requieren los roles `Administrator` u `Operator`. Las referencias `vehicleId` y `shipmentId` son identificadores opacos; Incident no consulta las bases de Fleet o Shipment.
+
+| Método y ruta | Entrada | Éxito |
+|---|---|---|
+| `GET /api/v1/incidents?status=&severity=&type=&fromUtc=&toUtc=&page=&pageSize=` | Filtros opcionales | 200 paginado |
+| `GET /api/v1/incidents/{id}` | — | 200 detalle o 404 |
+| `POST /api/v1/incidents` | `type`, `severity`, `description`, `vehicleId` opcional, `shipmentId` opcional | 201 como `Open` |
+| `PATCH /api/v1/incidents/{id}/status` | `{ status, note }` | 200; solo transiciones válidas |
+| `POST /api/v1/incidents/{id}/resolve` | `{ resolutionNote }` | 200; registra actor y fecha UTC |
+
+Tipos: `MechanicalFailure`, `Delay`, `Safety`, `Delivery`, `Other`. Severidades: `Low`, `Medium`, `High`, `Critical`. Estados: `Open`, `InProgress`, `Resolved`, `Closed`. Las transiciones permitidas son `Open -> InProgress|Resolved`, `InProgress -> Resolved` y `Resolved -> Closed`. Cada cambio se registra en `IncidentActivities`.
+
+Incident publica sus eventos mediante Outbox; la topología y el consumidor de auditoría se describen en la sección de implementación inicial.
+
+### Eventos y Outbox v1 — implementación inicial
+
+Fleet, Shipment e Incident escriben sus eventos en una tabla `OutboxMessages` dentro de la misma transacción local que modifica sus datos. Un dispatcher por servicio publica registros pendientes en el exchange durable `drovik.events.v1`; si RabbitMQ no está disponible, el registro permanece pendiente y se reintenta con backoff exponencial hasta el máximo configurado. Un fallo posterior a la publicación puede producir una redelivería, por lo que los consumidores deben ser idempotentes.
+
+El envelope JSON contiene `eventId`, `eventType`, `occurredAtUtc`, `correlationId`, `contractVersion` y `payload`. Las routing keys son los nombres de evento:
+
+| Productor | Eventos publicados | Consumidor actual |
+|---|---|---|
+| Fleet | `VehicleAvailabilityChanged`, `DriverAvailabilityChanged` | Incident audit |
+| Shipment | `ShipmentCreated`, `ShipmentAssigned`, `ShipmentStatusChanged`, `ShipmentDelivered`, `ShipmentCancelled` | Incident audit |
+| Incident | `IncidentCreated`, `IncidentStatusChanged`, `IncidentResolved` | Pendiente de consumidor |
+
+Incident consume los eventos de Fleet y Shipment en la cola durable `drovik.incident.audit.v1`, confirma manualmente (`ack`) solo después de insertar `ProcessedEvents` y descarta redeliverías cuyo `eventId` ya existe. Los errores no procesables se envían al exchange `drovik.events.dlx.v1` sin reintentos infinitos. No se comparten entidades ni tablas entre servicios.
+
 ## 9.2 Envelope y versionado de eventos
 
 Campos mínimos aprobados: `EventId` (UUID), `EventType` (nombre estable PascalCase), `EventVersion` (entero), `OccurredAtUtc` (ISO-8601 UTC), `CorrelationId` y `Data` (contrato del evento). Se recomienda `CausationId` opcional para trazabilidad. Nombres de eventos en inglés; no publicar entidades de persistencia ni secretos.

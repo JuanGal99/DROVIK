@@ -59,4 +59,27 @@ describe('AuthService', () => {
     expect(completed).toBe(true);
     expect(service.isAuthenticated).toBe(true);
   });
+
+  it('requests a new CSRF token after the session is cleared', () => {
+    service.login('operator@example.com', 'Password-1234!').subscribe();
+    http.expectOne('http://localhost:5200/api/v1/auth/csrf').flush({ token: 'first-csrf-token' });
+    http.expectOne('http://localhost:5200/api/v1/auth/login').flush({
+      accessToken: 'access-token',
+      tokenType: 'Bearer',
+      expiresAtUtc: '2026-11-07T01:00:00Z',
+      user: { id: 'user-1', email: 'operator@example.com', roles: ['Operator'] },
+    });
+
+    service.clearSession();
+    service.login('operator@example.com', 'Password-1234!').subscribe();
+    http.expectOne('http://localhost:5200/api/v1/auth/csrf').flush({ token: 'second-csrf-token' });
+    const login = http.expectOne('http://localhost:5200/api/v1/auth/login');
+    expect(login.request.headers.get('X-CSRF-TOKEN')).toBe('second-csrf-token');
+    login.flush({
+      accessToken: 'second-access-token',
+      tokenType: 'Bearer',
+      expiresAtUtc: '2026-11-07T01:00:00Z',
+      user: { id: 'user-1', email: 'operator@example.com', roles: ['Operator'] },
+    });
+  });
 });

@@ -18,16 +18,34 @@ public class InitialMigrationTests
     }
 
     [Fact]
-    public void Fleet_database_has_initial_migration() => AssertInitialMigration(new FleetDbContextFactory().CreateDbContext([]));
+    public void Fleet_database_has_initial_and_business_migrations()
+    {
+        using var context = new FleetDbContextFactory().CreateDbContext([]);
+        var migrations = context.Database.GetMigrations().ToArray();
+        Assert.Contains("20261107001042_InitialCreate", migrations);
+        Assert.Contains(migrations, migration => migration.EndsWith("_FleetBusiness", StringComparison.Ordinal));
+    }
 
     [Fact]
-    public void Shipment_database_has_initial_migration() => AssertInitialMigration(new ShipmentDbContextFactory().CreateDbContext([]));
+    public void Shipment_database_has_initial_and_business_migrations()
+    {
+        using var context = new ShipmentDbContextFactory().CreateDbContext([]);
+        var migrations = context.Database.GetMigrations().ToArray();
+        Assert.Contains("20261107001050_InitialCreate", migrations);
+        Assert.Contains(migrations, migration => migration.EndsWith("_ShipmentBusiness", StringComparison.Ordinal));
+    }
 
     [Fact]
     public void Simulation_database_has_initial_migration() => AssertInitialMigration(new SimulationDbContextFactory().CreateDbContext([]));
 
     [Fact]
-    public void Incident_database_has_initial_migration() => AssertInitialMigration(new IncidentDbContextFactory().CreateDbContext([]));
+    public void Incident_database_has_initial_and_business_migrations()
+    {
+        using var context = new IncidentDbContextFactory().CreateDbContext([]);
+        var migrations = context.Database.GetMigrations().ToArray();
+        Assert.Contains("20261107001112_InitialCreate", migrations);
+        Assert.Contains(migrations, migration => migration.EndsWith("_IncidentBusiness", StringComparison.Ordinal));
+    }
 
     private static void AssertInitialMigration(DbContext context)
     {

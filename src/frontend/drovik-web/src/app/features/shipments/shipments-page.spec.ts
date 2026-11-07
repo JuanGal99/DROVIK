@@ -1,40 +1,47 @@
+import { signal } from '@angular/core';
+import { of } from 'rxjs';
 import { TestBed } from '@angular/core/testing';
 import { ShipmentsPage } from './shipments-page';
 import { ShipmentsDataService } from '../../core/data/shipments-data.service';
+import { FleetDataService } from '../../core/data/fleet-data.service';
+import { DriversDataService } from '../../core/data/drivers-data.service';
+
+const shipment = {
+  id: 'shipment-1', trackingCode: 'SH-001', customerId: 'cus-001', originCenterId: 'center-1',
+  destination: 'Bogotá', destinationLatitude: 0, destinationLongitude: 0, weightKg: 100,
+  priority: 'Normal' as const, status: 'Pending' as const, createdAt: '2026-11-07T00:00:00Z', statusHistory: [],
+};
+const fleetStub = { vehicles: signal([]), centers: signal([]) };
+const driversStub = { drivers: signal([]) };
+const shipmentStub = {
+  shipments: signal([shipment]), loading: signal(false), error: signal<string | null>(null),
+  loadShipments: () => of([shipment]),
+  availableVehicles: () => [], availableDrivers: () => [],
+  customer: () => undefined, vehicle: () => undefined, driver: () => undefined,
+  getShipment: () => of(shipment), createDraft: () => of(shipment), updateShipment: () => of(shipment),
+  assign: () => of(shipment), transition: () => of(shipment), saving: signal(false),
+};
 
 describe('ShipmentsPage', () => {
-  beforeEach(() => TestBed.configureTestingModule({ imports: [ShipmentsPage] }));
+  beforeEach(() => TestBed.configureTestingModule({
+    imports: [ShipmentsPage],
+    providers: [
+      { provide: ShipmentsDataService, useValue: shipmentStub },
+      { provide: FleetDataService, useValue: fleetStub },
+      { provide: DriversDataService, useValue: driversStub },
+    ],
+  }));
 
   it('filters shipments by status', () => {
     const page = TestBed.createComponent(ShipmentsPage).componentInstance;
     page.statusFilter.set('Pending');
     expect(page.filtered().length).toBe(1);
-    expect(page.filtered().every((shipment) => shipment.status === 'Pending')).toBe(true);
+    expect(page.filtered()[0].status).toBe('Pending');
   });
 
-  it('assigns available resources and records them on the shipment', () => {
-    const service = TestBed.inject(ShipmentsDataService);
+  it('uses the persisted shipment status transitions exposed by the API client', () => {
     const page = TestBed.createComponent(ShipmentsPage).componentInstance;
-    const shipment = service.shipments().find((item) => item.status === 'Pending')!;
-    const vehicle = service.availableVehicles().find((item) => item.capacityKg >= shipment.weightKg)!;
-    const driver = service.availableDrivers()[0];
-
-    page.select(shipment);
-    page.selectedVehicleId.set(vehicle.id);
-    page.selectedDriverId.set(driver.id);
-    page.assign();
-
-    const assigned = service.shipments().find((item) => item.id === shipment.id)!;
-    expect(assigned.status).toBe('Assigned');
-    expect(assigned.vehicleId).toBe(vehicle.id);
-    expect(assigned.driverId).toBe(driver.id);
-  });
-
-  it('rejects invalid status transitions', () => {
-    const service = TestBed.inject(ShipmentsDataService);
-    const draft = service.createDraft({ customerId: 'cus-001', destination: 'Destino demo', weightKg: 100, priority: 'Normal' });
-
-    expect(service.transition(draft.id, 'Pending').ok).toBe(false);
-    expect(service.shipments().find((item) => item.id === draft.id)?.status).toBe('Draft');
+    expect(page.canTransition(shipment, 'Cancelled')).toBe(true);
+    expect(page.canTransition(shipment, 'Delivered')).toBe(false);
   });
 });

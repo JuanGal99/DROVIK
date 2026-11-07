@@ -7,7 +7,7 @@
   <div class="simulation-notice" role="note"><span class="notice-icon"><i class="pi pi-play-circle" aria-hidden="true"></i></span><div><strong>Entorno de simulación</strong><span>Las posiciones y la actividad mostradas son sintéticas. No representan una operación en tiempo real.</span></div><span class="notice-state"><span></span> ESCENARIO NORMAL</span></div>
 
   <section class="metrics-grid" aria-label="Indicadores operativos">
-    @for (metric of data.metrics; track metric.label) {
+    @for (metric of data.metrics(); track metric.label) {
       <article class="metric"><div class="metric-top"><span>{{ metric.label }}</span><i [class]="metric.icon + ' metric-icon ' + metric.tone" aria-hidden="true"></i></div><strong class="metric-value">{{ metric.value }}</strong><span class="metric-context">{{ metric.context }}</span></article>
     }
   </section>

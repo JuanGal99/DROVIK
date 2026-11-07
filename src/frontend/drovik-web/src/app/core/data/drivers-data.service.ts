@@ -1,7 +1,9 @@
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, signal } from '@angular/core';
-import { Observable, delay, of } from 'rxjs';
+import { catchError, finalize, map, Observable, tap, throwError } from 'rxjs';
+import { environment } from '../../../environments/environment';
 
-export type DriverAvailability = 'Available' | 'Assigned';
+export type DriverAvailability = 'Available' | 'Assigned' | 'Inactive';
 
 export interface Driver {
   id: string;
@@ -14,37 +16,47 @@ export interface Driver {
 }
 
 export type DriverDraft = Pick<Driver, 'fullName' | 'licenseCategory' | 'licenseExpiresOn'>;
-
-const INITIAL_DRIVERS: Driver[] = [
-  { id: 'drv-001', fullName: 'Laura Méndez', licenseCategory: 'C2', licenseExpiresOn: '2027-04-18', availability: 'Assigned', assignedVehicleId: 'veh-018', lastUpdated: '2026-11-06T14:38:00Z' },
-  { id: 'drv-002', fullName: 'Andrés Salazar', licenseCategory: 'C1', licenseExpiresOn: '2027-09-02', availability: 'Assigned', assignedVehicleId: 'veh-006', lastUpdated: '2026-11-06T14:31:00Z' },
-  { id: 'drv-003', fullName: 'Camila Rojas', licenseCategory: 'C2', licenseExpiresOn: '2027-01-27', availability: 'Available', lastUpdated: '2026-11-06T13:42:00Z' },
-  { id: 'drv-004', fullName: 'Mateo Cárdenas', licenseCategory: 'B1', licenseExpiresOn: '2028-02-11', availability: 'Available', lastUpdated: '2026-11-06T13:20:00Z' },
-  { id: 'drv-005', fullName: 'Sofía Herrera', licenseCategory: 'C2', licenseExpiresOn: '2026-12-19', availability: 'Available', lastUpdated: '2026-11-06T12:58:00Z' },
-  { id: 'drv-006', fullName: 'Daniel Pardo', licenseCategory: 'C1', licenseExpiresOn: '2027-06-30', availability: 'Assigned', assignedVehicleId: 'veh-003', lastUpdated: '2026-11-06T12:42:00Z' },
-  { id: 'drv-007', fullName: 'Valentina Gil', licenseCategory: 'B1', licenseExpiresOn: '2028-05-06', availability: 'Assigned', assignedVehicleId: 'veh-011', lastUpdated: '2026-11-06T11:55:00Z' },
-  { id: 'drv-008', fullName: 'Nicolás Torres', licenseCategory: 'C2', licenseExpiresOn: '2027-11-22', availability: 'Available', lastUpdated: '2026-11-06T11:18:00Z' },
-];
+interface PagedResponse<T> { items: T[]; totalCount: number; page: number; pageSize: number; }
 
 @Injectable({ providedIn: 'root' })
 export class DriversDataService {
-  readonly synthetic = true;
+  readonly synthetic = false;
   readonly loading = signal(false);
+  readonly saving = signal(false);
   readonly error = signal<string | null>(null);
-  readonly drivers = signal<Driver[]>(INITIAL_DRIVERS.map((driver) => ({ ...driver })));
+  readonly drivers = signal<Driver[]>([]);
 
-  loadDrivers(): Observable<Driver[]> {
+  constructor(private readonly http: HttpClient) {}
+
+  loadDrivers(search = '', availability = ''): Observable<Driver[]> {
     this.loading.set(true);
     this.error.set(null);
-    return of(this.drivers()).pipe(delay(120));
+    let params = new HttpParams().set('pageSize', '100');
+    if (search) params = params.set('search', search);
+    if (availability && availability !== 'Todos') params = params.set('availability', availability);
+    return this.http.get<PagedResponse<Driver>>(`${environment.gatewayUrl}/api/v1/drivers`, { params }).pipe(
+      map((response) => response.items),
+      tap((drivers) => this.drivers.set(drivers)),
+      catchError((error) => {
+        this.error.set(error.error?.detail ?? 'No se pudo cargar el directorio desde el Gateway.');
+        return throwError(() => error);
+      }),
+      finalize(() => this.loading.set(false)),
+    );
   }
 
-  saveDriver(draft: DriverDraft, id?: string): Driver {
-    const timestamp = new Date().toISOString();
-    const next = id
-      ? this.drivers().map((driver) => driver.id === id ? { ...driver, ...draft, lastUpdated: timestamp } : driver)
-      : [...this.drivers(), { ...draft, id: `drv-${crypto.randomUUID().slice(0, 8)}`, availability: 'Available' as const, lastUpdated: timestamp }];
-    this.drivers.set(next);
-    return next.find((driver) => driver.id === (id ?? next.at(-1)?.id))!;
+  saveDriver(draft: DriverDraft, id?: string): Observable<Driver> {
+    this.saving.set(true);
+    const request = {
+      fullName: draft.fullName.trim(), licenseCategory: draft.licenseCategory.trim().toUpperCase(),
+      licenseExpiresOn: draft.licenseExpiresOn,
+    };
+    const call = id
+      ? this.http.put<Driver>(`${environment.gatewayUrl}/api/v1/drivers/${id}`, request)
+      : this.http.post<Driver>(`${environment.gatewayUrl}/api/v1/drivers`, request);
+    return call.pipe(
+      tap((driver) => this.drivers.update((items) => id ? items.map((item) => item.id === id ? driver : item) : [...items, driver])),
+      finalize(() => this.saving.set(false)),
+    );
   }
 }

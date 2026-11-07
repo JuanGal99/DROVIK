@@ -24,14 +24,21 @@ Las fases se completan localmente. Capturas/video son materiales de portafolio; 
 - **Contratos:** revisar tabla Identity de `09-api-and-events.md`; Angular ya implementa el cliente de Identity mediante el Gateway, access token en memoria y refresh por cookie HttpOnly. Las pantallas de dominio siguen usando datos sintéticos porque sus endpoints aún no existen. Las claves se configuran localmente.
 - **Pendiente para cerrar Fase 2:** prueba de flujo autenticado de navegador completo Angular → Gateway → Identity (cookies, CSRF y CORS en cadena); comprobar configuración de claves públicas y permisos en cada servicio de dominio. Fase 2 no se cierra hasta verificar esos puntos además del build/tests.
 
-## Fase 3 — Fleet Service
-- Vehículos, conductores, centros, migraciones, seed, CRUD y eventos.
-- **Salida verificable:** migración limpia, validaciones/paginación y pruebas; eventos de disponibilidad con contrato y consumidor verificable.
+## Fase 3 — Fleet Service (en progreso)
+- **Implementado:** vehículos, conductores y centros con EF Core, migración `FleetBusiness`, seed sintético, DTOs, CRUD, filtros, paginación, estados y desactivación.
+- **Implementado:** Angular consume Fleet mediante YARP con servicios HTTP tipados, estados de carga/error y pruebas de componentes HTTP.
+- **Validado:** login Administrator → Gateway → Fleet, creación/edición persistente y consulta posterior desde SQL Server.
+- **Implementado parcialmente:** reservas explícitas atómicas para Shipment, con migración `FleetReservations`, idempotencia y liberación.
+- **Implementado parcialmente:** eventos versionados de disponibilidad mediante Outbox transaccional y dispatcher RabbitMQ; falta automatizar autorización/integración y observabilidad de DLQ.
+- **Salida verificable:** migración limpia, validaciones/paginación, CRUD persistente y protocolo de reserva están cubiertos; eventos y pruebas automatizadas aún no.
 
-## Fase 4 — Shipment Service
-- Clientes, envíos, asignaciones, historial y reglas de transición.
-- Integración Fleet mediante protocolo de disponibilidad/reserva aprobado.
-- **Salida verificable:** transiciones inválidas rechazadas, capacidad/disponibilidad respetadas, actor/historial, idempotencia y pruebas de concurrencia/reserva acordes al diseño.
+## Fase 4 — Shipment Service (en progreso)
+- **Implementado parcialmente:** envíos persistidos, historial, listado paginado, creación, edición pendiente, asignación, idempotencia y transiciones mediante API.
+- **Implementado parcialmente:** Angular consume Shipment mediante YARP y carga Fleet para seleccionar recursos.
+- Clientes siguen siendo referencias `CustomerId`; no existe todavía Customers Service.
+- **Validado:** transiciones inválidas, capacidad/disponibilidad, actor/historial, idempotencia, liberación y concurrencia mediante pruebas automatizadas de persistencia y una prueba HTTP concurrente a través de Gateway.
+- **Implementado parcialmente:** eventos de dominio `ShipmentCreated`, `ShipmentAssigned`, `ShipmentStatusChanged`, `ShipmentDelivered` y `ShipmentCancelled` mediante Outbox; faltan pruebas HTTP automatizadas reproducibles y consumidores de negocio.
+- **Salida verificable parcial:** el flujo Angular → Gateway → Shipment/Fleet → SQL Server funciona; la fase no se cierra hasta automatizar el flujo HTTP y definir la compensación durable.
 
 ## Fase 5 — Simulation Service
 - Geometrías locales, motor autoritativo y start/pause/resume/cancel.
@@ -43,8 +50,12 @@ Las fases se completan localmente. Capturas/video son materiales de portafolio; 
 - **Salida verificable:** UI recibe estados/posiciones seleccionados; reconexión recupera estado coherente; geometrías offline funcionan.
 
 ## Fase 7 — Incident Service
-- Incidentes manuales y derivados, atención, auditoría e idempotencia.
-- **Salida verificable:** evento duplicado no duplica incidente; flujo de resolución autorizado e historial probado.
+- **Implementado parcialmente:** Incident persiste incidencias y actividades en SQL Server mediante la migración `IncidentBusiness`, expone listado filtrable/paginado, detalle, creación, cambios de estado y resolución mediante Gateway.
+- **Implementado:** autorización `Administrator`/`Operator`, validación de transiciones, referencias opacas a Fleet/Shipment y trazabilidad de actor/fecha UTC. La migración y las tablas `Incidents`/`IncidentActivities` fueron verificadas en la instancia local.
+- **Validado parcialmente:** readiness de Incident `200` y rutas de lectura/escritura sin autenticación `401` a través de YARP; falta repetir el flujo completo con una cuenta Administrator y una Operator.
+- **Implementado parcialmente:** publicación de `IncidentCreated`, `IncidentStatusChanged` e `IncidentResolved` mediante Outbox; Incident consume eventos de Fleet/Shipment con Inbox idempotente para auditoría.
+- **Pendiente:** consumidores de negocio, pruebas HTTP autenticadas automatizadas y resolución de duplicados externos.
+- **Salida verificable pendiente:** flujo autenticado de resolución e historial, publicación con credenciales reales y DLQ verificable mediante integración reproducible.
 
 ## Fase 8 — Dashboard y experiencia
 - KPIs, filtros, escenarios guiados, estados vacíos/error y responsive.

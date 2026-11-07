@@ -1,27 +1,30 @@
 @if (auth.isAuthenticated) {
-<div class="app-frame">
+<div class="app-frame" [class.sidebar-collapsed]="sidebarCollapsed()" [class.sidebar-expanded]="!sidebarCollapsed()">
   <button class="mobile-scrim" [class.is-visible]="menuOpen()" (click)="closeMenu()" aria-label="Cerrar navegación"></button>
   <aside class="sidebar" [class.is-open]="menuOpen()" aria-label="Navegación principal">
-    <a class="brand" routerLink="/overview" (click)="closeMenu()" aria-label="DROVIK, overview">
-      <span class="brand-symbol" aria-hidden="true"><span></span><span></span><span></span></span><span class="brand-name">DROVIK</span><span class="brand-edition">OPS</span>
+    <div class="sidebar-header">
+    <a class="brand" routerLink="/overview" (click)="closeMenu()" aria-label="DROVIK, resumen">
+      <span class="brand-symbol" aria-hidden="true"><span></span><span></span><span></span></span><span class="brand-name" [hidden]="sidebarCollapsed()">DROVIK</span><span class="brand-edition" [hidden]="sidebarCollapsed()">OPS</span>
     </a>
-    <div class="workspace-switcher"><span class="workspace-mark">N</span><span class="workspace-copy"><strong>Northline Logistics</strong><small>Operación principal</small></span></div>
-    <p class="nav-label">OPERACIÓN</p>
+    <button class="sidebar-toggle" type="button" (click)="toggleSidebar()" [attr.aria-expanded]="!sidebarCollapsed()" [attr.aria-label]="sidebarCollapsed() ? 'Mostrar menú lateral' : 'Ocultar menú lateral'" [attr.title]="sidebarCollapsed() ? 'Mostrar menú lateral' : 'Ocultar menú lateral'"><i class="pi" [class.pi-angle-double-right]="sidebarCollapsed()" [class.pi-angle-double-left]="!sidebarCollapsed()"></i></button>
+    </div>
+    <div class="workspace-switcher" [attr.title]="sidebarCollapsed() ? 'Espacio de trabajo' : null"><span class="workspace-mark">N</span><span class="workspace-copy" [hidden]="sidebarCollapsed()"><strong>Northline Logistics</strong><small>Operación principal</small></span></div>
+    <p class="nav-label" [hidden]="sidebarCollapsed()">OPERACIÓN</p>
     <nav class="primary-nav">
       @for (item of navigation; track item.route) {
-        <a class="nav-item" [routerLink]="item.route" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }" (click)="closeMenu()"><i [class]="item.icon" aria-hidden="true"></i><span>{{ item.label }}</span>@if (item.route === '/incidents') { <span class="nav-count">{{ data.openIncidentCount }}</span> }</a>
+        <a class="nav-item" [routerLink]="item.route" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }" [attr.title]="sidebarCollapsed() ? item.label : null" (click)="closeMenu()"><i [class]="item.icon" aria-hidden="true"></i><span [hidden]="sidebarCollapsed()">{{ item.label }}</span>@if (item.route === '/incidents' && incidents.openCount()) { <span class="nav-count" [hidden]="sidebarCollapsed()">{{ incidents.openCount() }}</span> }</a>
       }
     </nav>
     <div class="sidebar-bottom">
-      <div class="system-health"><span class="health-light"></span><span><strong>Gateway conectado</strong><small>Identity activo · datos de dominio en preparación</small></span></div>
-      <a class="nav-item" [routerLink]="settings.route" routerLinkActive="active" (click)="closeMenu()"><i [class]="settings.icon" aria-hidden="true"></i><span>{{ settings.label }}</span></a>
-      <div class="profile-row"><span class="avatar">{{ auth.user()?.email?.slice(0, 2)?.toUpperCase() }}</span><span class="profile-copy"><strong>{{ auth.user()?.email }}</strong><small>{{ auth.user()?.roles?.join(' · ') }}</small></span><button class="logout-button" type="button" aria-label="Cerrar sesión" (click)="logout()"><i class="pi pi-sign-out"></i></button></div>
+      <div class="system-health"><span class="health-light" [attr.title]="sidebarCollapsed() ? 'Gateway conectado' : null"></span><span [hidden]="sidebarCollapsed()"><strong>Gateway conectado</strong><small>Servicio de identidad activo · datos de dominio en preparación</small></span></div>
+      <a class="nav-item" [routerLink]="settings.route" routerLinkActive="active" [attr.title]="sidebarCollapsed() ? settings.label : null" (click)="closeMenu()"><i [class]="settings.icon" aria-hidden="true"></i><span [hidden]="sidebarCollapsed()">{{ settings.label }}</span></a>
+      <div class="profile-row"><span class="avatar" [attr.title]="sidebarCollapsed() ? auth.user()?.email : null">{{ auth.user()?.email?.slice(0, 2)?.toUpperCase() }}</span><span class="profile-copy" [hidden]="sidebarCollapsed()"><strong>{{ auth.user()?.email }}</strong><small>{{ auth.user()?.roles?.join(' · ') }}</small></span><button class="logout-button" type="button" aria-label="Cerrar sesión" title="Cerrar sesión" (click)="logout()"><i class="pi pi-sign-out"></i></button></div>
     </div>
   </aside>
   <div class="main-column">
     <header class="topbar">
-      <button class="icon-button menu-trigger" (click)="menuOpen.set(true)" aria-label="Abrir navegación"><i class="pi pi-bars"></i></button>
-      <div class="breadcrumb"><span>Workspace</span><i class="pi pi-angle-right" aria-hidden="true"></i><strong>{{ pageTitle }}</strong></div>
+      <button class="icon-button menu-trigger" type="button" (click)="menuOpen.set(true)" aria-label="Abrir navegación"><i class="pi pi-bars"></i></button>
+      <div class="breadcrumb"><span>Operación</span><i class="pi pi-angle-right" aria-hidden="true"></i><strong>{{ pageTitle }}</strong></div>
       <div class="topbar-actions"><span class="simulation-pill"><span></span> Escenario simulado</span><span class="icon-button notification-indicator" role="img" aria-label="Notificaciones de demostración"><i class="pi pi-bell"></i><span class="notification-dot"></span></span><span class="topbar-divider"></span><span class="topbar-date">Jue, 6 nov 2026</span></div>
     </header>
     <main class="page-content"><router-outlet /></main>

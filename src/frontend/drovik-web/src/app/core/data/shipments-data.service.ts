@@ -1,17 +1,18 @@
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject, signal } from '@angular/core';
-import { Observable, delay, of } from 'rxjs';
+import { catchError, forkJoin, finalize, map, Observable, tap, throwError } from 'rxjs';
+import { environment } from '../../../environments/environment';
 import { Driver, DriversDataService } from './drivers-data.service';
 import { FleetDataService, Vehicle } from './fleet-data.service';
-import { CustomerReference, CustomersDataService } from './customers-data.service';
 
-export type ShipmentStatus = 'Draft' | 'Pending' | 'Assigned' | 'InTransit' | 'Delayed' | 'Delivered' | 'Cancelled';
-export type ShipmentPriority = 'Normal' | 'Alta';
+export type ShipmentStatus = 'Pending' | 'Assigned' | 'InTransit' | 'Delayed' | 'Delivered' | 'Cancelled';
+export type ShipmentPriority = 'Normal' | 'High';
 
 export interface ShipmentStatusEntry {
   status: ShipmentStatus;
   occurredAt: string;
   actor: string;
-  source: 'Usuario (demo)' | 'Simulación (demo)';
+  source: string;
   note?: string;
 }
 
@@ -19,98 +20,133 @@ export interface Shipment {
   id: string;
   trackingCode: string;
   customerId: string;
+  originCenterId: string;
   destination: string;
+  destinationLatitude: number;
+  destinationLongitude: number;
   weightKg: number;
   priority: ShipmentPriority;
   status: ShipmentStatus;
   vehicleId?: string;
   driverId?: string;
-  eta?: string;
+  reservationId?: string;
   createdAt: string;
   statusHistory: ShipmentStatusEntry[];
 }
 
 export type ShipmentDraft = Pick<Shipment, 'customerId' | 'destination' | 'weightKg' | 'priority'>;
-
-const t = '2026-11-06T14:00:00Z';
-const INITIAL_SHIPMENTS: Shipment[] = [
-  { id: 'shp-2048', trackingCode: 'SH-2048', customerId: 'cus-001', destination: 'Chapinero, Bogotá', weightKg: 2100, priority: 'Normal', status: 'InTransit', vehicleId: 'veh-018', driverId: 'drv-001', eta: '10:24', createdAt: t, statusHistory: [{ status: 'Pending', occurredAt: t, actor: 'Operador de demostración', source: 'Usuario (demo)' }, { status: 'Assigned', occurredAt: t, actor: 'Operador de demostración', source: 'Usuario (demo)' }, { status: 'InTransit', occurredAt: t, actor: 'Simulación de demostración', source: 'Simulación (demo)' }] },
-  { id: 'shp-2046', trackingCode: 'SH-2046', customerId: 'cus-002', destination: 'Envigado, Antioquia', weightKg: 840, priority: 'Normal', status: 'InTransit', vehicleId: 'veh-006', driverId: 'drv-002', eta: '10:40', createdAt: t, statusHistory: [{ status: 'Pending', occurredAt: t, actor: 'Operador de demostración', source: 'Usuario (demo)' }, { status: 'Assigned', occurredAt: t, actor: 'Operador de demostración', source: 'Usuario (demo)' }, { status: 'InTransit', occurredAt: t, actor: 'Simulación de demostración', source: 'Simulación (demo)' }] },
-  { id: 'shp-2044', trackingCode: 'SH-2044', customerId: 'cus-003', destination: 'Usaquén, Bogotá', weightKg: 340, priority: 'Alta', status: 'Delayed', vehicleId: 'veh-011', driverId: 'drv-007', eta: '11:05', createdAt: t, statusHistory: [{ status: 'Pending', occurredAt: t, actor: 'Operador de demostración', source: 'Usuario (demo)' }, { status: 'Assigned', occurredAt: t, actor: 'Operador de demostración', source: 'Usuario (demo)' }, { status: 'InTransit', occurredAt: t, actor: 'Simulación de demostración', source: 'Simulación (demo)' }, { status: 'Delayed', occurredAt: t, actor: 'Simulación de demostración', source: 'Simulación (demo)', note: 'Retraso simulado' }] },
-  { id: 'shp-2041', trackingCode: 'SH-2041', customerId: 'cus-004', destination: 'Centro, Medellín', weightKg: 520, priority: 'Normal', status: 'Pending', eta: '11:20', createdAt: t, statusHistory: [{ status: 'Pending', occurredAt: t, actor: 'Operador de demostración', source: 'Usuario (demo)' }] },
-  { id: 'shp-2042', trackingCode: 'SH-2042', customerId: 'cus-002', destination: 'Laureles, Medellín', weightKg: 720, priority: 'Alta', status: 'Assigned', vehicleId: 'veh-003', driverId: 'drv-006', eta: '11:30', createdAt: t, statusHistory: [{ status: 'Pending', occurredAt: t, actor: 'Operador de demostración', source: 'Usuario (demo)' }, { status: 'Assigned', occurredAt: t, actor: 'Operador de demostración', source: 'Usuario (demo)' }] },
-  { id: 'shp-2039', trackingCode: 'SH-2039', customerId: 'cus-005', destination: 'Laureles, Medellín', weightKg: 180, priority: 'Normal', status: 'Delivered', vehicleId: 'veh-014', driverId: 'drv-003', eta: '09:52', createdAt: t, statusHistory: [{ status: 'Pending', occurredAt: t, actor: 'Operador de demostración', source: 'Usuario (demo)' }, { status: 'Assigned', occurredAt: t, actor: 'Operador de demostración', source: 'Usuario (demo)' }, { status: 'InTransit', occurredAt: t, actor: 'Simulación de demostración', source: 'Simulación (demo)' }, { status: 'Delivered', occurredAt: t, actor: 'Simulación de demostración', source: 'Simulación (demo)' }] },
-];
-
-const TRANSITIONS: Record<ShipmentStatus, ShipmentStatus[]> = {
-  Draft: [], Pending: ['Assigned', 'Cancelled'], Assigned: ['InTransit', 'Cancelled'], InTransit: ['Delayed', 'Delivered'],
-  Delayed: ['InTransit', 'Delivered'], Delivered: [], Cancelled: [],
-};
+interface PagedResponse<T> { items: T[]; totalCount: number; page: number; pageSize: number; }
+interface ShipmentResponse extends Omit<Shipment, 'createdAt' | 'statusHistory'> {
+  createdAtUtc: string;
+  updatedAtUtc: string;
+  statusHistory: Array<{ status: ShipmentStatus; actorId: string; source: string; note?: string; occurredAtUtc: string }>;
+}
 
 @Injectable({ providedIn: 'root' })
 export class ShipmentsDataService {
+  private readonly http = inject(HttpClient);
   private readonly fleet = inject(FleetDataService);
   private readonly drivers = inject(DriversDataService);
-  private readonly customerData = inject(CustomersDataService);
-  readonly synthetic = true;
+  readonly synthetic = false;
   readonly loading = signal(false);
+  readonly saving = signal(false);
   readonly error = signal<string | null>(null);
-  readonly shipments = signal<Shipment[]>(INITIAL_SHIPMENTS.map((shipment) => ({ ...shipment, statusHistory: [...shipment.statusHistory] })));
+  readonly shipments = signal<Shipment[]>([]);
 
   loadShipments(): Observable<Shipment[]> {
     this.loading.set(true);
     this.error.set(null);
-    return of(this.shipments()).pipe(delay(120));
+    const params = new HttpParams().set('pageSize', '100');
+    return forkJoin({
+      response: this.http.get<PagedResponse<ShipmentResponse>>(`${environment.gatewayUrl}/api/v1/shipments`, { params }),
+      vehicles: this.fleet.loadVehicles(),
+      drivers: this.drivers.loadDrivers(),
+    }).pipe(
+      map(({ response }) => response.items.map((item) => this.mapShipment(item))),
+      tap((items) => this.shipments.set(items)),
+      catchError((error) => this.handleError(error, 'No se pudo cargar los envíos desde el Gateway.')),
+      finalize(() => this.loading.set(false)),
+    );
   }
 
-  customer(id: string): CustomerReference | undefined { return this.customerData.customers().find((customer) => customer.id === id); }
+  customer(_id: string): undefined { return undefined; }
   vehicle(id?: string): Vehicle | undefined { return id ? this.fleet.vehicles().find((vehicle) => vehicle.id === id) : undefined; }
   driver(id?: string): Driver | undefined { return id ? this.drivers.drivers().find((driver) => driver.id === id) : undefined; }
   availableVehicles(): Vehicle[] { return this.fleet.vehicles().filter((vehicle) => vehicle.status === 'Available'); }
   availableDrivers(): Driver[] { return this.drivers.drivers().filter((driver) => driver.availability === 'Available'); }
 
-  createDraft(draft: ShipmentDraft): Shipment {
-    const now = new Date().toISOString();
-    const id = `shp-${crypto.randomUUID().slice(0, 8)}`;
-    const shipment: Shipment = {
-      ...draft, id, trackingCode: `SH-${id.slice(-6).toUpperCase()}`, status: 'Draft', createdAt: now,
-      statusHistory: [{ status: 'Draft', occurredAt: now, actor: 'Operador de demostración', source: 'Usuario (demo)' }],
+  createDraft(draft: ShipmentDraft): Observable<Shipment> {
+    const center = this.fleet.centers()[0];
+    if (!center) return throwError(() => new Error('No hay un centro de distribución disponible.'));
+    this.saving.set(true);
+    return this.http.post<ShipmentResponse>(`${environment.gatewayUrl}/api/v1/shipments`, {
+      customerId: draft.customerId.trim(), originCenterId: center.id, destination: draft.destination.trim(),
+      destinationLatitude: 0, destinationLongitude: 0, weightKg: draft.weightKg, priority: draft.priority,
+    }).pipe(
+      map((item) => this.mapShipment(item)),
+      tap((shipment) => this.shipments.update((items) => [shipment, ...items])),
+      catchError((error) => this.handleError(error, 'No se pudo crear el envío.')),
+      finalize(() => this.saving.set(false)),
+    );
+  }
+
+  getShipment(id: string): Observable<Shipment> {
+    return this.http.get<ShipmentResponse>(`${environment.gatewayUrl}/api/v1/shipments/${id}`).pipe(
+      map((item) => this.mapShipment(item)),
+      tap((shipment) => this.shipments.update((items) => items.map((item) => item.id === shipment.id ? shipment : item))),
+      catchError((error) => this.handleError(error, 'No se pudo consultar el detalle del envío.')),
+    );
+  }
+
+  updateShipment(id: string, draft: Pick<Shipment, 'destination' | 'destinationLatitude' | 'destinationLongitude' | 'weightKg' | 'priority'>): Observable<Shipment> {
+    this.saving.set(true);
+    return this.http.put<ShipmentResponse>(`${environment.gatewayUrl}/api/v1/shipments/${id}`, {
+      destination: draft.destination.trim(), destinationLatitude: draft.destinationLatitude,
+      destinationLongitude: draft.destinationLongitude, weightKg: draft.weightKg, priority: draft.priority,
+    }).pipe(
+      map((item) => this.mapShipment(item)),
+      tap((shipment) => this.shipments.update((items) => items.map((item) => item.id === shipment.id ? shipment : item))),
+      catchError((error) => this.handleError(error, 'No se pudo guardar el envío.')),
+      finalize(() => this.saving.set(false)),
+    );
+  }
+
+  assign(shipmentId: string, vehicleId: string, driverId: string): Observable<Shipment> {
+    this.saving.set(true);
+    return this.http.post<ShipmentResponse>(`${environment.gatewayUrl}/api/v1/shipments/${shipmentId}/assign`, {
+      vehicleId, driverId, idempotencyKey: crypto.randomUUID(),
+    }).pipe(
+      map((item) => this.mapShipment(item)),
+      tap((shipment) => this.shipments.update((items) => items.map((item) => item.id === shipment.id ? shipment : item))),
+      catchError((error) => this.handleError(error, 'No se pudo asignar el vehículo y el conductor.')),
+      finalize(() => this.saving.set(false)),
+    );
+  }
+
+  transition(shipmentId: string, status: ShipmentStatus, note?: string): Observable<Shipment> {
+    this.saving.set(true);
+    return this.http.post<ShipmentResponse>(`${environment.gatewayUrl}/api/v1/shipments/${shipmentId}/status`, { status, note }).pipe(
+      map((item) => this.mapShipment(item)),
+      tap((shipment) => this.shipments.update((items) => items.map((item) => item.id === shipment.id ? shipment : item))),
+      catchError((error) => this.handleError(error, 'No se pudo actualizar el estado del envío.')),
+      finalize(() => this.saving.set(false)),
+    );
+  }
+
+  private mapShipment(item: ShipmentResponse): Shipment {
+    return {
+      id: item.id, trackingCode: item.trackingCode, customerId: item.customerId, originCenterId: item.originCenterId,
+      destination: item.destination, destinationLatitude: item.destinationLatitude, destinationLongitude: item.destinationLongitude,
+      weightKg: item.weightKg, priority: item.priority, status: item.status, vehicleId: item.vehicleId,
+      driverId: item.driverId, reservationId: item.reservationId, createdAt: item.createdAtUtc,
+      statusHistory: item.statusHistory.map((entry) => ({
+        status: entry.status, occurredAt: entry.occurredAtUtc, actor: entry.actorId, source: entry.source, note: entry.note,
+      })),
     };
-    this.shipments.update((items) => [shipment, ...items]);
-    return shipment;
   }
 
-  assign(shipmentId: string, vehicleId: string, driverId: string): { ok: boolean; message?: string } {
-    const shipment = this.shipments().find((item) => item.id === shipmentId);
-    const vehicle = this.vehicle(vehicleId);
-    const driver = this.driver(driverId);
-    if (!shipment || shipment.status !== 'Pending') return { ok: false, message: 'Solo se puede asignar un envío pendiente.' };
-    if (!vehicle || vehicle.status !== 'Available' || !driver || driver.availability !== 'Available') return { ok: false, message: 'El vehículo y el conductor deben estar disponibles.' };
-    if (vehicle.capacityKg < shipment.weightKg) return { ok: false, message: 'La capacidad del vehículo no cubre el peso del envío.' };
-
-    const vehicles = this.fleet.vehicles();
-    const drivers = this.drivers.drivers();
-    this.fleet.vehicles.set(vehicles.map((item) => item.id === vehicleId ? { ...item, status: 'Assigned', lastUpdated: new Date().toISOString() } : item));
-    this.drivers.drivers.set(drivers.map((item) => item.id === driverId ? { ...item, availability: 'Assigned', assignedVehicleId: vehicleId, lastUpdated: new Date().toISOString() } : item));
-    this.shipments.update((items) => items.map((item) => item.id === shipmentId ? { ...item, vehicleId, driverId } : item));
-    this.transition(shipmentId, 'Assigned');
-    return { ok: true };
-  }
-
-  transition(shipmentId: string, status: ShipmentStatus, note?: string): { ok: boolean; message?: string } {
-    const shipment = this.shipments().find((item) => item.id === shipmentId);
-    if (!shipment) return { ok: false, message: 'No se encontró el envío.' };
-    if (!TRANSITIONS[shipment.status].includes(status)) return { ok: false, message: `La transición ${shipment.status} → ${status} no está permitida.` };
-    const isSimulation = ['InTransit', 'Delayed', 'Delivered'].includes(status);
-    const entry: ShipmentStatusEntry = { status, occurredAt: new Date().toISOString(), actor: isSimulation ? 'Simulación de demostración' : 'Operador de demostración', source: isSimulation ? 'Simulación (demo)' : 'Usuario (demo)', ...(note ? { note } : {}) };
-    this.shipments.update((items) => items.map((item) => item.id === shipmentId ? { ...item, status, statusHistory: [...item.statusHistory, entry] } : item));
-    if (status === 'InTransit' && shipment.vehicleId) this.fleet.vehicles.update((items) => items.map((item) => item.id === shipment.vehicleId ? { ...item, status: 'InTransit', lastUpdated: new Date().toISOString() } : item));
-    if (status === 'Delivered' || status === 'Cancelled') this.releaseResources(shipment);
-    return { ok: true };
-  }
-
-  private releaseResources(shipment: Shipment): void {
-    if (shipment.vehicleId) this.fleet.vehicles.update((items) => items.map((item) => item.id === shipment.vehicleId && ['Assigned', 'InTransit'].includes(item.status) ? { ...item, status: 'Available', lastUpdated: new Date().toISOString() } : item));
-    if (shipment.driverId) this.drivers.drivers.update((items) => items.map((item) => item.id === shipment.driverId && item.availability === 'Assigned' ? { ...item, availability: 'Available', assignedVehicleId: undefined, lastUpdated: new Date().toISOString() } : item));
+  private handleError(error: { error?: { detail?: string; title?: string } }, fallback: string): Observable<never> {
+    this.error.set(error.error?.detail ?? error.error?.title ?? fallback);
+    return throwError(() => error);
   }
 }

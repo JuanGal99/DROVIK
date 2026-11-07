@@ -24,12 +24,16 @@ export class Overview {
     );
   });
 
+  constructor() {
+    this.data.loadFleet().subscribe({ error: () => undefined });
+  }
+
   stateClass(state: ShipmentState): string {
     return ({ 'En tránsito': 'in-transit', Pendiente: 'pending', Retrasado: 'delayed', Entregado: 'delivered' })[state];
   }
 
   exportSummary(): void {
-    const rows = [['Indicador', 'Valor'], ...this.data.metrics.map(({ label, value }) => [label, value])];
+    const rows = [['Indicador', 'Valor'], ...this.data.metrics().map(({ label, value }) => [label, value])];
     const content = rows.map((row) => row.map((cell) => `"${cell.replaceAll('"', '""')}"`).join(',')).join('\r\n');
     const url = URL.createObjectURL(new Blob([`\uFEFF${content}`], { type: 'text/csv;charset=utf-8' }));
     const link = document.createElement('a');

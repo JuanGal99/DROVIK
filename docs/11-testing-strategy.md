@@ -20,7 +20,7 @@ Build reproducible, formato/lint, migraciones verificadas y pruebas en CI. No de
 
 ## 11.4 Estado de pruebas de Fase 1
 
-La solución contiene `Drovik.Foundation.Tests` con xUnit. Las cinco pruebas de migración inspeccionan que cada contexto de servicio descubre una migración inicial propia sin necesitar una instancia SQL activa. Las pruebas de integración del Gateway verifican que cada prefijo de API se proxya a su servicio propietario, conserva la ruta y deja sin proxyar las rutas desconocidas. También existe una prueba de componente del shell Angular. Estas comprobaciones no cubren reglas de negocio; las migraciones, readiness de los servicios y conectividad con SQL Server sí se validaron localmente, según `12-deployment-and-operations.md`.
+La solución contiene `Drovik.Foundation.Tests` con xUnit. Las pruebas de migración inspeccionan que cada contexto de servicio descubre sus migraciones propias sin necesitar una instancia SQL activa. Las pruebas de integración del Gateway verifican que cada prefijo de API se proxya a su servicio propietario, conserva la ruta y deja sin proxyar las rutas desconocidas. Angular cubre servicios HTTP, autenticación, Incident y estados del shell. Estas comprobaciones no sustituyen la prueba HTTP con todos los procesos levantados; las migraciones aplicadas, readiness y conectividad con SQL Server deben validarse localmente según `12-deployment-and-operations.md`.
 
 ## 11.5 Identity Service
 

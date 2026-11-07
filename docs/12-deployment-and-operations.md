@@ -28,6 +28,8 @@ Documentar nombres de variables sin publicar secretos:
 - OSRM base URL opcional; si falta o falla, usar geometrías de respaldo.
 - ASPNETCORE_ENVIRONMENT, logging y opciones de seed.
 
+Para activar la mensajería desde procesos ASP.NET Core, configurar mediante User Secrets o variables de entorno `RabbitMq__Host`, `RabbitMq__Port`, `RabbitMq__VirtualHost`, `RabbitMq__UserName` y `RabbitMq__Password`. El broker local expone AMQP solo en `127.0.0.1:5672`; no usar el puerto de administración desde los servicios. `RabbitMq__Exchange` puede mantenerse como `drovik.events.v1` y `RabbitMq__DeadLetterExchange` como `drovik.events.dlx.v1`. Si las credenciales no están configuradas, los servicios conservan los eventos en Outbox y registran el fallo sin perder la transacción local.
+
 Mantener valores sensibles en archivo local ignorado o User Secrets de .NET. Proveer solo plantilla `.env.example` sin credenciales reales. No versionar contraseñas, certificados privados ni tokens. El proceso de arranque debe rechazar valores secretos inseguros fuera de Development.
 
 Identity firma access JWT RS256 de 15 minutos. Para una generación compatible con Windows PowerShell 5.1, crear un helper temporal .NET 10 que escriba los valores Base64 fuera del repositorio; cargar únicamente la privada en User Secrets de Identity y configurar la pública en cada servicio API:

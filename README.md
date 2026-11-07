@@ -41,7 +41,7 @@ Las capturas se añadirán cuando exista una implementación que mostrar. No hay
 
 ## Ejecución local
 
-La Fase 1 de fundación técnica está completada. Se han creado shells técnicos y migraciones iniciales vacías por servicio. SQL Server y RabbitMQ fueron validados en Docker Compose; los cinco servicios aplicaron sus migraciones y sus health checks de readiness respondieron correctamente. La restauración desde un clon limpio de GitHub, compilación y pruebas backend/frontend también pasaron. No hay tablas de negocio ni datos seed.
+La Fase 1 de fundación técnica está completada. SQL Server y RabbitMQ se validan en Docker Compose y cada servicio conserva sus migraciones. Identity, Fleet, Shipment e Incident tienen flujos reales parciales; Simulation continúa como shell.
 
 1. Instalar Git, Docker Desktop con Compose v2, .NET SDK 10.0.403 y Node.js 24.11.1/npm 11.6.2.
 2. Clonar este repositorio y crear `.env` copiando `.env.example`; sustituir todos los placeholders por secretos locales. `.env` está excluido de Git.
@@ -52,13 +52,13 @@ La Fase 1 de fundación técnica está completada. Se han creado shells técnico
 7. Inicializar el primer administrador una sola vez mediante el comando explícito documentado en la guía local. No hay endpoint público de bootstrap ni credenciales predeterminadas.
 8. Ejecutar las APIs en los puertos 5201–5205, Gateway en 5200 y Angular con `npm start` en 4200. Abrir `http://localhost:4200`; el login usa el Gateway y requiere un administrador creado mediante el bootstrap local.
 
-La migración nueva de Identity crea tablas de cuentas, roles y hashes de refresh token; las migraciones de los cuatro servicios de dominio siguen siendo fundacionales. La guía detallada de secretos locales, puertos, JWT y bootstrap está en [docs/12-deployment-and-operations.md](docs/12-deployment-and-operations.md).
+La migración nueva de Identity crea tablas de cuentas, roles y hashes de refresh token; Fleet, Shipment e Incident tienen migraciones de negocio aplicables por separado y Simulation continúa con su shell fundacional. La guía detallada de secretos locales, puertos, JWT y bootstrap está en [docs/12-deployment-and-operations.md](docs/12-deployment-and-operations.md).
 
 El backend podrá ofrecer también ejecución íntegra mediante contenedores como modalidad alternativa si se documenta y prueba. Redis, OSRM y servicios cloud no son necesarios para los flujos principales. Guía detallada: [docs/12-deployment-and-operations.md](docs/12-deployment-and-operations.md).
 
 ## Estado del proyecto
 
-**Fase 1 — Fundación técnica completada. Fase 2 — Gateway e Identity integrada parcialmente.** YARP enruta los prefijos de API y Identity tiene login/roles/sesiones con pruebas 25/25. El flujo HTTP Angular-contract → Gateway → Identity fue verificado, pero todavía falta una prueba de navegador automatizada. El frontend conecta login, refresh, logout y rutas protegidas; overview, Fleet, Drivers y Shipments siguen usando datos sintéticos porque sus endpoints de negocio aún no existen. Ver el [estado actual de implementación](docs/current-implementation-status.md).
+**Fase 1 — Fundación técnica completada. Fases 2–4 integradas parcialmente y Fase 7 iniciada.** YARP enruta los prefijos de API e Identity tiene login/roles/sesiones. Fleet persiste vehículos, conductores, centros y reservas; Shipment permite crear, listar, consultar, editar, asignar y cambiar estados; Incident permite registrar, filtrar, atender y resolver incidencias mediante Gateway. Fleet, Shipment e Incident ya publican eventos mediante Outbox; Simulation, mapa, realtime y consumidores de negocio siguen pendientes. Ver el [estado actual de implementación](docs/current-implementation-status.md).
 
 ## Documentación
 

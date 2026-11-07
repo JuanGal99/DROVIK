@@ -6,7 +6,7 @@ import { Driver, DriverAvailability, DriverDraft, DriversDataService } from '../
 
 registerLocaleData(localeEs, 'es');
 
-const AVAILABILITY_LABELS: Record<DriverAvailability, string> = { Available: 'Disponible', Assigned: 'Asignado' };
+const AVAILABILITY_LABELS: Record<DriverAvailability, string> = { Available: 'Disponible', Assigned: 'Asignado', Inactive: 'Inactivo' };
 
 @Component({
   selector: 'app-drivers-page',
@@ -41,7 +41,7 @@ export class DriversPage {
   constructor() {
     this.data.loadDrivers().subscribe({
       next: () => this.data.loading.set(false),
-      error: () => { this.data.loading.set(false); this.data.error.set('No se pudo cargar el directorio sintético de conductores.'); },
+      error: () => this.data.loading.set(false),
     });
   }
 
@@ -72,9 +72,10 @@ export class DriversPage {
       this.formError.set('Ya existe un perfil con ese nombre en los datos de demostración.');
       return;
     }
-    this.data.saveDriver(draft, this.editingId() ?? undefined);
-    this.editorOpen.set(false);
-    this.selected.set(null);
+    this.data.saveDriver(draft, this.editingId() ?? undefined).subscribe({
+      next: () => { this.editorOpen.set(false); this.selected.set(null); },
+      error: (error: { error?: { detail?: string }; message?: string }) => this.formError.set(error.error?.detail ?? error.message ?? 'No se pudo guardar el conductor.'),
+    });
   }
 
   setDraft<K extends keyof DriverDraft>(key: K, value: DriverDraft[K]): void {

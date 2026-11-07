@@ -44,7 +44,7 @@ export class FleetPage {
   constructor() {
     this.data.loadVehicles().subscribe({
       next: () => this.data.loading.set(false),
-      error: () => { this.data.loading.set(false); this.data.error.set('No se pudo cargar la flota de demostración.'); },
+      error: () => this.data.loading.set(false),
     });
   }
 
@@ -73,9 +73,10 @@ export class FleetPage {
     const draft = this.draft();
     const duplicate = this.data.vehicles().some((vehicle) => vehicle.plate.toLocaleUpperCase() === draft.plate.trim().toLocaleUpperCase() && vehicle.id !== this.editingId());
     if (duplicate) { this.formError.set('Ya existe un vehículo con esa placa.'); return; }
-    this.data.saveVehicle({ ...draft, plate: draft.plate.trim().toLocaleUpperCase(), model: draft.model.trim(), center: draft.center.trim() }, this.editingId() ?? undefined);
-    this.editorOpen.set(false);
-    this.selected.set(null);
+    this.data.saveVehicle({ ...draft, plate: draft.plate.trim().toLocaleUpperCase(), model: draft.model.trim(), center: draft.center.trim() }, this.editingId() ?? undefined).subscribe({
+      next: () => { this.editorOpen.set(false); this.selected.set(null); },
+      error: (error: { error?: { detail?: string }; message?: string }) => this.formError.set(error.error?.detail ?? error.message ?? 'No se pudo guardar el vehículo.'),
+    });
   }
 
   setDraft<K extends keyof VehicleDraft>(key: K, value: VehicleDraft[K]): void {
