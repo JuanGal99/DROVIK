@@ -1,0 +1,8 @@
+@Incident_HostAddress = http://localhost:5205
+
+GET {{Incident_HostAddress}}/health/live
+Accept: application/json
+
+###
+GET {{Incident_HostAddress}}/health/ready
+Accept: application/json

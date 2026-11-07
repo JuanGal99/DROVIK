@@ -1,46 +1,31 @@
 # 7. Motor de simulación
 
-## 7.1 Objetivo
+## 7.1 Autoridad y operación
 
-Producir movimientos y eventos logísticos reproducibles sin depender de dispositivos GPS reales. La lógica y el estado autoritativo viven en Simulation Service.
+Simulation Service es autoridad del estado simulado; Angular solo representa el estado recibido. No se conecta a GPS ni tráfico reales. Cada SimulationRun tiene un único ejecutor activo.
 
 ## 7.2 Ciclo
 
-1. Validar que la simulación puede comenzar y que los envíos/vehículos están asignados.
-2. Obtener una geometría de ruta desde caché o proveedor OSRM.
-3. Crear SimulationRun y estado inicial por vehículo.
-4. Avanzar el progreso según elapsed time, velocidad configurada y longitud de ruta.
-5. Interpolar latitud/longitud sobre la geometría.
-6. Publicar actualizaciones con frecuencia limitada.
-7. Aplicar eventos de escenario y actualizar estados.
-8. Completar la simulación y publicar evento final.
+1. Validar que la ejecución puede comenzar y que envíos/vehículos están asignados.
+2. Obtener una geometría de respaldo local; OSRM es una fuente opcional.
+3. Persistir SimulationRun y estado inicial por vehículo.
+4. Avanzar usando tiempo transcurrido del servidor y multiplicador limitado.
+5. Interpolar posiciones sobre la geometría y publicar actualizaciones limitadas.
+6. Aplicar escenarios, registrar eventos y cambios de estado.
+7. Persistir pausa, progreso, finalización y eventos necesarios para recuperación.
 
-## 7.3 Controles
+Controles: Start, Pause, Resume, Cancel. Escenarios: Normal, Congestion, Breakdown, Detour.
 
-- Start, Pause, Resume, Cancel.
-- Multiplicador de velocidad configurable dentro de límites.
-- Escenarios: Normal, Congestion, Breakdown, Detour.
-- La simulación debe poder reiniciarse para repetir una demo.
+## 7.3 Frecuencia y transporte
 
-## 7.4 Cálculo
+Decisión aprobada para el primer perfil: una actualización por vehículo por segundo, configurable. Medir CPU, memoria, SQL y tráfico antes de tratar esa frecuencia como definitiva. SignalR entrega posiciones seleccionadas al navegador; RabbitMQ transporta eventos de dominio y transiciones relevantes, no cada tick visual.
 
-El motor debe usar tiempo transcurrido medido por el servidor, no depender de la frecuencia de renderizado del navegador. El progreso se calcula sobre distancia/tiempo de ruta y se limita entre 0 y 1. Para rutas con múltiples puntos, interpolar por distancia acumulada para evitar saltos de velocidad visual.
+## 7.4 Persistencia, reinicio y coordinación
 
-## 7.5 Concurrencia y escalado
+Persistir estado suficiente para reconstruir la ejecución (estado, progreso por vehículo, ruta/referencia, último instante procesado y eventos de dominio). Decisión aprobada: al reiniciar Simulation Service, runs activos se recuperan pausados y solo avanzan tras una acción explícita Resume; el tiempo de proceso detenido no se acumula.
 
-Cada SimulationRun debe tener un único ejecutor activo. Si hay múltiples instancias, usar ownership/lease distribuido o partición consistente. No asumir que Redis resuelve por sí solo la coordinación sin diseñar expiración y recuperación.
+Un índice/claim persistido por SimulationRun y una transición condicional de estado en SQL garantizan un solo ejecutor. Start/Resume usan operación idempotente; el worker reclama el run dentro de transacción y renueva su lease. Si se ejecutan varias instancias, lease con expiración y reclaim evita dos ejecutores; caída/reinicio deja el run en pausa y libera claim. No asumir que Redis lo resuelve. Duración exacta de lease/heartbeat se fija con pruebas de carga y recuperación.
 
-## 7.6 Eventos
-- `SimulationStarted`
-- `VehiclePositionUpdated`
-- `VehicleBreakdownDetected`
-- `RouteDelayDetected`
-- `RouteDeviationDetected`
-- `SimulationPaused`
-- `SimulationCompleted`
+## 7.5 Honestidad de la demo
 
-Los eventos frecuentes de posición pueden enviarse por SignalR y/o canal de streaming con política de frecuencia. No inundar RabbitMQ con cada frame de UI; definir frecuencia, agregación y retención.
-
-## 7.7 Honestidad de la demo
-
-Mostrar una etiqueta visible: **Simulación demostrativa — posiciones y eventos sintéticos**. No afirmar que hay seguimiento GPS ni tráfico real.
+Mostrar: **Simulación demostrativa — posiciones y eventos sintéticos**. Pruebas usan reloj controlado y geometrías locales; OSRM es opcional.

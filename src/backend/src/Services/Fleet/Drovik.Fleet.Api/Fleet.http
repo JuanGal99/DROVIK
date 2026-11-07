@@ -1,0 +1,8 @@
+@Fleet_HostAddress = http://localhost:5202
+
+GET {{Fleet_HostAddress}}/health/live
+Accept: application/json
+
+###
+GET {{Fleet_HostAddress}}/health/ready
+Accept: application/json

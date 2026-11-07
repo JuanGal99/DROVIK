@@ -1,0 +1,8 @@
+@Identity_HostAddress = http://localhost:5201
+
+GET {{Identity_HostAddress}}/health/live
+Accept: application/json
+
+###
+GET {{Identity_HostAddress}}/health/ready
+Accept: application/json

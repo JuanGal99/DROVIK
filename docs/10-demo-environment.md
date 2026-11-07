@@ -1,27 +1,23 @@
-# 10. Entorno demostrativo
+# 10. Entorno demostrativo local
 
-## 10.1 Datos sintéticos iniciales
+## 10.1 Datos
 
-Propuesta inicial:
-- 4 centros de distribución ficticios.
-- 15 vehículos.
-- 18 conductores ficticios.
-- 25 clientes ficticios.
-- 250 envíos en distintos estados.
-- 20 geometrías de rutas de respaldo.
-- 30–40 incidentes históricos/activos para poblar métricas.
+Seed completamente sintético, coherente y reproducible. Cantidades iniciales propuestas (4 centros, 15 vehículos, 18 conductores, 25 clientes, 250 envíos, 20 geometrías de respaldo y 30–40 incidentes) son ajustables, no requisitos de rendimiento. Usar valores ficticios, evitar datos personales reales.
 
-Ajustar cantidades según rendimiento y costo del hosting.
+## 10.2 Escenarios
 
-## 10.2 Escenarios guiados
-1. **Operación normal:** iniciar una simulación y observar vehículos en movimiento.
-2. **Congestión:** aplicar retraso y observar cambios en ETA/estado.
-3. **Avería:** generar evento de breakdown, crear incidente y mostrar su atención.
-4. **Desvío:** cambiar ruta y visualizar la nueva trayectoria.
-5. **Entrega:** completar un envío y observar actualización de indicadores.
+1. Operación normal: iniciar simulación y observar vehículos en movimiento.
+2. Congestión: aplicar retraso y mostrar cambios de ETA/estado.
+3. Avería: generar evento, crear incidente y atenderlo.
+4. Desvío: mostrar nueva trayectoria.
+5. Entrega: completar un envío y actualizar indicadores.
 
-## 10.3 Datos y seguridad
-Todo nombre, placa, teléfono, cliente y dirección es ficticio. No usar datos personales reales. El acceso público debe tener permisos restringidos y límites para evitar abuso.
+## 10.3 Portafolio
+
+La demostración corre localmente desde el repositorio. Capturas se guardan/referencian cuando existan; el README no debe presentar placeholders como capturas reales. Un video corto es opcional. No se exige aplicación pública ni cuenta hospedada.
+
+Los flujos principales funcionan sin GPS, tráfico en vivo, OSRM ni servicios cloud. OSRM es opcional y las geometrías locales son respaldo para demo y pruebas. La interfaz declara visiblemente que las posiciones y eventos son simulados.
 
 ## 10.4 Reset
-El reset solo se habilita para Administrator o una operación controlada del entorno demo. Debe ser idempotente, auditable y no estar expuesto como endpoint anónimo.
+
+El reset solo se habilita a Administrator o mediante operación local controlada. Debe ser idempotente, auditable y no anónimo. En desarrollo, documentar si reinicia las cinco bases de manera coordinada y detener consumidores/simulaciones antes del reset.

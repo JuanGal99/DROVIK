@@ -1,107 +1,77 @@
+# DROVIK
+
+### Logistics Intelligence Platform
+
 <p align="center">
   <img src="assets/branding/drovik-banner.svg" alt="DROVIK — Logistics Intelligence Platform" width="100%">
 </p>
 
-# DROVIK
+DROVIK es una plataforma demostrativa de gestión logística para centralizar operaciones de flota, envíos, recorridos e incidencias. Busca ayudar a comprender el estado operativo de una empresa de distribución mediante una consola unificada, un mapa y escenarios reproducibles.
 
-**Logistics Intelligence Platform**
+Es un proyecto de portafolio con ejecución local. El repositorio público contiene el código fuente y la documentación para clonar y ejecutar el sistema en un equipo propio. No se requiere ni contempla desplegar la aplicación completa públicamente.
 
-DROVIK es una plataforma demostrativa de gestión logística diseñada para una empresa ficticia. Permite administrar flotas, conductores, centros de distribución y envíos; visualizar operaciones en un mapa; ejecutar simulaciones de recorridos; y gestionar incidentes con actualizaciones en tiempo real.
+> **Demostración sintética:** DROVIK no se conecta a GPS ni representa tráfico vial real. Las posiciones, eventos y datos operativos son ficticios y la interfaz los identifica como simulados.
 
-> **Naturaleza de la demostración:** DROVIK no se conecta a GPS reales ni representa tráfico en vivo. Los vehículos, recorridos, eventos y métricas de la demo son datos sintéticos generados por el sistema.
+## Características previstas
 
-## Objetivos
+- Gestión de vehículos, conductores y centros de distribución.
+- Creación, asignación y seguimiento de envíos.
+- Mapa operativo y simulaciones autoritativas en backend.
+- Registro, seguimiento y resolución de incidencias.
+- Actualizaciones seleccionadas en tiempo real mediante SignalR.
+- Roles Administrator y Operator.
 
-- Construir un producto demostrable y desplegable públicamente.
-- Desarrollar una solución con Angular y ASP.NET Core.
-- Practicar arquitectura de microservicios, comunicación síncrona y asíncrona.
-- Implementar simulación logística controlada por el servidor.
-- Demostrar pruebas automatizadas, contenedores, CI/CD y observabilidad.
+Estas capacidades describen el alcance del producto, no funcionalidades ya implementadas.
 
-## Decisiones iniciales
+## Arquitectura
 
-| Área | Decisión |
-|---|---|
-| Modelo de producto | Una empresa ficticia; no multi-tenant |
-| Usuarios | Dos roles: Administrator y Operator |
-| Frontend | Angular + TypeScript + PrimeNG |
-| Backend | ASP.NET Core Web API |
-| Arquitectura | Microservicios con límites de dominio |
-| Base de datos | Microsoft SQL Server |
-| Acceso a datos | Entity Framework Core |
-| Mensajería | RabbitMQ |
-| API Gateway | YARP |
-| Tiempo real | SignalR |
-| Caché | Redis, solo donde aporte valor |
-| Mapas | Leaflet + OpenStreetMap |
-| Rutas | OSRM, con rutas de respaldo almacenadas |
-| Contenedores | Docker Compose para desarrollo |
-| Pruebas | xUnit; pruebas de integración y frontend |
-| Observabilidad | OpenTelemetry + Serilog |
-| CI/CD | GitHub Actions |
+![DROVIK System Architecture](assets/architecture/architecture-overview.svg)
 
-Las versiones concretas de Angular, .NET, SQL Server y demás dependencias se fijarán en la fase 0, usando versiones estables y compatibles en la fecha de inicio.
+El diagrama conceptual representa cinco servicios con propiedad independiente de datos: Identity, Fleet, Shipment, Simulation e Incident. YARP es el punto de entrada del frontend; RabbitMQ distribuye eventos asíncronos y SignalR notifica al navegador. Cada servicio conserva sus migraciones y no consulta tablas de otros servicios.
 
-## Servicios previstos
+Fuente editable: [assets/architecture/architecture-overview.mmd](assets/architecture/architecture-overview.mmd). La arquitectura detallada está en [docs/03-architecture.md](docs/03-architecture.md).
 
-1. **Identity Service:** autenticación, usuarios, roles y autorización.
-2. **Fleet Service:** vehículos, conductores y centros de distribución.
-3. **Shipment Service:** clientes, envíos, asignaciones y estados.
-4. **Simulation Service:** ejecución de simulaciones y generación de posiciones/eventos sintéticos.
-5. **Incident Service:** registro, asignación, seguimiento y resolución de incidentes.
-6. **Notification / Realtime capability:** distribución de notificaciones y actualizaciones SignalR. Puede comenzar alojada junto al servicio que gestione la experiencia en tiempo real y separarse solo si el diseño lo justifica.
-7. **API Gateway:** punto de entrada HTTP para Angular mediante YARP.
+## Tecnologías
 
-Cada servicio será propietario de sus datos. No se permitirá que un servicio consulte directamente las tablas de otro servicio. La integración se realizará mediante APIs o eventos.
+Angular runtime/compiler 21.2.26 y CLI/build 21.2.29, TypeScript 5.9.3 y PrimeNG 21.1.10; ASP.NET Core sobre .NET 10.0.403; EF Core 10.0.14; SQL Server 2022 CU23; YARP; RabbitMQ 4.4.0; SignalR; Docker Compose v2; xUnit; OpenTelemetry y Serilog; Leaflet y OpenStreetMap. Node.js 24.11.1 y npm 11.6.2. Angular 21 se seleccionó porque la versión Node disponible cumple su matriz de soporte; no se usan versiones preliminares. OSRM es opcional y hay geometrías locales de respaldo. Redis no forma parte de la primera versión. Ver [ADR 0007](docs/adr/0007-technical-versions.md).
 
-## Estructura del repositorio
+## Capturas
 
-```text
-DROVIK/
-├── README.md
-├── AGENTS.md
-├── .gitignore
-├── .editorconfig
-├── assets/
-│   ├── branding/
-│   │   └── drovik-banner.svg
-│   └── architecture/
-│       ├── architecture-overview.svg
-│       └── architecture-overview.mmd
-├── docs/
-│   ├── 01-product-overview.md
-│   ├── 02-requirements.md
-│   ├── 03-architecture.md
-│   ├── 04-service-boundaries.md
-│   ├── 05-data-ownership.md
-│   ├── 06-domain-and-business-rules.md
-│   ├── 07-simulation-engine.md
-│   ├── 08-security-and-permissions.md
-│   ├── 09-api-and-events.md
-│   ├── 10-demo-environment.md
-│   ├── 11-testing-strategy.md
-│   ├── 12-deployment-and-operations.md
-│   ├── 13-roadmap.md
-│   └── adr/
-├── src/
-│   ├── frontend/
-│   ├── gateway/
-│   └── services/
-├── tests/
-├── infra/
-│   ├── docker/
-│   └── observability/
-└── scripts/
-```
+Las capturas se añadirán cuando exista una implementación que mostrar. No hay imágenes de interfaz disponibles todavía. Se prevé incluir capturas reales y, opcionalmente, un video corto de demostración local.
 
-La estructura de `src/` se creará durante la fase de implementación. No crear todos los servicios vacíos por adelantado.
+## Ejecución local
 
-## Inicio
+La Fase 1 está en curso. Se han creado shells técnicos y migraciones iniciales vacías por servicio. SQL Server y RabbitMQ fueron validados en Docker Compose; los cinco servicios aplicaron sus migraciones y sus health checks de readiness respondieron correctamente. No hay tablas de negocio ni datos seed.
 
-Lee primero `AGENTS.md` y `docs/01-product-overview.md`. Después revisa `docs/13-roadmap.md`.
+1. Instalar Git, Docker Desktop con Compose v2, .NET SDK 10.0.403 y Node.js 24.11.1/npm 11.6.2.
+2. Clonar este repositorio y crear `.env` copiando `.env.example`; sustituir todos los placeholders por secretos locales. `.env` está excluido de Git.
+3. En Windows, si PowerShell no reconoce `docker`, añadir al `PATH` de la sesión la carpeta CLI de Docker Desktop con `$env:PATH="$env:LOCALAPPDATA\Programs\DockerDesktop\resources\bin;$env:PATH"`. Iniciar SQL Server y RabbitMQ con `docker compose up -d`; comprobar que ambos aparecen `healthy` con `docker compose ps`.
+4. Desde `src/backend`, ejecutar `dotnet tool restore`, `dotnet restore --locked-mode`, `dotnet build` y `dotnet test`.
+5. Desde `src/frontend/drovik-web`, ejecutar `npm ci`, `npm run build` y `npm test -- --watch=false`.
+6. Configurar `ConnectionStrings:IdentityDatabase`, `FleetDatabase`, `ShipmentDatabase`, `SimulationDatabase` e `IncidentDatabase` mediante User Secrets en cada proyecto API, apuntando a `127.0.0.1,1433`. Los servicios aplican sus migraciones vacías al iniciar en `Development`.
+7. Ejecutar APIs/gateway desde el IDE o `dotnet run --project <ruta-csproj>` y Angular con `npm start`. Los health checks `/health/live` y `/health/ready` permiten comprobar el proceso y SQL donde aplique.
 
-No empieces a implementar hasta completar las decisiones de fase 0 y confirmar el alcance del primer incremento.
+Las migraciones actuales no contienen entidades de negocio ni datos seed. El gateway todavía no tiene rutas YARP configuradas; eso corresponde a Fase 2. La guía detallada de credenciales locales, puertos y apagado está en [docs/12-deployment-and-operations.md](docs/12-deployment-and-operations.md).
 
-## Estado
+El backend podrá ofrecer también ejecución íntegra mediante contenedores como modalidad alternativa si se documenta y prueba. Redis, OSRM y servicios cloud no son necesarios para los flujos principales. Guía detallada: [docs/12-deployment-and-operations.md](docs/12-deployment-and-operations.md).
 
-**Estado actual:** definición funcional y técnica inicial. No existe todavía una implementación de producción.
+## Estado del proyecto
+
+**Fase 1 — Fundación técnica en progreso.** Fase 0 está cerrada documentalmente. Compose, SQL Server, RabbitMQ, las cinco bases y sus migraciones iniciales se validaron localmente; `/health/live` y `/health/ready` respondieron 200 en los cinco servicios y las cinco pruebas xUnit pasan. Aún no existen sesiones, rutas YARP configuradas, endpoints de negocio, simulación ni interfaces operativas. Falta comprobar restauración desde un clon limpio antes de cerrar Fase 1.
+
+## Documentación
+
+- [Visión del producto](docs/01-product-overview.md)
+- [Requisitos](docs/02-requirements.md)
+- [Arquitectura](docs/03-architecture.md)
+- [Límites de servicios](docs/04-service-boundaries.md)
+- [Propiedad de datos](docs/05-data-ownership.md)
+- [Reglas de negocio](docs/06-domain-and-business-rules.md)
+- [Motor de simulación](docs/07-simulation-engine.md)
+- [Seguridad](docs/08-security-and-permissions.md)
+- [APIs y eventos](docs/09-api-and-events.md)
+- [Entorno demo](docs/10-demo-environment.md)
+- [Pruebas](docs/11-testing-strategy.md)
+- [Ejecución y operaciones](docs/12-deployment-and-operations.md)
+- [Roadmap](docs/13-roadmap.md)
+- [Decisiones de arquitectura](docs/adr/)

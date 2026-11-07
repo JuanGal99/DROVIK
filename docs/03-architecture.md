@@ -1,73 +1,42 @@
 # 3. Arquitectura
 
-## 3.1 Estilo
+## 3.1 Estilo y estado de decisiones
 
-Microservicios orientados a capacidades de negocio, con un número deliberadamente limitado de servicios. No se busca dividir cada módulo CRUD en un servicio independiente.
+La dirección aprobada es una arquitectura de cinco microservicios con límites de dominio y propiedad de datos independientes. El proyecto se ejecuta localmente; el repositorio público no implica alojamiento público. Ver ADR 0001, 0003 y 0006.
+
+**Aprobado:** Angular + TypeScript + PrimeNG; ASP.NET Core Web API; Identity, Fleet, Shipment, Simulation e Incident; SQL Server y EF Core; YARP; RabbitMQ; SignalR; Docker Compose para infraestructura local; xUnit; OpenTelemetry + Serilog; Leaflet + OpenStreetMap. Redis se omite en la primera versión.
+
+**Versiones fijadas para Fase 1 (2026-11-06):** .NET SDK 10.0.403 / target `net10.0`; EF Core SQL Server 10.0.14; Angular runtime/compiler 21.2.26 y CLI/build 21.2.29; TypeScript 5.9.3; PrimeNG 21.1.10; Node.js 24.11.1 y npm 11.6.2; RxJS 7.8.2; PrimeUIX Themes 3.1.0; PrimeIcons 8.0.2; SQL Server 2022 CU23; RabbitMQ 4.4.0. Angular 21 se selecciona porque sigue soportado en LTS y acepta Node 24.0+, que corresponde al entorno disponible; Angular 22 requiere Node 24.15+ y no sería compatible con Node 24.11.1. Las versiones de npm se bloquean en package-lock.json y las dependencias NuGet mediante lockfiles.
+
+**Aprobado adicionalmente:** sesión mediante cookies y reglas CSRF/CORS; reserva explícita Fleet para asignaciones; frecuencia inicial de simulación de un segundo configurable, recuperada pausada; HTTP `/api/v1`; envelopes de eventos versionados e idempotencia. Ver ADR 0007–0010.
 
 ## 3.2 Vista lógica
 
 ![DROVIK system architecture](../assets/architecture/architecture-overview.svg)
 
-> Editable source: [`architecture-overview.mmd`](../assets/architecture/architecture-overview.mmd). The SVG is the rendered overview for GitHub; update both files when the architecture changes.
+Fuente editable: [architecture-overview.mmd](../assets/architecture/architecture-overview.mmd). Mantener ambos assets sincronizados al aprobar cambios estructurales. El diagrama existente conserva Redis como componente opcional del diseño conceptual; Redis queda excluido de la primera versión y no se instala ni configura localmente.
 
+## 3.3 Responsabilidades y comunicación
 
-```mermaid
-flowchart TB
-    U[Angular Web App] --> G[YARP API Gateway]
-    G --> I[Identity Service]
-    G --> F[Fleet Service]
-    G --> S[Shipment Service]
-    G --> M[Simulation Service]
-    G --> N[Incident Service]
-    G --> R[Realtime Hub / SignalR]
-
-    I --> IDB[(Identity DB)]
-    F --> FDB[(Fleet DB)]
-    S --> SDB[(Shipment DB)]
-    M --> MDB[(Simulation DB)]
-    N --> NDB[(Incident DB)]
-
-    F <--> Q[RabbitMQ]
-    S <--> Q
-    M <--> Q
-    N <--> Q
-    R <--> Q
-    M --> CACHE[(Redis opcional)]
-```
-
-El diagrama es conceptual. La ubicación final de SignalR y notificaciones se definirá durante el diseño detallado; no es obligatorio que cada capacidad sea un despliegue independiente.
-
-## 3.3 Responsabilidades
-
-- **Angular:** presentación, navegación, validación de experiencia y consumo de APIs/hub.
-- **YARP Gateway:** enrutamiento, políticas transversales apropiadas y punto de entrada; no contiene lógica de negocio.
-- **Identity:** autenticación, usuarios, roles y emisión/validación de tokens.
+- **Angular:** interfaz, navegación y consumo de Gateway/hub; no es autoridad de simulación.
+- **YARP Gateway:** punto de entrada HTTP y enrutamiento, sin lógica de negocio.
+- **Identity:** credenciales, usuarios, roles y sesiones.
 - **Fleet:** vehículos, conductores, centros y disponibilidad.
-- **Shipment:** clientes, envíos, asignaciones e historial de estados.
-- **Simulation:** reloj de simulación, progreso de vehículos, escenarios y eventos de simulación.
-- **Incident:** ciclo de vida y seguimiento de incidentes.
-- **Realtime:** distribuye actualizaciones a clientes conectados; puede integrarse inicialmente con Simulation/Incident si no justifica servicio independiente.
+- **Shipment:** clientes, envíos, asignaciones e historial.
+- **Simulation:** estado autoritativo, escenarios y generación de posiciones/eventos.
+- **Incident:** ciclo de vida e historial de incidentes.
+- **SignalR:** entrega de cambios al navegador; inicialmente alojado con Simulation o Incident, sin servicio adicional.
 
-## 3.4 Comunicación
+HTTP/REST se usa para consultas/comandos que necesitan respuesta inmediata. RabbitMQ propaga eventos asíncronos. SignalR distribuye actualizaciones seleccionadas al navegador. Cada servicio solo accede a sus propios datos; los contratos están en 09-api-and-events.md.
 
-- HTTP/REST para consultas y operaciones que requieren respuesta inmediata.
-- RabbitMQ para eventos de dominio y trabajo asíncrono.
-- SignalR para notificar al navegador sobre cambios relevantes.
-- Redis opcional para estado efímero, coordinación o caché; no será fuente de verdad.
+## 3.4 Ejecución local
 
-## 3.5 Consistencia
+Docker Compose administra SQL Server y RabbitMQ. Los servicios ASP.NET Core se ejecutan directamente durante desarrollo; también podrán ofrecer modalidad en contenedores cuando quede documentada y verificada. Angular se ejecuta con Angular CLI. YARP es la entrada HTTP del frontend. No se exige Kubernetes, Redis ni infraestructura cloud.
 
-Cada servicio es dueño de sus datos. Los procesos que cruzan límites se coordinan mediante eventos y consistencia eventual. Evitar transacciones distribuidas. Para eventos que no deben perderse, evaluar Transactional Outbox y consumidores idempotentes.
+Cada servicio recibe su propia cadena de conexión a una base lógica independiente de la instancia local. El detalle de arranque y configuración se especifica en 12-deployment-and-operations.md.
 
-## 3.6 Resiliencia
+## 3.5 Consistencia y resiliencia
 
-- Timeouts explícitos en llamadas HTTP.
-- Reintentos solo para fallos transitorios y operaciones seguras.
-- Circuit breaker cuando el patrón y la dependencia lo justifiquen.
-- Dead-letter queue para mensajes que excedan reintentos.
-- CorrelationId/TraceId en logs y mensajes.
-- Degradación elegante ante caída de OSRM o Redis.
+No hay transacciones distribuidas ni acceso cruzado a tablas. Usar eventos, consistencia eventual y consumidores idempotentes. Introducir Outbox cuando una publicación no pueda perderse respecto a la transacción local; Inbox/registro idempotente cuando procesar dos veces tenga efecto de negocio. Definir timeouts HTTP, reintentos solo en fallos transitorios y DLQ.
 
-## 3.7 Escalabilidad
-
-La simulación puede escalar horizontalmente si el diseño de ejecución evita que dos instancias procesen la misma simulación. Esto requiere estrategia de ownership/lease o partición por SimulationId. No escalar antes de medir.
+Cada SimulationRun tiene un único ejecutor activo. En desarrollo de una sola instancia, coordinación en memoria puede bastar con recuperación desde estado persistido; cualquier escalado a varias instancias requiere lease/ownership persistido y recuperación definida. Redis no se presume como solución.

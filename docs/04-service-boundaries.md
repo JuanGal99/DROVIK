@@ -1,39 +1,26 @@
 # 4. Límites y contratos de microservicios
 
-## 4.1 Identity Service
-**Propietario:** usuarios, credenciales, roles y sesiones/tokens.  
-**No es propietario:** perfiles de conductores.
+## 4.1 Servicios aprobados
 
-Operaciones conceptuales: login, refresh si se implementa, logout/revocación si aplica, administración de usuarios y asignación de roles.
+- **Identity Service:** usuarios, credenciales, roles y sesiones; no es dueño de perfiles de conductores.
+- **Fleet Service:** vehículos, conductores, centros y estados de flota. Publica VehicleAvailabilityChanged, VehicleMaintenanceStatusChanged, DriverAvailabilityChanged.
+- **Shipment Service:** clientes, envíos, asignaciones e historial. Publica ShipmentCreated, ShipmentAssigned, ShipmentStatusChanged, ShipmentDelivered, ShipmentCancelled; mantiene proyecciones locales mínimas de recursos cuando sean necesarias.
+- **Simulation Service:** ejecuciones, estado simulado, geometrías/referencias de ruta y eventos. Consume órdenes/eventos y publica SimulationStarted, VehiclePositionUpdated, VehicleBreakdownDetected, RouteDelayDetected, RouteDeviationDetected, SimulationCompleted y SimulationPaused.
+- **Incident Service:** incidentes y actividad. Consume eventos relevantes de forma idempotente; publica IncidentCreated, IncidentStatusChanged, IncidentResolved.
 
-## 4.2 Fleet Service
-**Propietario:** Vehicle, Driver, DistributionCenter y estados de flota.
+SignalR comienza integrado en el servicio que origine las actualizaciones; no se crea un sexto servicio de realtime sin una necesidad de escalado/aislamiento demostrada.
 
-Eventos publicados: `VehicleAvailabilityChanged`, `VehicleMaintenanceStatusChanged`, `DriverAvailabilityChanged`.
+## 4.2 Asignación y propiedad
 
-## 4.3 Shipment Service
-**Propietario:** Customer, Shipment, ShipmentAssignment y ShipmentStatusHistory.
+**Aprobado:** Shipment solicita a Fleet una reserva explícita de vehículo y conductor. Fleet valida disponibilidad/capacidad y confirma o rechaza; Shipment no consulta tablas Fleet. Fleet conserva autoridad sobre estado y reservas.
 
-Eventos publicados: `ShipmentCreated`, `ShipmentAssigned`, `ShipmentStatusChanged`, `ShipmentDelivered`, `ShipmentCancelled`.
+Diseño de ejecución recomendado: Fleet reserva ambos recursos en una transacción local y solo devuelve éxito si ambos quedan retenidos; evitar reserva parcial vehículo/conductor. Usar clave de idempotencia derivada de la solicitud de Shipment para resolver reintentos/timeout sin crear dobles reservas. La respuesta incluye `ReservationId`, expiración UTC y resultado. Tras persistir su asignación, Shipment confirma la reserva; si la persistencia local falla, solicita liberarla. Si la respuesta de confirmación se pierde, consultar/reintentar idempotentemente por `ReservationId`.
 
-Puede consumir eventos de flota y simulación para mantener proyecciones locales mínimas necesarias. No debe leer la base de Fleet directamente.
+Las reservas no confirmadas expiran automáticamente mediante TTL configurable y liberan ambos recursos de manera atómica. El valor inicial del TTL debe fijarse en configuración al implementar con base en la latencia local medida; no es una regla de negocio aprobada. La expiración nunca libera una reserva ya confirmada. Mensajes tardíos o respuestas duplicadas no alteran un estado terminal. Sin transacciones distribuidas: consistencia eventual, idempotencia, expiración y operación de compensación `Release`.
 
-## 4.4 Simulation Service
-**Propietario:** SimulationRun, SimulationVehicleState y SimulationEvent; geometrías o referencias de ruta necesarias para ejecutar simulaciones.
+## 4.3 Reglas de límites
 
-Consume comandos/eventos autorizados y publica `SimulationStarted`, `VehiclePositionUpdated` (con frecuencia controlada), `VehicleBreakdownDetected`, `RouteDelayDetected`, `RouteDeviationDetected`, `SimulationCompleted`.
-
-## 4.5 Incident Service
-**Propietario:** Incident e IncidentActivity.
-
-Consume eventos relevantes de simulación y crea/actualiza incidentes según reglas idempotentes. Publica `IncidentCreated`, `IncidentStatusChanged`, `IncidentResolved`.
-
-## 4.6 Realtime
-La entrega SignalR puede vivir inicialmente dentro de Simulation Service o en un componente de realtime dedicado. Crear un servicio independiente solo si se requiere escalar conexiones por separado o aislar esa responsabilidad.
-
-## 4.7 Reglas de límites
-- No compartir entidades EF Core entre servicios.
-- No compartir una única base de datos como si fuera una base común.
+- No compartir entidades EF Core ni bases/tablas entre servicios.
 - Compartir contratos versionados, no modelos internos.
-- Evitar llamadas en cadena síncronas en flujos críticos.
-- Documentar quién publica y quién consume cada evento.
+- Evitar cadenas síncronas en flujos críticos.
+- Registrar productor y consumidores de cada evento.

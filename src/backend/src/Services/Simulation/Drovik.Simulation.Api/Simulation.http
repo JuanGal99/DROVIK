@@ -1,0 +1,8 @@
+@Simulation_HostAddress = http://localhost:5204
+
+GET {{Simulation_HostAddress}}/health/live
+Accept: application/json
+
+###
+GET {{Simulation_HostAddress}}/health/ready
+Accept: application/json

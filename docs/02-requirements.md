@@ -5,57 +5,41 @@
 ### Identidad y acceso
 - Inicio y cierre de sesión.
 - Roles Administrator y Operator.
-- Autorización validada en backend.
-- Gestión de usuarios reservada a Administrator.
+- Autorización validada en backend; gestión de usuarios solo Administrator.
 
 ### Catálogos operativos
 - CRUD de vehículos, conductores y centros de distribución.
-- Estados de disponibilidad y mantenimiento.
-- Búsqueda, filtros, paginación y validaciones.
+- Estados de disponibilidad y mantenimiento; búsqueda, filtros, paginación y validaciones.
 
 ### Envíos
 - Crear, consultar, editar y cancelar envíos.
-- Asignar vehículo y conductor.
-- Consultar historial de estados.
-- Estados sugeridos: Draft, Pending, Assigned, InTransit, Delayed, Delivered, Cancelled.
+- Asignar vehículo y conductor; consultar historial de estados.
+- Estados: Draft, Pending, Assigned, InTransit, Delayed, Delivered, Cancelled. Transiciones válidas y roles se describen en `06-domain-and-business-rules.md`.
 
 ### Mapa y simulación
 - Visualizar vehículos y envíos activos.
 - Iniciar, pausar, reanudar y finalizar simulaciones.
 - Mostrar posiciones y cambios de estado en tiempo real.
-- Ejecutar escenarios: operación normal, congestión simulada, avería y desvío.
-- Mostrar que los datos son sintéticos.
+- Escenarios previstos: normal, congestión simulada, avería y desvío.
+- Mostrar claramente que los datos son sintéticos.
 
-### Incidentes
-- Crear incidentes manuales o derivados de eventos de simulación.
-- Tipos: Breakdown, Delay, RouteDeviation, Other.
-- Estados: Open, InProgress, Resolved, Closed.
-- Registrar actividad e historial.
+### Incidentes y dashboard
+- Registrar incidentes manuales o derivados de eventos de simulación, seguir su actividad y resolverlos.
+- Dashboard con envíos por estado, disponibilidad de vehículos, incidentes abiertos, entregas a tiempo/retrasadas y actividad reciente.
 
-### Dashboard
-- Envíos por estado.
-- Vehículos disponibles/en ruta/mantenimiento.
-- Incidentes abiertos.
-- Entregas a tiempo frente a retrasadas.
-- Actividad reciente.
-
-### Demo
-- Datos iniciales consistentes.
-- Usuario(s) de demostración.
-- Restablecimiento protegido del entorno demo.
-- Escenarios guiados para mostrar las capacidades principales.
+### Demostración local
+- Datos iniciales ficticios y reproducibles, escenarios guiados y operación protegida para reinicializar los datos.
+- Repositorio público con instrucciones para clonar y ejecutar localmente, capturas reales cuando estén disponibles y material audiovisual opcional.
 
 ## 2.2 No funcionales
-
-- Seguridad: autenticación, autorización, validación, protección de secretos y límites de solicitudes donde aplique.
-- Rendimiento: paginación en listados; evitar consultas sin límite.
-- Resiliencia: timeouts, reintentos acotados y manejo de indisponibilidad de dependencias.
+- Seguridad: autenticación, autorización, validación de servidor y protección de secretos.
+- Rendimiento: paginación y consultas acotadas.
+- Resiliencia: timeouts, reintentos limitados y manejo de indisponibilidad.
 - Observabilidad: logs estructurados, métricas y trazas correlacionadas.
 - Mantenibilidad: límites de servicio y contratos documentados.
-- Accesibilidad: navegación por teclado, contraste y estados comprensibles.
-- Disponibilidad demo: degradación elegante si el proveedor de rutas externo no responde.
-- Reproducibilidad: instrucciones de desarrollo, seed y pruebas documentadas.
+- Accesibilidad: teclado, contraste y estados comprensibles.
+- Reproducibilidad: instrucciones locales, seed y pruebas documentadas.
+- Los flujos principales y pruebas no dependen de OSRM ni de servicios cloud.
 
 ## 2.3 Fuera de alcance
-
-GPS real, tráfico en vivo, facturación, pagos, optimización matemática avanzada de rutas, multi-tenancy, app móvil nativa y despliegue Kubernetes.
+GPS real, tráfico en vivo, facturación, pagos, optimización matemática avanzada de rutas, multi-tenancy, aplicación móvil nativa, Kubernetes y despliegue público de la aplicación.
