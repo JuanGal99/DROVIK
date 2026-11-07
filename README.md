@@ -58,7 +58,7 @@ El backend podrá ofrecer también ejecución íntegra mediante contenedores com
 
 ## Estado del proyecto
 
-**Fase 1 — Fundación técnica completada. Fase 2 — Gateway e Identity en curso en `feature/backend-next`.** YARP enruta los prefijos de API y Identity tiene login/roles/sesiones con pruebas 25/25; su migración se aplicó a SQL Server local y readiness respondió correctamente. Sigue pendiente verificar el flujo del navegador completo a través del Gateway. Fleet, Shipment, Simulation e Incident siguen siendo shells técnicos. El frontend aún no contiene pantallas operativas.
+**Fase 1 — Fundación técnica completada. Fase 2 — Gateway e Identity integrada en `main`.** YARP enruta los prefijos de API y Identity tiene login/roles/sesiones con pruebas 25/25; su migración se aplicó a SQL Server local y readiness respondió correctamente. Sigue pendiente verificar el flujo del navegador completo a través del Gateway. El frontend ya contiene el shell responsive, overview, Fleet, Drivers y un módulo de envíos con datos sintéticos en memoria; esas pantallas todavía no consumen el Gateway ni representan datos del backend.
 
 ## Documentación
 

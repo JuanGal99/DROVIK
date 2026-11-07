@@ -19,9 +19,9 @@ Las fases se completan localmente. Capturas/video son materiales de portafolio; 
 - **Salida verificable:** los diez criterios de esta fase se cumplieron. El árbol de código versionado restaura y compila desde un clon limpio; la guía local está documentada. El reporte de 16 vulnerabilidades moderadas de npm queda como seguimiento de dependencias y no impidió la instalación o compilación. No se adelantaron funcionalidades de negocio.
 
 ## Fase 2 — Gateway e Identity Service (en progreso)
-- **Gateway (implementado en `feature/backend-next`):** YARP 2.3.0 enruta prefijos versionados a los cinco servicios, configura CORS explícito para Angular local y tiene pruebas de proxy y ruta desconocida.
-- **Identity (implementado y validado en `feature/backend-next`):** ASP.NET Core Identity, roles Administrator/Operator, creación administrada de cuentas, login, access JWT RS256 de 15 minutos, refresh hash de siete días con rotación/familia, logout, `/me`, CSRF y bootstrap explícito de primer administrador. Migración aplicada a SQL Server; readiness y pruebas xUnit 25/25.
-- **Contratos:** revisar tabla Identity de `09-api-and-events.md`; Angular usa el Gateway, access token en memoria y refresh solo cookie HttpOnly; las claves se configuran localmente.
+- **Gateway (integrado en `main`):** YARP 2.3.0 enruta prefijos versionados a los cinco servicios, configura CORS explícito para Angular local y tiene pruebas de proxy y ruta desconocida.
+- **Identity (integrado y validado en `main`):** ASP.NET Core Identity, roles Administrator/Operator, creación administrada de cuentas, login, access JWT RS256 de 15 minutos, refresh hash de siete días con rotación/familia, logout, `/me`, CSRF y bootstrap explícito de primer administrador. Migración aplicada a SQL Server; readiness y pruebas xUnit 25/25.
+- **Contratos:** revisar tabla Identity de `09-api-and-events.md`; el frontend actual sigue usando datos sintéticos en memoria y aún no implementa el cliente Angular para el Gateway, access token en memoria ni refresh por cookie HttpOnly. Las claves se configuran localmente.
 - **Pendiente para cerrar Fase 2:** prueba de flujo autenticado de navegador completo Angular → Gateway → Identity (cookies, CSRF y CORS en cadena); comprobar configuración de claves públicas y permisos en cada servicio de dominio. Fase 2 no se cierra hasta verificar esos puntos además del build/tests.
 
 ## Fase 3 — Fleet Service
