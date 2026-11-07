@@ -29,7 +29,11 @@ export class AuthService {
     this.busy.set(true);
     this.error.set(null);
     return this.ensureCsrf().pipe(
-      switchMap(() => this.http.post<AuthResponse>(`${environment.gatewayUrl}/api/v1/auth/login`, { email, password }, { withCredentials: true })),
+      switchMap(() => this.http.post<AuthResponse>(
+        `${environment.gatewayUrl}/api/v1/auth/login`,
+        { email, password },
+        { withCredentials: true, headers: this.csrfHeaders() },
+      )),
       tap((response) => this.setSession(response)),
       map((response) => response.user),
       catchError((error) => {
@@ -42,7 +46,11 @@ export class AuthService {
 
   refresh(): Observable<AuthUser> {
     return this.ensureCsrf().pipe(
-      switchMap(() => this.http.post<AuthResponse>(`${environment.gatewayUrl}/api/v1/auth/refresh`, {}, { withCredentials: true })),
+      switchMap(() => this.http.post<AuthResponse>(
+        `${environment.gatewayUrl}/api/v1/auth/refresh`,
+        {},
+        { withCredentials: true, headers: this.csrfHeaders() },
+      )),
       tap((response) => this.setSession(response)),
       map((response) => response.user),
     );
@@ -51,7 +59,11 @@ export class AuthService {
   logout(): Observable<void> {
     this.busy.set(true);
     return this.ensureCsrf().pipe(
-      switchMap(() => this.http.post<void>(`${environment.gatewayUrl}/api/v1/auth/logout`, {}, { withCredentials: true })),
+      switchMap(() => this.http.post<void>(
+        `${environment.gatewayUrl}/api/v1/auth/logout`,
+        {},
+        { withCredentials: true, headers: this.csrfHeaders() },
+      )),
       catchError((error) => {
         this.error.set(this.problemMessage(error, 'No se pudo cerrar la sesión.'));
         return throwError(() => error);
@@ -94,6 +106,11 @@ export class AuthService {
     this.accessToken = response.accessToken;
     this.user.set(response.user);
     this.error.set(null);
+  }
+
+  private csrfHeaders(): { 'X-CSRF-TOKEN': string } {
+    if (!this.csrfToken) throw new Error('CSRF token is not initialized.');
+    return { 'X-CSRF-TOKEN': this.csrfToken };
   }
 
   private problemMessage(error: { error?: { detail?: string } }, fallback: string): string {

@@ -27,6 +27,7 @@ describe('AuthService', () => {
 
     const login = http.expectOne('http://localhost:5200/api/v1/auth/login');
     expect(login.request.withCredentials).toBe(true);
+    expect(login.request.headers.get('X-CSRF-TOKEN')).toBe('csrf-token');
     expect(login.request.body).toEqual({ email: 'operator@example.com', password: 'Password-1234!' });
     login.flush({
       accessToken: 'access-token',
@@ -47,6 +48,7 @@ describe('AuthService', () => {
     http.expectOne('http://localhost:5200/api/v1/auth/csrf').flush({ token: 'csrf-token' });
     const refresh = http.expectOne('http://localhost:5200/api/v1/auth/refresh');
     expect(refresh.request.withCredentials).toBe(true);
+    expect(refresh.request.headers.get('X-CSRF-TOKEN')).toBe('csrf-token');
     refresh.flush({
       accessToken: 'refreshed-token',
       tokenType: 'Bearer',
