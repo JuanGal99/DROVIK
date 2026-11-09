@@ -59,7 +59,8 @@ services:
     volumes:
       - rabbitmq-data:/var/lib/rabbitmq
     healthcheck:
-      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      # A port check on purpose: CLI tools run as root here and would create the broker's cookie with the wrong owner on first boot.
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/5672"]
       interval: 10s
       timeout: 5s
       retries: 12
