@@ -51,7 +51,7 @@ Solo necesitas [Docker Desktop](https://www.docker.com/products/docker-desktop/)
 En Windows:
 
 ```bat
-start.cmd
+.\start.cmd
 ```
 
 En macOS, Linux o Git Bash:

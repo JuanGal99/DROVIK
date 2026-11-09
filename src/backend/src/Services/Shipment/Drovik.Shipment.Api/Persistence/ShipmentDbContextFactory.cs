@@ -15,8 +15,9 @@ public sealed class ShipmentDbContextFactory : IDesignTimeDbContextFactory<Shipm
             .AddUserSecrets<ShipmentDbContextFactory>(optional: true)
             .AddEnvironmentVariables()
             .Build();
+        // Design-time tools only need a provider to read the model, so a clean machine works without secrets.
         var connectionString = configuration.GetConnectionString("ShipmentDatabase")
-            ?? throw new InvalidOperationException("ConnectionStrings:ShipmentDatabase must be configured through local secrets.");
+            ?? "Server=localhost;Database=DrovikShipment;TrustServerCertificate=True";
         var options = new DbContextOptionsBuilder<ShipmentDbContext>()
             .UseSqlServer(connectionString)
             .Options;
