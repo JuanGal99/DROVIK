@@ -3,6 +3,7 @@ using Drovik.Shipment.Api.Domain;
 using Drovik.Shipment.Api.Persistence;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
 
 namespace Drovik.Shipment.Api.Application;
 
@@ -17,6 +18,16 @@ public static class CustomerEndpoints
             .RequireAuthorization(new AuthorizeAttribute { Roles = "Administrator,Operator" });
         customers.MapGet("", ListAsync);
         customers.MapGet("{id:guid}", GetAsync);
+        app.MapPost("/api/v1/shipments/demo-reset", ResetOperationAsync).RequireAuthorization(new AuthorizeAttribute { Roles = "Administrator" });
+    }
+
+    private static async Task<IResult> ResetOperationAsync(ShipmentDbContext database, ClaimsPrincipal principal, ILogger<ShipmentDbContext> logger, CancellationToken cancellationToken)
+    {
+        await database.StatusHistory.ExecuteDeleteAsync(cancellationToken);
+        await database.Shipments.ExecuteDeleteAsync(cancellationToken);
+        await database.Outbox.Where(item => item.PublishedAtUtc == null).ExecuteDeleteAsync(cancellationToken);
+        logger.LogWarning("Envíos reiniciados por {Actor}.", principal.FindFirst("sub")?.Value);
+        return Results.NoContent();
     }
 
     private static async Task<IResult> ListAsync(ShipmentDbContext database, string? search, bool? isActive,

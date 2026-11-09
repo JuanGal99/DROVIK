@@ -10,7 +10,7 @@ import '../../core/locale/es-locale';
 const STATUS_LABELS: Record<ShipmentStatus, string> = {
   Pending: 'Pendiente', Assigned: 'Asignado', InTransit: 'En tránsito', Delayed: 'Retrasado', Delivered: 'Entregado', Cancelled: 'Cancelado',
 };
-const HISTORY_SOURCES: Record<string, string> = { Created: 'Creado', Assigned: 'Recursos asignados', StatusChanged: 'Cambio de estado', ReservationExpired: 'Reserva vencida' };
+const HISTORY_SOURCES: Record<string, string> = { Created: 'Creado', Assigned: 'Recursos asignados', StatusChanged: 'Cambio de estado', ReservationExpired: 'Reserva vencida', RouteCompleted: 'Llegó a su destino', RouteDelay: 'Congestión', Breakdown: 'Avería' };
 const PRIORITY_LABELS: Record<ShipmentPriority, string> = { Normal: 'Normal', High: 'Alta' };
 const STATUS_CLASSES: Record<ShipmentStatus, string> = {
   Pending: 'pending', Assigned: 'assigned', InTransit: 'in-transit', Delayed: 'delayed', Delivered: 'delivered', Cancelled: 'cancelled',

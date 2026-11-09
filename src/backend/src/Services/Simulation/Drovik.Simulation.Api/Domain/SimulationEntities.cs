@@ -38,6 +38,8 @@ public sealed class SimulatedVehicle
     public string OriginName { get; set; } = string.Empty;
     public string DestinationName { get; set; } = string.Empty;
     public bool IsDelayed { get; set; }
+    public bool IsBrokenDown { get; set; }
+    public bool IsDetoured { get; set; }
     public string RouteJson { get; set; } = string.Empty;
     public double DistanceMeters { get; set; }
     public double ProgressMeters { get; set; }

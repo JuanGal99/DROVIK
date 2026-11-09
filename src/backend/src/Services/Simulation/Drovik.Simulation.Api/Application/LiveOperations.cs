@@ -1,7 +1,9 @@
 using System.ComponentModel.DataAnnotations;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using System.Security.Claims;
 using System.Text.Json;
+using Drovik.Messaging;
 using Drovik.Simulation.Api.Domain;
 using Drovik.Simulation.Api.Persistence;
 using Microsoft.AspNetCore.Authorization;
@@ -11,9 +13,11 @@ using Microsoft.EntityFrameworkCore;
 namespace Drovik.Simulation.Api.Application;
 
 public sealed record StartRunRequest([property: Range(1, 120)] int SpeedMultiplier);
+public enum LiveScenario { Congestion, Breakdown, Detour, Repair }
+public sealed record ApplyScenarioRequest(Guid ShipmentId, LiveScenario Scenario);
 public sealed record LiveRunResponse(Guid Id, string Status, int SpeedMultiplier, DateTime StartedAtUtc);
 public sealed record LiveVehicleResponse(Guid ShipmentId, Guid? VehicleId, string TrackingCode, string OriginName, string DestinationName,
-    string Status, bool IsDelayed, int ProgressPercent, double Latitude, double Longitude, int? RemainingSeconds, double[][]? Route);
+    string Status, bool IsDelayed, bool IsBrokenDown, bool IsDetoured, int ProgressPercent, double Latitude, double Longitude, int? RemainingSeconds, double[][]? Route);
 public sealed record LiveStateResponse(LiveRunResponse? Run, IReadOnlyList<LiveVehicleResponse> Vehicles);
 
 [Authorize(Roles = "Administrator,Operator")]
@@ -63,15 +67,15 @@ public static class LiveState
     public static IReadOnlyList<RoutePoint> DeserializeRoute(string json) => JsonSerializer.Deserialize<List<RoutePoint>>(json, RouteOptions) ?? [];
 
     public static double SpeedOf(SimulationRun run, SimulatedVehicle vehicle) =>
-        BaseSpeedMetersPerSecond * run.SpeedMultiplier * (vehicle.IsDelayed ? DelayedSpeedFactor : 1);
+        vehicle.IsBrokenDown ? 0 : BaseSpeedMetersPerSecond * run.SpeedMultiplier * (vehicle.IsDelayed ? DelayedSpeedFactor : 1);
 
     public static LiveStateResponse ToResponse(SimulationRun run, bool includeRoutes) => new(
         new LiveRunResponse(run.Id, run.Status.ToString(), run.SpeedMultiplier, run.StartedAtUtc),
         run.Vehicles.Where(item => item.Status != SimulatedVehicleStatus.Removed).OrderBy(item => item.TrackingCode).Select(item => new LiveVehicleResponse(
-            item.ShipmentId, item.VehicleId, item.TrackingCode, item.OriginName, item.DestinationName, item.Status.ToString(), item.IsDelayed,
+            item.ShipmentId, item.VehicleId, item.TrackingCode, item.OriginName, item.DestinationName, item.Status.ToString(), item.IsDelayed, item.IsBrokenDown, item.IsDetoured,
             item.DistanceMeters > 0 ? (int)Math.Round(item.ProgressMeters / item.DistanceMeters * 100) : 100,
             item.Latitude, item.Longitude,
-            item.Status == SimulatedVehicleStatus.Moving ? (int)Math.Ceiling((item.DistanceMeters - item.ProgressMeters) / SpeedOf(run, item)) : null,
+            item.Status == SimulatedVehicleStatus.Moving && !item.IsBrokenDown ? (int)Math.Ceiling((item.DistanceMeters - item.ProgressMeters) / SpeedOf(run, item)) : null,
             includeRoutes ? DeserializeRoute(item.RouteJson).Select(point => new[] { point.Latitude, point.Longitude }).ToArray() : null)).ToList());
 }
 
@@ -85,6 +89,8 @@ public static class LiveOperationsEndpoints
         simulations.MapGet("live", GetLiveAsync);
         simulations.MapPost("", StartAsync);
         simulations.MapPost("{id:guid}/sync", SyncAsync);
+        simulations.MapPost("{id:guid}/scenarios", ApplyScenarioAsync);
+        simulations.MapPost("demo-reset", ResetAsync).RequireAuthorization(new AuthorizeAttribute { Roles = "Administrator" });
         simulations.MapPost("{id:guid}/pause", (Guid id, SimulationDbContext database, IHubContext<OperationsHub> hub, TimeProvider clock, CancellationToken cancellationToken) =>
             ChangeAsync(id, SimulationRunStatus.Running, SimulationRunStatus.Paused, database, hub, clock, cancellationToken));
         simulations.MapPost("{id:guid}/resume", (Guid id, SimulationDbContext database, IHubContext<OperationsHub> hub, TimeProvider clock, CancellationToken cancellationToken) =>
@@ -171,12 +177,85 @@ public static class LiveOperationsEndpoints
         return Results.Ok(state);
     }
 
+    /// <summary>Applies an operator's scenario to one vehicle. Incidents and shipment changes follow from the published event.</summary>
+    private static async Task<IResult> ApplyScenarioAsync(Guid id, ApplyScenarioRequest request, SimulationDbContext database, IRouteProvider routes,
+        IHubContext<OperationsHub> hub, CancellationToken cancellationToken)
+    {
+        var run = await database.Runs.Include(item => item.Vehicles).SingleOrDefaultAsync(item => item.Id == id, cancellationToken);
+        if (run is null) return Results.NotFound();
+        if (!ActiveStatuses.Contains(run.Status)) return Problem(409, "Conflicto", "La operación ya terminó.");
+        var vehicle = run.Vehicles.SingleOrDefault(item => item.ShipmentId == request.ShipmentId && item.Status == SimulatedVehicleStatus.Moving);
+        if (vehicle is null) return Problem(409, "Conflicto", "El vehículo ya no está en ruta.");
+
+        var rejection = request.Scenario switch
+        {
+            LiveScenario.Congestion => vehicle.IsDelayed ? "El vehículo ya está retrasado." : null,
+            LiveScenario.Breakdown => vehicle.IsBrokenDown ? "El vehículo ya está averiado." : null,
+            LiveScenario.Repair => vehicle.IsBrokenDown ? null : "El vehículo no está averiado.",
+            LiveScenario.Detour when vehicle.IsBrokenDown => "Un vehículo averiado no puede desviarse.",
+            LiveScenario.Detour when vehicle.IsDetoured => "El vehículo ya tomó un desvío.",
+            _ => null
+        };
+        if (rejection is not null) return Problem(409, "Conflicto", rejection);
+
+        switch (request.Scenario)
+        {
+            case LiveScenario.Congestion:
+                vehicle.IsDelayed = true;
+                Announce(database, DomainEvents.RouteDelayDetected, run, vehicle);
+                break;
+            case LiveScenario.Breakdown:
+                vehicle.IsBrokenDown = true;
+                Announce(database, DomainEvents.VehicleBreakdownDetected, run, vehicle);
+                break;
+            case LiveScenario.Repair:
+                vehicle.IsBrokenDown = false;
+                break;
+            case LiveScenario.Detour:
+                var route = LiveState.DeserializeRoute(vehicle.RouteJson);
+                var detour = routes.BuildDetour(new RoutePoint(vehicle.Latitude, vehicle.Longitude), route[^1], vehicle.DistanceMeters - vehicle.ProgressMeters);
+                if (detour is null) return Problem(409, "Sin desvío disponible", "No hay una vía alterna desde la posición actual.");
+                List<RoutePoint> updated = [.. RouteMath.TakeUntil(route, vehicle.ProgressMeters), .. detour];
+                vehicle.RouteJson = LiveState.SerializeRoute(updated);
+                vehicle.DistanceMeters = RouteMath.Length(updated);
+                vehicle.IsDetoured = true;
+                Announce(database, DomainEvents.RouteDeviationDetected, run, vehicle);
+                break;
+        }
+
+        try
+        {
+            await database.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            return Problem(409, "Conflicto", "La operación cambió al mismo tiempo; inténtalo de nuevo.");
+        }
+        await hub.Clients.All.SendAsync("state", LiveState.ToResponse(run, includeRoutes: false), cancellationToken);
+        return Results.Ok(LiveState.ToResponse(run, includeRoutes: true));
+    }
+
+    private static void Announce(SimulationDbContext database, string eventType, SimulationRun run, SimulatedVehicle vehicle) =>
+        database.Outbox.Add(OutboxMessageFactory.Create(eventType,
+            new RouteScenarioDetectedV1(vehicle.ShipmentId, run.Id, vehicle.VehicleId, vehicle.TrackingCode), vehicle.ShipmentId.ToString()));
+
+    private static async Task<IResult> ResetAsync(SimulationDbContext database, IHubContext<OperationsHub> hub, ClaimsPrincipal principal,
+        ILogger<SimulationEngine> logger, CancellationToken cancellationToken)
+    {
+        await database.Vehicles.ExecuteDeleteAsync(cancellationToken);
+        await database.Runs.ExecuteDeleteAsync(cancellationToken);
+        await database.Outbox.Where(item => item.PublishedAtUtc == null).ExecuteDeleteAsync(cancellationToken);
+        logger.LogWarning("Datos de operación reiniciados por {Actor}.", principal.FindFirst("sub")?.Value);
+        await hub.Clients.All.SendAsync("state", new LiveStateResponse(null, []), cancellationToken);
+        return Results.NoContent();
+    }
+
     private static void Reconcile(SimulationRun run, IReadOnlyList<ActiveShipment> shipments, IRouteProvider routes, SimulationDbContext? tracked = null)
     {
         var onRoute = shipments.ToDictionary(item => item.Id);
         foreach (var vehicle in run.Vehicles.Where(item => item.Status == SimulatedVehicleStatus.Moving))
         {
-            if (onRoute.TryGetValue(vehicle.ShipmentId, out var shipment)) vehicle.IsDelayed = shipment.Status == "Delayed";
+            if (onRoute.TryGetValue(vehicle.ShipmentId, out var shipment)) vehicle.IsDelayed |= shipment.Status == "Delayed";
             else vehicle.Status = SimulatedVehicleStatus.Removed;
         }
 

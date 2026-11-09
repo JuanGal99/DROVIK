@@ -48,6 +48,14 @@ export class DriversPage {
   }
 
   closeOverlays(): void { this.editorOpen.set(false); this.selected.set(null); }
+
+  toggleActive(driver: Driver): void {
+    this.formError.set('');
+    this.data.setActive(driver.id, driver.availability === 'Inactive').subscribe({
+      next: () => this.selected.set(this.data.drivers().find((item) => item.id === driver.id) ?? null),
+      error: (error: { error?: { detail?: string } }) => this.formError.set(error.error?.detail ?? 'No se pudo cambiar el estado del conductor.'),
+    });
+  }
   vehiclePlate(id?: string): string { return id ? this.fleet.vehicles().find((vehicle) => vehicle.id === id)?.plate ?? 'No disponible' : 'Sin vehículo'; }
 
   availabilityLabel(availability: DriverAvailability): string { return AVAILABILITY_LABELS[availability]; }

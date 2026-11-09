@@ -31,7 +31,8 @@
       <header><div><h2 id="detail-title">{{ vehicle.plate }}</h2></div><button type="button" class="close-button" aria-label="Cerrar ficha" (click)="closeDetails()"><i class="pi pi-times"></i></button></header>
       <p class="drawer-model">{{ vehicle.model }}, {{ vehicle.type }}</p><span class="status-badge" [class]="statusClass(vehicle.status)"><i></i>{{ statusLabel(vehicle.status) }}</span>
       <dl class="detail-list"><div><dt>Capacidad de carga</dt><dd>{{ vehicle.capacityKg | number }} kg</dd></div><div><dt>Odómetro</dt><dd>{{ vehicle.currentOdometer | number }} km</dd></div><div><dt>Base</dt><dd>{{ vehicle.center }}</dd></div><div><dt>Última actualización</dt><dd>{{ vehicle.lastUpdated | date:'dd/MM/yyyy HH:mm':'UTC' }} UTC</dd></div></dl>
-      <footer><button class="secondary-action" type="button" (click)="closeDetails()">Cerrar</button><button class="primary-action" type="button" (click)="openEdit(vehicle)"><i class="pi pi-pencil"></i> Editar datos</button></footer>
+      @if (formError()) { <p class="form-error" role="alert">{{ formError() }}</p> }
+      <footer><button class="secondary-action" type="button" [class.danger-action]="vehicle.status !== 'Inactive'" (click)="toggleActive(vehicle)">{{ vehicle.status === 'Inactive' ? 'Reactivar vehículo' : 'Desactivar vehículo' }}</button><button class="primary-action" type="button" (click)="openEdit(vehicle)"><i class="pi pi-pencil"></i> Editar datos</button></footer>
     </aside>
   }
 

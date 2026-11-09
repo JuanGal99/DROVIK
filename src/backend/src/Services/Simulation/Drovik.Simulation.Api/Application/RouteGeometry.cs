@@ -7,6 +7,9 @@ public readonly record struct RoutePoint(double Latitude, double Longitude);
 public interface IRouteProvider
 {
     IReadOnlyList<RoutePoint> Build(RoutePoint origin, RoutePoint destination);
+
+    /// <returns>A longer way to the destination from the current position, or null when none is known.</returns>
+    IReadOnlyList<RoutePoint>? BuildDetour(RoutePoint current, RoutePoint destination, double remainingMeters);
 }
 
 /// <summary>
@@ -34,6 +37,8 @@ public sealed class LocalRouteProvider : IRouteProvider
         points.Add(destination);
         return points;
     }
+
+    public IReadOnlyList<RoutePoint>? BuildDetour(RoutePoint current, RoutePoint destination, double remainingMeters) => null;
 
     // string.GetHashCode is randomized per process, which would change every route after a restart.
     private static int StableSeed(RoutePoint origin, RoutePoint destination)
@@ -66,7 +71,23 @@ public static class RouteMath
         return route[^1];
     }
 
-    private static double Distance(RoutePoint a, RoutePoint b)
+    /// <summary>The part of the route already travelled, ending exactly at the given distance.</summary>
+    public static List<RoutePoint> TakeUntil(IReadOnlyList<RoutePoint> route, double meters)
+    {
+        var taken = new List<RoutePoint> { route[0] };
+        var remaining = meters;
+        foreach (var (from, to) in route.Zip(route.Skip(1)))
+        {
+            var leg = Distance(from, to);
+            if (remaining < leg) break;
+            taken.Add(to);
+            remaining -= leg;
+        }
+        taken.Add(PointAt(route, meters));
+        return taken;
+    }
+
+    public static double Distance(RoutePoint a, RoutePoint b)
     {
         var dLat = double.DegreesToRadians(b.Latitude - a.Latitude);
         var dLng = double.DegreesToRadians(b.Longitude - a.Longitude);

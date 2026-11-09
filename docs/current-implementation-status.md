@@ -78,7 +78,7 @@ La interfaz permite consultar el detalle actualizado y editar destino, coordenad
 
 Incident ya dejó de ser un shell: posee migración `IncidentBusiness`, entidades `Incidents`/`IncidentActivities`, validación de transiciones y endpoints protegidos por rol mediante Gateway. Angular consume la API para listar, filtrar, consultar detalle, crear, iniciar atención y resolver incidencias.
 
-RabbitMQ conecta Fleet, Shipment e Incident con Outbox transaccional, dispatchers con reintentos y el envelope versionado de ADR 0003. Fleet y Shipment tienen consumidores de negocio; Incident registra los eventos de Fleet/Shipment como auditoría en `incident.domain-events`. Ningún servicio consume todavía los eventos de Incident.
+RabbitMQ conecta Fleet, Shipment e Incident con Outbox transaccional, dispatchers con reintentos y el envelope versionado de ADR 0003. Fleet y Shipment tienen consumidores de negocio; Incident registra los eventos de Fleet/Shipment como auditoría en `incident.domain-events`. Incident abre incidencias a partir de los eventos de escenarios; ningún servicio consume todavía los eventos propios de Incident.
 
 ## Frontend
 
@@ -91,11 +91,12 @@ RabbitMQ conecta Fleet, Shipment e Incident con Outbox transaccional, dispatcher
 ### Visual o sintético
 
 - `/overview`: esquema de los 8 puntos con los envíos en curso, envíos por estado, flota disponible, incidencias abiertas y actividad reciente, todo calculado desde las API reales. El esquema une origen y destino y lo indica: no representa recorridos ni posiciones.
-- `/fleet`: vehículos persistidos en Fleet/SQL Server; alta, edición con selector de base, filtros y estados de carga/error. La desactivación existe en la API; la interfaz todavía no la expone.
-- `/drivers`: conductores persistidos en Fleet/SQL Server; alta, edición, filtros y estados de carga/error. La desactivación existe en la API; la interfaz todavía no la expone.
+- `/fleet`: vehículos persistidos en Fleet/SQL Server; alta, edición con selector de base, desactivación, reactivación, filtros y estados de carga/error.
+- `/drivers`: conductores persistidos en Fleet/SQL Server; alta, edición, desactivación, reactivación, filtros y estados de carga/error.
+- `/admin` (solo Administrator): usuarios y reinicio de datos con semillas.
 - `/shipments`: listado, detalle, creación, edición, asignación, historial y transiciones persistidos mediante Gateway. El formulario elige origen y destino de la red de puntos.
 - `/customers` (Puntos de la red): catálogo de solo lectura persistido en Shipment mediante Gateway, con estados de carga, error y vacío.
-- `/operations` (Operación en vivo): mapa Leaflet con los 8 puntos, rutas y vehículos que mueve el servidor, en tiempo real por SignalR, con iniciar, pausar, reanudar y detener. Al llegar, el envío se entrega solo y la flota se libera. `/simulation` redirige allí. Las rutas siguen calles reales y vienen guardadas con el servicio. Los escenarios de avería, congestión y desvío siguen pendientes.
+- `/operations` (Operación en vivo): mapa Leaflet con los 8 puntos, rutas y vehículos que mueve el servidor, en tiempo real por SignalR, con iniciar, pausar, reanudar y detener. Al llegar, el envío se entrega solo y la flota se libera. `/simulation` redirige allí. Las rutas siguen calles reales y vienen guardadas con el servicio. Cada vehículo admite congestión, avería y desvío, que abren su incidencia y retrasan el envío.
 - `/incidents`: integrado realmente con Incident mediante Gateway; vehículo y envío se eligen de listas y se muestran por placa y código.
 
 La navegación lateral puede plegarse en escritorio para ampliar el área de trabajo y se mantiene expandible en pantallas pequeñas. La interfaz visible usa español; los nombres técnicos de servicios y rutas se conservan en el código y en las etiquetas técnicas necesarias.
@@ -105,7 +106,7 @@ La navegación lateral puede plegarse en escritorio para ampliar el área de tra
 
 - **Fleet:** vehículos, conductores, centros y reservas implementados; publica cambios de disponibilidad mediante Outbox y consume los eventos de Shipment. La reserva usa transacción `Serializable`, índice único de idempotencia, expiración por worker y liberación protegida frente a otra reserva activa.
 - **Shipment:** CRUD operativo, detalle/edición Angular, reserva Fleet, eventos de ciclo de vida, reversión de asignaciones expiradas y catálogo de Clientes implementados, con pruebas HTTP automatizadas.
-- **Simulation:** runs, motor autoritativo, recuperación en pausa, SignalR y rutas por calle implementados. Faltan los escenarios.
+- **Simulation:** runs, motor autoritativo, recuperación en pausa, SignalR, rutas por calle y escenarios implementados.
 - **Incident:** persistencia, actividad, listado, detalle, creación, transiciones y resolución implementados con pruebas HTTP automatizadas; publica eventos mediante Outbox. Faltan consumidores de negocio y la creación idempotente de incidencias por referencia externa.
 - **RabbitMQ:** topología de ADR 0003, dispatchers Outbox y consumidores idempotentes en Fleet, Shipment e Incident implementados. Cada consumidor tiene su propia DLQ, y el reproceso está en `12-deployment-and-operations.md`. Faltan los efectos de negocio de Incident, que llegan con los escenarios de simulación. Los eventos anteriores a la corrección del dispatcher que ya agotaron sus intentos permanecen en `Outbox` sin publicarse; sus efectos ya se aplicaron.
 - **SignalR:** hub de Operación en vivo en Simulation, expuesto por YARP y consumido por Angular.
@@ -114,6 +115,10 @@ La navegación lateral puede plegarse en escritorio para ampliar el área de tra
 - **Sesión frontend:** el interceptor mantiene el access token solo en memoria, envía `withCredentials` para las cookies y reconstruye el encabezado `Bearer` con el token vigente después de una renovación; no usa `localStorage` ni `sessionStorage`.
 
 ## Pruebas ejecutadas
+
+### Escenarios y Administración (2026-11-09)
+
+Automatizadas: 113/113 pruebas backend y 47/47 pruebas Angular; builds correctos. Manuales contra la pila real: con bases y vhost temporales ya eliminados, carga de la semilla Hora pico desde Administración, congestión, avería, reparación y desvío en vivo con sus incidencias creadas por eventos, y desactivación y reactivación de vehículos y conductores, incluido el rechazo si hay una reserva activa.
 
 ### Rutas por calle y datos de ejemplo (2026-11-09)
 
@@ -259,4 +264,4 @@ La contraseña debe tener al menos 12 caracteres, mayúscula, minúscula, dígit
 
 ## Próximos pasos
 
-El orden y los criterios de salida están en [13-roadmap.md](./13-roadmap.md) y su justificación en [ADR 0011](./adr/0011-module-delivery-sequence.md). El siguiente bloque son los escenarios de congestión, avería y desvío.
+El orden y los criterios de salida están en [13-roadmap.md](./13-roadmap.md) y su justificación en [ADR 0011](./adr/0011-module-delivery-sequence.md). Quedan el arranque con un solo comando, CI, observabilidad y pruebas de navegador automatizadas.

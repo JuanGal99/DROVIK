@@ -15,4 +15,5 @@
 .map-vehicle { display: grid; place-items: center; border: 2px solid var(--surface-app); border-radius: 50%; background: var(--accent); color: var(--surface-app); font-size: 13px; transition: transform 1s linear; }
 .map-vehicle.is-delayed { background: var(--warning); }
 .map-vehicle.is-arrived { background: var(--success); }
+.map-vehicle.is-broken { background: var(--danger); }
 .leaflet-zoom-anim .map-vehicle { transition: none; }

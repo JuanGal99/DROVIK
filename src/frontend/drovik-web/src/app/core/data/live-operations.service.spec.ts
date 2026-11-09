@@ -6,7 +6,7 @@ import { LiveOperationsService, LiveState, LiveVehicle } from './live-operations
 const url = 'http://localhost:5200/api/v1/simulations';
 const run = { id: 'run-1', status: 'Running' as const, speedMultiplier: 30, startedAtUtc: '2026-11-09T00:00:00Z' };
 const vehicle: LiveVehicle = {
-  shipmentId: 's-1', trackingCode: 'SH-1', originName: 'Casa Verde', destinationName: 'Mercado Central', status: 'Moving', isDelayed: false,
+  shipmentId: 's-1', trackingCode: 'SH-1', originName: 'Casa Verde', destinationName: 'Mercado Central', status: 'Moving', isDelayed: false, isBrokenDown: false, isDetoured: false,
   progressPercent: 10, latitude: 4.7, longitude: -74.1, remainingSeconds: 90, route: [[4.7, -74.1], [4.6, -74.0]],
 };
 const full: LiveState = { run, vehicles: [vehicle] };
@@ -71,6 +71,18 @@ describe('LiveOperationsService', () => {
     http.expectOne(`${url}/run-1/pause`).flush({ run: { ...run, status: 'Paused' }, vehicles: [{ ...vehicle, route: null }] });
     expect(service.run()?.status).toBe('Paused');
     expect(service.vehicles()[0].route?.length).toBe(2);
+  });
+
+  it('applies a scenario and draws the new route it returns', () => {
+    loaded();
+
+    service.applyScenario('s-1', 'Detour');
+
+    const request = http.expectOne(`${url}/run-1/scenarios`);
+    expect(request.request.body).toEqual({ shipmentId: 's-1', scenario: 'Detour' });
+    request.flush({ run, vehicles: [{ ...vehicle, isDetoured: true, route: [[4.7, -74.1], [4.65, -74.2], [4.6, -74.0]] }] });
+    expect(service.vehicles()[0].isDetoured).toBe(true);
+    expect(service.vehicles()[0].route?.length).toBe(3);
   });
 
   it('clears the board when the operation is stopped', () => {

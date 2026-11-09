@@ -1,5 +1,5 @@
 import { Routes } from '@angular/router';
-import { authGuard } from './core/auth/auth.guard';
+import { adminGuard, authGuard } from './core/auth/auth.guard';
 
 export const routes: Routes = [
   { path: 'login', loadComponent: () => import('./features/auth/login-page').then((module) => module.LoginPage), title: 'Iniciar sesión | DROVIK' },
@@ -12,5 +12,6 @@ export const routes: Routes = [
   { path: 'customers', canActivate: [authGuard], loadComponent: () => import('./features/customers/customers-page').then((module) => module.CustomersPage), title: 'Puntos de la red | DROVIK' },
   { path: 'incidents', canActivate: [authGuard], loadComponent: () => import('./features/incidents/incidents-page').then((module) => module.IncidentsPage), title: 'Incidencias | DROVIK' },
   { path: 'simulation', pathMatch: 'full', redirectTo: 'operations' },
+  { path: 'admin', canActivate: [authGuard, adminGuard], loadComponent: () => import('./features/admin/admin-page').then((module) => module.AdminPage), title: 'Administración | DROVIK' },
   { path: '**', redirectTo: 'overview' },
 ];

@@ -212,6 +212,37 @@ app.MapPost("/api/v1/users", async (CreateUserRequest request, UserManager<Appli
     return Results.Created((string?)null, new AuthUserDto(user.Id, user.Email!, [role]));
 }).RequireAuthorization(policy => policy.RequireRole("Administrator"));
 
+app.MapGet("/api/v1/users", async (UserManager<ApplicationUser> users, CancellationToken cancellationToken) =>
+{
+    var all = await users.Users.AsNoTracking().OrderBy(item => item.Email).Take(200).ToListAsync(cancellationToken);
+    var response = new List<ManagedUserDto>();
+    foreach (var user in all) response.Add(new ManagedUserDto(user.Id, user.Email!, [.. await users.GetRolesAsync(user)], IsActive(user)));
+    return Results.Ok(response);
+}).RequireAuthorization(policy => policy.RequireRole("Administrator"));
+
+app.MapPatch("/api/v1/users/{id:guid}/status", async (Guid id, ChangeUserStatusRequest request, ClaimsPrincipal principal, UserManager<ApplicationUser> users,
+    IdentityDbContext database, CancellationToken cancellationToken) =>
+{
+    if (principal.FindFirst("sub")?.Value == id.ToString()) return Problem(StatusCodes.Status409Conflict, "Conflicto", "No puedes cambiar el estado de tu propia cuenta.");
+    var user = await users.FindByIdAsync(id.ToString());
+    if (user is null) return Results.NotFound();
+    if (!request.IsActive)
+    {
+        await users.SetLockoutEnabledAsync(user, true);
+        await users.SetLockoutEndDateAsync(user, DateTimeOffset.MaxValue);
+        // A deactivated account must not be able to renew its session.
+        var now = DateTime.UtcNow;
+        await database.RefreshTokens.Where(item => item.UserId == id && item.RevokedAtUtc == null)
+            .ExecuteUpdateAsync(setters => setters.SetProperty(item => item.RevokedAtUtc, now), cancellationToken);
+    }
+    else
+    {
+        await users.SetLockoutEndDateAsync(user, null);
+        await users.ResetAccessFailedCountAsync(user);
+    }
+    return Results.Ok(new ManagedUserDto(user.Id, user.Email!, [.. await users.GetRolesAsync(user)], IsActive(user)));
+}).RequireAuthorization(policy => policy.RequireRole("Administrator"));
+
 app.MapGet("/health/live", () => Results.Ok(new { status = "Healthy" }));
 app.MapGet("/health/ready", async (IdentityDbContext database, CancellationToken cancellationToken) =>
     await database.Database.CanConnectAsync(cancellationToken)
@@ -240,6 +271,8 @@ static void ConfigureJwtBearer(JwtBearerOptions options, IConfiguration configur
     };
 }
 
+// Failed sign-ins lock an account for minutes; only an administrator's deactivation lasts for years.
+static bool IsActive(ApplicationUser user) => user.LockoutEnd is null || user.LockoutEnd < DateTimeOffset.UtcNow.AddYears(1);
 static bool IsAllowedOrigin(HttpContext context, string[] origins) =>
     context.Request.Headers.Origin.Any(origin => origins.Contains(origin, StringComparer.Ordinal));
 

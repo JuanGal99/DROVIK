@@ -22,6 +22,8 @@ El navegador usa `http://localhost:5200` (Gateway) como base. El access JWT apar
 | `POST /api/v1/auth/logout` | Cookie refresh + CSRF | header `X-CSRF-TOKEN` | 204, revoca sesión y expira cookie | 400 CSRF |
 | `GET /api/v1/auth/me` | Bearer JWT | — | 200 `{ id, email, roles }` | 401 JWT inválido/expirado |
 | `POST /api/v1/users` | Bearer `Administrator` | `{ email, password, role }` (`Administrator` o `Operator`) | 201 `{ id, email, roles }` | 400 validación; 401 no autenticado; 403 rol insuficiente; 409 conflicto genérico de usuario |
+| `GET /api/v1/users` | Bearer `Administrator` | — | 200 `[{ id, email, roles, isActive }]` | 401; 403 |
+| `PATCH /api/v1/users/{id}/status` | Bearer `Administrator` | `{ isActive }` | 200; al desactivar revoca sus sesiones | 404; 409 sobre la propia cuenta |
 
 No existe autorregistro público ni endpoint de bootstrap. Login tiene rate limit local para mitigar intentos repetidos. Para login, el cliente solicita `/csrf` primero y envía cookie de CSRF y `X-CSRF-TOKEN` con credenciales incluidas. Respuestas usan Problem Details sin revelar existencia de cuenta, stack traces ni secretos. Las contraseñas siguen validadores de ASP.NET Core Identity. Los contratos no exponen refresh token en JSON.
 
@@ -83,6 +85,8 @@ Rutas mediante YARP con `Administrator` u `Operator`. Solo puede haber una opera
 | `POST /api/v1/simulations` | `{ speedMultiplier }` (1 a 120) | 201; 409 si ya hay una activa o no hay envíos en ruta; 503 si Shipment no responde |
 | `POST /api/v1/simulations/{id}/pause`, `/resume`, `/cancel` | — | 200; 409 si el estado no lo admite |
 | `POST /api/v1/simulations/{id}/sync` | — | 200; incorpora o retira envíos que entraron o salieron de ruta |
+| `POST /api/v1/simulations/{id}/scenarios` | `{ shipmentId, scenario }` con `Congestion`, `Breakdown`, `Detour` o `Repair` | 200 con rutas; 409 si no aplica |
+| `POST /api/v1/simulations/demo-reset` (también `/shipments`, `/incidents`, `/vehicles`) | Solo `Administrator` | 204; cada servicio borra sus datos operativos |
 
 El hub `/hubs/operations` envía el mensaje `state` con cada avance, sin rutas. El JWT se acepta por `access_token` solo en esa ruta. Al terminar un recorrido, Simulation publica `ShipmentRouteCompleted` (`simulation.shipment-route-completed.v1`) y Shipment entrega el envío.
 
@@ -136,7 +140,8 @@ Consumidores indicados son los planificados; cada contrato concreta filtros y ef
 | ShipmentStatusChanged / Delivered / Cancelled | Shipment | Fleet (vehículo en ruta y liberación); Simulation; Incident (auditoría) y proyecciones de dashboard |
 | ShipmentRouteCompleted | Simulation | Shipment (entrega el envío) |
 | SimulationStarted / Paused / Completed | Simulation | Incident y realtime (no publicados todavía) |
-| VehicleBreakdownDetected / RouteDelayDetected / RouteDeviationDetected | Simulation | Incident; Shipment para los cambios de estado que correspondan |
+| VehicleBreakdownDetected / RouteDelayDetected | Simulation | Incident (abre la incidencia); Shipment (envío retrasado) |
+| RouteDeviationDetected | Simulation | Incident (abre la incidencia) |
 | VehiclePositionUpdated | Simulation | SignalR/realtime; no fan-out general por RabbitMQ |
 | IncidentCreated / IncidentStatusChanged / IncidentResolved | Incident | Realtime y proyecciones de dashboard |
 

@@ -24,7 +24,7 @@
 
 ### Incidentes y dashboard
 - Registrar incidentes manuales o derivados de eventos de simulación, seguir su actividad y resolverlos.
-- Dashboard con envíos por estado, disponibilidad de vehículos, incidentes abiertos, entregas a tiempo/retrasadas y actividad reciente.
+- Dashboard con envíos por estado, disponibilidad de vehículos, incidentes abiertos y actividad reciente.
 
 ### Demostración local
 - Datos iniciales ficticios y reproducibles, escenarios guiados y operación protegida para reinicializar los datos.

@@ -6,7 +6,7 @@ import { BrandMark } from './shared/brand-mark/brand-mark';
 import { IncidentsDataService } from './core/data/incidents-data.service';
 import { AuthService } from './core/auth/auth.service';
 
-interface NavigationItem { label: string; route: string; icon: string; }
+interface NavigationItem { label: string; route: string; icon: string; adminOnly?: boolean; }
 
 const ROLE_LABELS: Record<string, string> = { Administrator: 'Administrador', Operator: 'Operador' };
 
@@ -30,7 +30,9 @@ export class App {
     { label: 'Conductores', route: '/drivers', icon: 'pi pi-id-card' },
     { label: 'Puntos de la red', route: '/customers', icon: 'pi pi-map-marker' },
     { label: 'Incidencias', route: '/incidents', icon: 'pi pi-exclamation-circle' },
+    { label: 'Administración', route: '/admin', icon: 'pi pi-shield', adminOnly: true },
   ];
+  readonly visibleNavigation = computed(() => this.navigation.filter((item) => !item.adminOnly || this.auth.user()?.roles.includes('Administrator')));
   private readonly router = inject(Router);
   // Zoneless change detection does not re-read a getter after navigating, so the title has to be a signal.
   private readonly url = toSignal(this.router.events.pipe(filter((event) => event instanceof NavigationEnd), map(() => this.router.url)), { initialValue: this.router.url });

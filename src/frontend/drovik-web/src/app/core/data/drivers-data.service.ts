@@ -44,6 +44,12 @@ export class DriversDataService {
     );
   }
 
+  setActive(id: string, isActive: boolean): Observable<Driver> {
+    const url = `${environment.gatewayUrl}/api/v1/drivers/${id}`;
+    const call = isActive ? this.http.patch<Driver & { updatedAtUtc: string }>(`${url}/availability`, { availability: 'Available' }) : this.http.delete<Driver & { updatedAtUtc: string }>(url);
+    return call.pipe(tap((updated) => this.drivers.update((items) => items.map((item) => item.id === id ? { ...item, ...updated } : item))));
+  }
+
   saveDriver(draft: DriverDraft, id?: string): Observable<Driver> {
     this.saving.set(true);
     const request = {

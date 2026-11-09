@@ -30,7 +30,7 @@ Las fases se completan localmente. Capturas/video son materiales de portafolio; 
 - **Validado:** login Administrator → Gateway → Fleet, creación/edición persistente y consulta posterior desde SQL Server.
 - **Implementado:** reservas explícitas atómicas para Shipment, con idempotencia, expiración por worker, estado terminal `Expired` y confirmación/liberación durables por eventos. El Gateway no publica este contrato.
 - **Implementado:** eventos versionados de disponibilidad mediante Outbox transaccional y consumidor idempotente de eventos de Shipment. Falta la observabilidad de DLQ (Fase 9).
-- **Salida verificable:** migración limpia, validaciones/paginación, CRUD persistente, protocolo de reserva y eventos cubiertos por pruebas automatizadas y por una validación contra RabbitMQ y SQL Server reales. La fase sigue abierta mientras la interfaz no exponga la desactivación.
+- **Salida verificable:** migración limpia, validaciones/paginación, CRUD persistente, protocolo de reserva y eventos cubiertos por pruebas automatizadas y por una validación contra RabbitMQ y SQL Server reales.
 
 ## Fase 4 — Shipment Service (completada)
 - **Implementado parcialmente:** envíos persistidos, historial, listado paginado, creación, edición pendiente, asignación, idempotencia y transiciones mediante API.
@@ -53,7 +53,7 @@ Sustituyen a las antiguas Fases 5 y 6, según las dependencias analizadas en ADR
 | 5. Mapa (**completado**) | Leaflet en "Operación en vivo" (`/operations`) con los 8 puntos, envíos activos y trazados | 4 | Capas correctas sin teselas externas, con aviso y atribución |
 | 6. Motor de simulación (**completado**) | Controles en "Operación en vivo", runs, start/pause/resume/cancel, reloj controlado, recuperación en pausa, estado instantáneo | 4 | Ejecución repetible, un ejecutor por run y pruebas de reinicio |
 | 7. Tiempo real (**completado**) | Hub SignalR en Simulation por YARP, posiciones limitadas y reconexión por estado instantáneo | 5, 6 | La UI sigue al motor y una reconexión recupera un estado coherente |
-| 8. Escenarios | Congestión, avería y desvío; Incident y Shipment consumen sus eventos | 6 | Una avería crea una sola incidencia y el envío refleja el retraso |
+| 8. Escenarios (**completado**) | Congestión, avería y desvío; Incident y Shipment consumen sus eventos | 6 | Una avería crea una sola incidencia y el envío refleja el retraso |
 
 ## Fase 7 — Incident Service
 - **Implementado parcialmente:** Incident persiste incidencias y actividades en SQL Server mediante la migración `IncidentBusiness`, expone listado filtrable/paginado, detalle, creación, cambios de estado y resolución mediante Gateway.

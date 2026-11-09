@@ -117,6 +117,15 @@ app.MapPost("/api/v1/incidents", async (
     return Results.Created($"/api/v1/incidents/{incident.Id}", ToResponse(incident));
 }).RequireAuthorization(incidentPolicy);
 
+app.MapPost("/api/v1/incidents/demo-reset", async (IncidentDbContext database, ClaimsPrincipal principal, ILogger<IncidentDbContext> logger, CancellationToken cancellationToken) =>
+{
+    await database.IncidentActivities.ExecuteDeleteAsync(cancellationToken);
+    await database.Incidents.ExecuteDeleteAsync(cancellationToken);
+    await database.Outbox.Where(item => item.PublishedAtUtc == null).ExecuteDeleteAsync(cancellationToken);
+    logger.LogWarning("Incidencias reiniciadas por {Actor}.", principal.FindFirst("sub")?.Value);
+    return Results.NoContent();
+}).RequireAuthorization(new Microsoft.AspNetCore.Authorization.AuthorizeAttribute { Roles = "Administrator" });
+
 app.MapPatch("/api/v1/incidents/{id:guid}/status", async (
     Guid id,
     ChangeIncidentStatusRequest request,

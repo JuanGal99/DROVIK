@@ -7,6 +7,7 @@ import { AuthService } from '../auth/auth.service';
 
 export type LiveRunStatus = 'Running' | 'Paused' | 'Completed' | 'Cancelled';
 export type LiveVehicleStatus = 'Moving' | 'Arrived';
+export type LiveScenario = 'Congestion' | 'Breakdown' | 'Detour' | 'Repair';
 export type LiveConnection = 'connecting' | 'live' | 'reconnecting' | 'offline';
 
 export interface LiveRun { id: string; status: LiveRunStatus; speedMultiplier: number; startedAtUtc: string; }
@@ -18,6 +19,8 @@ export interface LiveVehicle {
   destinationName: string;
   status: LiveVehicleStatus;
   isDelayed: boolean;
+  isBrokenDown: boolean;
+  isDetoured: boolean;
   progressPercent: number;
   latitude: number;
   longitude: number;
@@ -56,6 +59,11 @@ export class LiveOperationsService {
   pause(): void { this.command('pause'); }
   resume(): void { this.command('resume'); }
   stop(): void { this.command('cancel'); }
+
+  applyScenario(shipmentId: string, scenario: LiveScenario): void {
+    const run = this.run();
+    if (run) this.act(this.http.post<LiveState>(`${this.endpoint}/${run.id}/scenarios`, { shipmentId, scenario }));
+  }
 
   /** Picks up shipments that entered or left the road since the operation started. */
   sync(): void {

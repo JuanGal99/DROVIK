@@ -43,6 +43,7 @@ export class OperationsPage implements OnDestroy {
 
   arrival(vehicle: LiveVehicle): string {
     if (vehicle.status === 'Arrived') return 'Entregado';
+    if (vehicle.isBrokenDown) return 'Averiado';
     const seconds = vehicle.remainingSeconds ?? 0;
     return seconds < 60 ? `Llega en ${seconds} s` : `Llega en ${Math.ceil(seconds / 60)} min`;
   }
