@@ -15,7 +15,7 @@ test('un envío sale a ruta, se avería y la incidencia aparece sin recargar', a
     await expect(page).toHaveURL(/\/overview/);
   });
 
-  await page.getByRole('link', { name: 'Envíos' }).click();
+  await page.getByRole('link', { name: 'Envíos', exact: true }).click();
   const code = await test.step('crear un envío entre dos puntos', async () => {
     await page.getByRole('button', { name: 'Crear envío' }).click();
     const form = page.getByRole('dialog');
@@ -43,10 +43,10 @@ test('un envío sale a ruta, se avería y la incidencia aparece sin recargar', a
 
   const incidents = await context.newPage();
   await incidents.goto('/incidents');
-  await expect(incidents.getByRole('heading', { name: 'Incidencias' })).toBeVisible();
+  await expect(incidents.getByRole('heading', { name: 'Incidencias', exact: true })).toBeVisible();
 
   await test.step('provocar una avería en Operación en vivo', async () => {
-    await page.getByRole('link', { name: 'Operación en vivo' }).click();
+    await page.getByRole('link', { name: 'Operación en vivo', exact: true }).click();
     await page.getByRole('button', { name: 'Iniciar operación' }).click();
     await page.getByRole('group', { name: `Eventos para ${code}` }).getByRole('button', { name: 'Avería' }).click();
   });
@@ -61,7 +61,7 @@ test('un envío sale a ruta, se avería y la incidencia aparece sin recargar', a
     const drawer = incidents.locator('.detail-drawer');
     await drawer.locator('textarea').fill('Vehículo reparado en ruta.');
     await drawer.getByRole('button', { name: 'Resolver incidencia' }).click();
-    await expect(drawer.getByText('Vehículo reparado en ruta.')).toBeVisible();
+    await expect(drawer.locator('.resolution-note')).toContainText('Vehículo reparado en ruta.');
   });
 
   await page.getByRole('button', { name: 'Detener' }).click();

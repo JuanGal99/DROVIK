@@ -52,10 +52,15 @@ public static class ObservabilityExtensions
     }
 
     public static void UseDrovikRequestLogging(this WebApplication app) =>
-        app.UseSerilogRequestLogging(options => options.GetLevel = (context, _, exception) =>
-            exception is not null || context.Response.StatusCode >= StatusCodes.Status500InternalServerError ? LogEventLevel.Error
-            : IsHealthCheck(context) ? LogEventLevel.Verbose
-            : LogEventLevel.Information);
+        app.UseSerilogRequestLogging(options =>
+        {
+            // Without this it writes to Serilog's static logger, which each host deliberately leaves unconfigured.
+            options.Logger = app.Services.GetRequiredService<Serilog.ILogger>();
+            options.GetLevel = (context, _, exception) =>
+                exception is not null || context.Response.StatusCode >= StatusCodes.Status500InternalServerError ? LogEventLevel.Error
+                : IsHealthCheck(context) ? LogEventLevel.Verbose
+                : LogEventLevel.Information;
+        });
 
     private static bool IsHealthCheck(HttpContext context) => context.Request.Path.StartsWithSegments(HealthPath);
 }
