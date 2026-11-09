@@ -83,5 +83,6 @@ public sealed class FleetDbContext(DbContextOptions<FleetDbContext> options) : D
             new Driver { Id = Guid.Parse("30000000-0000-0000-0000-000000000001"), FullName = "Laura Méndez", LicenseCategory = "C2", LicenseExpiresOn = new DateOnly(2027, 4, 18), Availability = DriverAvailability.Available, UpdatedAtUtc = new DateTime(2026, 11, 7, 0, 0, 0, DateTimeKind.Utc) },
             new Driver { Id = Guid.Parse("30000000-0000-0000-0000-000000000002"), FullName = "Andrés Salazar", LicenseCategory = "C1", LicenseExpiresOn = new DateOnly(2027, 9, 2), Availability = DriverAvailability.Available, UpdatedAtUtc = new DateTime(2026, 11, 7, 0, 0, 0, DateTimeKind.Utc) },
             new Driver { Id = Guid.Parse("30000000-0000-0000-0000-000000000003"), FullName = "Camila Rojas", LicenseCategory = "C2", LicenseExpiresOn = new DateOnly(2027, 1, 27), Availability = DriverAvailability.Available, UpdatedAtUtc = new DateTime(2026, 11, 7, 0, 0, 0, DateTimeKind.Utc) });
+        FleetDemoResources.Seed(builder, bogota, puenteAranda, alamos);
     }
 }

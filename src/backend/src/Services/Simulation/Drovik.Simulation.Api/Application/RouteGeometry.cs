@@ -10,7 +10,7 @@ public interface IRouteProvider
 }
 
 /// <summary>
-/// Offline street-grid path: alternating east-west and north-south legs, like driving through Bogota's blocks.
+/// Fallback for pairs without a stored street route: alternating east-west and north-south legs.
 /// The same two points always give the same path, with no external routing service.
 /// </summary>
 public sealed class LocalRouteProvider : IRouteProvider

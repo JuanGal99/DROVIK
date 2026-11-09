@@ -19,7 +19,8 @@ builder.Services.Configure<RabbitMqOptions>(builder.Configuration.GetSection("Ra
 builder.Services.AddSingleton<IEventPublisher, RabbitMqPublisher>();
 builder.Services.AddHostedService<OutboxDispatcher<SimulationDbContext>>();
 builder.Services.AddSingleton(TimeProvider.System);
-builder.Services.AddSingleton<IRouteProvider, LocalRouteProvider>();
+builder.Services.AddSingleton<LocalRouteProvider>();
+builder.Services.AddSingleton<IRouteProvider, DeliveryNetworkRouteProvider>();
 builder.Services.AddScoped<ShipmentFeed>();
 builder.Services.AddSingleton<SimulationEngine>();
 builder.Services.AddHostedService(services => services.GetRequiredService<SimulationEngine>());

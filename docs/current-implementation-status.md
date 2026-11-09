@@ -95,7 +95,7 @@ RabbitMQ conecta Fleet, Shipment e Incident con Outbox transaccional, dispatcher
 - `/drivers`: conductores persistidos en Fleet/SQL Server; alta, edición, filtros y estados de carga/error. La desactivación existe en la API; la interfaz todavía no la expone.
 - `/shipments`: listado, detalle, creación, edición, asignación, historial y transiciones persistidos mediante Gateway. El formulario elige origen y destino de la red de puntos.
 - `/customers` (Puntos de la red): catálogo de solo lectura persistido en Shipment mediante Gateway, con estados de carga, error y vacío.
-- `/operations` (Operación en vivo): mapa Leaflet con los 8 puntos, rutas y vehículos que mueve el servidor, en tiempo real por SignalR, con iniciar, pausar, reanudar y detener. Al llegar, el envío se entrega solo y la flota se libera. `/simulation` redirige allí. Las rutas son geometrías locales (sin OSRM) y los escenarios de avería, congestión y desvío siguen pendientes.
+- `/operations` (Operación en vivo): mapa Leaflet con los 8 puntos, rutas y vehículos que mueve el servidor, en tiempo real por SignalR, con iniciar, pausar, reanudar y detener. Al llegar, el envío se entrega solo y la flota se libera. `/simulation` redirige allí. Las rutas siguen calles reales y vienen guardadas con el servicio. Los escenarios de avería, congestión y desvío siguen pendientes.
 - `/incidents`: integrado realmente con Incident mediante Gateway; vehículo y envío se eligen de listas y se muestran por placa y código.
 
 La navegación lateral puede plegarse en escritorio para ampliar el área de trabajo y se mantiene expandible en pantallas pequeñas. La interfaz visible usa español; los nombres técnicos de servicios y rutas se conservan en el código y en las etiquetas técnicas necesarias.
@@ -105,7 +105,7 @@ La navegación lateral puede plegarse en escritorio para ampliar el área de tra
 
 - **Fleet:** vehículos, conductores, centros y reservas implementados; publica cambios de disponibilidad mediante Outbox y consume los eventos de Shipment. La reserva usa transacción `Serializable`, índice único de idempotencia, expiración por worker y liberación protegida frente a otra reserva activa.
 - **Shipment:** CRUD operativo, detalle/edición Angular, reserva Fleet, eventos de ciclo de vida, reversión de asignaciones expiradas y catálogo de Clientes implementados, con pruebas HTTP automatizadas.
-- **Simulation:** runs, motor autoritativo, recuperación en pausa, SignalR y geometrías locales implementados. Faltan los escenarios y OSRM opcional.
+- **Simulation:** runs, motor autoritativo, recuperación en pausa, SignalR y rutas por calle implementados. Faltan los escenarios.
 - **Incident:** persistencia, actividad, listado, detalle, creación, transiciones y resolución implementados con pruebas HTTP automatizadas; publica eventos mediante Outbox. Faltan consumidores de negocio y la creación idempotente de incidencias por referencia externa.
 - **RabbitMQ:** topología de ADR 0003, dispatchers Outbox y consumidores idempotentes en Fleet, Shipment e Incident implementados. Cada consumidor tiene su propia DLQ, y el reproceso está en `12-deployment-and-operations.md`. Faltan los efectos de negocio de Incident, que llegan con los escenarios de simulación. Los eventos anteriores a la corrección del dispatcher que ya agotaron sus intentos permanecen en `Outbox` sin publicarse; sus efectos ya se aplicaron.
 - **SignalR:** hub de Operación en vivo en Simulation, expuesto por YARP y consumido por Angular.
@@ -114,6 +114,10 @@ La navegación lateral puede plegarse en escritorio para ampliar el área de tra
 - **Sesión frontend:** el interceptor mantiene el access token solo en memoria, envía `withCredentials` para las cookies y reconstruye el encabezado `Bearer` con el token vigente después de una renovación; no usa `localStorage` ni `sessionStorage`.
 
 ## Pruebas ejecutadas
+
+### Rutas por calle y datos de ejemplo (2026-11-09)
+
+Automatizadas: 100/100 pruebas backend y 43/43 pruebas Angular; builds correctos. Manuales contra la pila real: con bases y vhost temporales ya eliminados, carga de ejemplo de 31 envíos y 6 incidencias, y operación con 7 vehículos sobre rutas por calle.
 
 ### Operación en vivo (2026-11-09)
 

@@ -2,7 +2,7 @@
 
 ## 10.1 Datos
 
-Seed completamente sintético, coherente y reproducible. La demo opera en Bogotá con 3 bases de vehículos y una red fija de 8 puntos (ADR 0012), que dan 56 geometrías de respaldo. Las demás cantidades propuestas (15 vehículos, 18 conductores, 250 envíos y 30–40 incidentes) son ajustables, no requisitos de rendimiento. Usar valores ficticios, evitar datos personales reales.
+Seed completamente sintético, coherente y reproducible. La demo opera en Bogotá con 3 bases de vehículos y una red fija de 8 puntos (ADR 0012), que dan 56 rutas por calle. Las migraciones siembran 15 vehículos y 18 conductores. `tools/seed-demo.mjs` crea por la API real 31 envíos en todos los estados y 6 incidencias; solo se usa sobre una instalación sin envíos y con la aplicación completa en marcha. Usar valores ficticios, evitar datos personales reales.
 
 ## 10.2 Escenarios
 

@@ -17,6 +17,6 @@
   - Eliminar destino y coordenadas de `Shipments` y leerlos siempre del cliente: reescribiría el historial si cambia un punto y borraría datos existentes.
   - Limitar por validación geográfica (cualquier punto dentro de Bogotá): el mapa y las rutas seguirían recibiendo puntos arbitrarios.
 - Consecuencias:
-  - 8 puntos dan 56 trayectos dirigidos, de modo que las geometrías de respaldo se pueden generar completas, sin OSRM.
+  - 8 puntos dan 56 trayectos dirigidos. Se generaron una vez con OSRM sobre datos de OpenStreetMap y se guardan en `delivery-routes.json`, así la operación sigue calles reales sin depender de un servidor de rutas. Cambiar un punto exige regenerar sus trayectos; mientras tanto se usa una ruta local de respaldo.
   - Los envíos creados antes del catálogo conservan su cliente como `Heredado: <referencia>`, inactivo y fuera de la lista, y su centro original en `LegacyOriginCenterId`. Los pendientes deben elegir origen y destino del catálogo al editarlos antes de poder asignarse.
   - Añadir otra ciudad requeriría revisar este ADR.
