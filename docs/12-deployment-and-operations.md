@@ -120,7 +120,25 @@ Apagar las APIs y Angular desde sus terminales; luego ejecutar `docker compose d
 
 ## 12.6 Observabilidad y CI
 
-Serilog estructurado, OpenTelemetry, correlación HTTP/eventos y health checks de dependencias. No registrar secretos. GitHub Actions restaura, compila, prueba y construye imágenes; CI no despliega una demo pública. Documentar recuperación de DLQ, backup local opcional y reinicio de simulaciones.
+Las seis APIs escriben logs JSON con Serilog en la salida estándar (`docker compose --profile app logs <servicio>`). Cada línea escrita durante una petición o un evento lleva el identificador de traza en `@tr`. No se registran cuerpos de petición ni secretos.
+
+OpenTelemetry genera trazas de las peticiones HTTP y de cada publicación y consumo de eventos. La traza se guarda en el Outbox y viaja en el envelope, así que continúa a través de RabbitMQ aunque el evento se publique segundos después. También hay métricas HTTP y el contador `drovik.messaging.consumed`, por consumidor y resultado.
+
+Las trazas y métricas solo salen del proceso si se configura un destino. Para verlas en el panel opcional, añade esta línea a `.env` y arranca con el perfil `observability`:
+
+```
+DROVIK_OTLP_ENDPOINT=http://otel-dashboard:18889
+```
+
+```bash
+docker compose --profile app --profile observability up -d
+```
+
+El panel queda en http://localhost:18888, solo accesible desde el propio equipo y sin contraseña; guarda los datos en memoria.
+
+**Eventos fallidos:** un evento que agota sus reintentos pasa a `<consumidor>.domain-events.dlq`, escribe un log de nivel `Error` con el nombre de la cola y cuenta en la métrica con `outcome=DeadLetter`. La cola se inspecciona en http://localhost:15672.
+
+GitHub Actions restaura, compila, prueba, construye imágenes y ejecuta la prueba de navegador sobre la pila completa; CI no despliega una demo pública.
 
 ## 12.7 Validación local realizada
 

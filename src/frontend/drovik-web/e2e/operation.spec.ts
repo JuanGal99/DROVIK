@@ -65,4 +65,5 @@ test('un envío sale a ruta, se avería y la incidencia aparece sin recargar', a
   });
 
   await page.getByRole('button', { name: 'Detener' }).click();
+  await expect(page.getByRole('button', { name: 'Iniciar operación' })).toBeVisible();
 });

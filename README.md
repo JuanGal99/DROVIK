@@ -44,6 +44,8 @@ La arquitectura detallada está en [docs/03-architecture.md](docs/03-architectur
 
 Angular 21, TypeScript, Leaflet y SignalR en el frontend; ASP.NET Core sobre .NET 10, Entity Framework Core, SQL Server 2022, RabbitMQ 4.4 y YARP en el backend; Docker Compose para la infraestructura y xUnit y Vitest para las pruebas. Las versiones exactas están en [ADR 0007](docs/adr/0007-technical-versions.md).
 
+Los servicios escriben logs JSON con Serilog y generan trazas y métricas con OpenTelemetry; una misma traza sigue una petición desde el Gateway hasta los consumidores de eventos. Para verlas hay un panel opcional, descrito en [operaciones](docs/12-deployment-and-operations.md#126-observabilidad-y-ci). Las pruebas usan xUnit, Vitest y Playwright.
+
 ## Ejecución local
 
 Solo necesitas [Docker Desktop](https://www.docker.com/products/docker-desktop/) con Compose v2 en marcha. Clona el repositorio y ejecuta un comando:
@@ -96,7 +98,7 @@ cd src/frontend/drovik-web && npm test -- --watch=false
 
 ## Estado del proyecto
 
-Los módulos descritos arriba están implementados e integrados. Quedan pendientes los logs y trazas con Serilog y OpenTelemetry y las pruebas automatizadas de navegador. El detalle está en el [estado de implementación](docs/current-implementation-status.md) y en el [roadmap](docs/13-roadmap.md).
+Los módulos descritos arriba están implementados e integrados. Cada cambio en `main` pasa por GitHub Actions: pruebas de backend y frontend, construcción de imágenes y una prueba de navegador sobre la aplicación completa. Queda pendiente la revisión de accesibilidad de la Fase 8. El detalle está en el [estado de implementación](docs/current-implementation-status.md) y en el [roadmap](docs/13-roadmap.md).
 
 ## Documentación
 
@@ -114,3 +116,7 @@ Los módulos descritos arriba están implementados e integrados. Quedan pendient
 - [Ejecución y operaciones](docs/12-deployment-and-operations.md)
 - [Roadmap](docs/13-roadmap.md)
 - [Decisiones de arquitectura](docs/adr/)
+
+## Licencia
+
+[MIT](LICENSE).

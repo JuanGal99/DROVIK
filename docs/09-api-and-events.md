@@ -96,7 +96,7 @@ Rutas mediante YARP con `Administrator` u `Operator`. Solo puede haber una opera
 
 El hub `/hubs/operations` envía el mensaje `state` con cada avance, sin rutas. El JWT se acepta por `access_token` solo en esa ruta. Al terminar un recorrido, Simulation publica `ShipmentRouteCompleted` (`simulation.shipment-route-completed.v1`) y Shipment entrega el envío.
 
-El mismo hub envía `changed` con el área afectada: `shipments`, `fleet` o `incidents`. Es solo un aviso para que la pantalla vuelva a leer los datos de su servicio propietario, y se emite únicamente con eventos publicados después de confirmar el cambio (`Shipment*` salvo `ShipmentRouteCompleted`, `VehicleAvailabilityChanged`, `DriverAvailabilityChanged` e `Incident*`). Al reconectarse, el navegador vuelve a leer todas las áreas porque los avisos intermedios se pierden. Crear o editar los datos de catálogo de un vehículo no publica evento y por tanto no avisa a otras pantallas abiertas.
+El mismo hub envía `changed` con el área afectada: `shipments`, `fleet` o `incidents`. Es solo un aviso para que la pantalla vuelva a leer los datos de su servicio propietario, y se emite únicamente con eventos publicados después de confirmar el cambio (`Shipment*` salvo `ShipmentRouteCompleted`, los eventos de disponibilidad y datos de vehículos y conductores, e `Incident*`). Al reconectarse, el navegador vuelve a leer todas las áreas porque los avisos intermedios se pierden.
 
 ### Incident Service v1 — contrato implementado
 
@@ -122,13 +122,13 @@ Fleet, Shipment e Incident escriben sus eventos en una tabla `Outbox` dentro de 
 |---|---|---|---|
 | Fleet | `fleet.domain-events` | `ShipmentAssigned`, `ShipmentStatusChanged`, `ShipmentDelivered`, `ShipmentCancelled` | Confirma o libera la reserva y marca el vehículo `InTransit` |
 | Shipment | `shipment.domain-events` | `ReservationExpired` | Devuelve a `Pending` la asignación cuya reserva expiró |
-| Incident | `incident.domain-events` | Eventos de Fleet y Shipment | Auditoría en `ProcessedEvents`, sin efecto de negocio todavía |
+| Incident | `incident.domain-events` | Eventos de Fleet y Shipment | Auditoría en `ProcessedEvents`; abre incidencias con los eventos de escenario |
 
 Cada consumidor confirma (`ack`) solo después de guardar en una transacción su efecto y el registro en `ProcessedEvents`, de modo que un `eventId` repetido no vuelve a aplicarse. Los fallos transitorios tienen tres reintentos con backoff y una redelivería; los mensajes inválidos o agotados van a la cola durable `<cola>.dlq`, a través del exchange `drovik.domain.events.dlx`. Un evento publicado cuando la cola de un consumidor aún no existe no le llega: las colas se declaran al arrancar cada servicio.
 
 ## 9.2 Envelope y versionado de eventos
 
-Implementado con los campos `eventId` (UUID), `eventType` (nombre estable PascalCase), `eventVersion` (entero), `occurredAtUtc` (ISO-8601 UTC), `correlationId` y `data` (contrato del evento), todos en camelCase; los enums viajan como texto. Nombres de eventos en inglés; no publicar entidades de persistencia ni secretos. `causationId` queda como campo opcional aditivo para cuando un flujo lo necesite.
+Implementado con los campos `eventId` (UUID), `eventType` (nombre estable PascalCase), `eventVersion` (entero), `occurredAtUtc` (ISO-8601 UTC), `correlationId`, `data` (contrato del evento) y `traceParent` (opcional, traza W3C de la operación que lo causó), todos en camelCase; los enums viajan como texto. Nombres de eventos en inglés; no publicar entidades de persistencia ni secretos. `causationId` queda como campo opcional aditivo para cuando un flujo lo necesite.
 
 RabbitMQ usa el topic exchange durable `drovik.domain.events`. Routing key estable: `<domain>.<event>.<version>` en minúsculas/kebab-case y sufijo `vN`, por ejemplo `fleet.vehicle-availability-changed.v1`. Cada consumidor mantiene una cola durable `<consumer>.domain-events` con bindings explícitos por routing key, y una DLQ propia. La topología se declara de forma repetible e idempotente al iniciar.
 
@@ -142,6 +142,7 @@ Consumidores indicados son los planificados; cada contrato concreta filtros y ef
 |---|---|---|
 | VehicleAvailabilityChanged | Fleet | Incident (auditoría); realtime para actualizar vistas. Incluye el paso a mantenimiento |
 | DriverAvailabilityChanged | Fleet | Incident (auditoría); realtime |
+| VehicleDetailsChanged / DriverDetailsChanged | Fleet | Realtime: avisa a las pantallas abiertas al crear o editar el registro |
 | ReservationExpired | Fleet | Shipment; Incident (auditoría) |
 | ShipmentCreated | Shipment | Simulation (contexto de operación) |
 | ShipmentAssigned | Shipment | Fleet (confirma la reserva); Simulation; Incident (auditoría) |

@@ -57,7 +57,9 @@ public static class ObservabilityExtensions
             // Without this it writes to Serilog's static logger, which each host deliberately leaves unconfigured.
             options.Logger = app.Services.GetRequiredService<Serilog.ILogger>();
             options.GetLevel = (context, _, exception) =>
-                exception is not null || context.Response.StatusCode >= StatusCodes.Status500InternalServerError ? LogEventLevel.Error
+                // A browser that navigates away cancels its requests; that is not a server failure.
+                context.RequestAborted.IsCancellationRequested ? LogEventLevel.Information
+                : exception is not null || context.Response.StatusCode >= StatusCodes.Status500InternalServerError ? LogEventLevel.Error
                 : IsHealthCheck(context) ? LogEventLevel.Verbose
                 : LogEventLevel.Information;
         });

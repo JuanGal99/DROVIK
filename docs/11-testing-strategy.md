@@ -18,6 +18,17 @@
 
 Build reproducible, formato/lint, migraciones verificadas y pruebas en CI. No depender de OSRM externo: usar geometrías fijas. Los flujos de prueba no requieren cloud, GPS ni tráfico en vivo. Cada historia define criterios observables y pruebas relevantes; compilar por sí solo no termina una funcionalidad.
 
+## 11.3.1 Prueba de navegador
+
+`src/frontend/drovik-web/e2e/operation.spec.ts` recorre con Playwright: inicio de sesión, creación y asignación de un envío, salida a ruta, avería en Operación en vivo, llegada de la incidencia a otra pestaña sin recargar y su resolución. CI la ejecuta sobre la pila completa con volúmenes vacíos.
+
+Crea datos y necesita que no haya una operación activa, así que no debe apuntarse a una instalación con datos que quieras conservar. Con una pila desechable en marcha:
+
+```bash
+npx playwright install chromium
+E2E_EMAIL=correo E2E_PASSWORD=clave npm run e2e
+```
+
 ## 11.4 Estado de pruebas de Fase 1
 
 La solución contiene `Drovik.Foundation.Tests` con xUnit. Las pruebas de migración inspeccionan que cada contexto de servicio descubre sus migraciones propias sin necesitar una instancia SQL activa. Las pruebas de integración del Gateway verifican que cada prefijo de API se proxya a su servicio propietario, conserva la ruta y deja sin proxyar las rutas desconocidas. Angular cubre servicios HTTP, autenticación, Incident y estados del shell. Estas comprobaciones no sustituyen la prueba HTTP con todos los procesos levantados; las migraciones aplicadas, readiness y conectividad con SQL Server deben validarse localmente según `12-deployment-and-operations.md`.

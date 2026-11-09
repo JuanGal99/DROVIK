@@ -104,22 +104,27 @@ RabbitMQ conecta Fleet, Shipment e Incident con Outbox transaccional, dispatcher
 La navegación lateral puede plegarse en escritorio para ampliar el área de trabajo y se mantiene expandible en pantallas pequeñas. La interfaz visible usa español; los nombres técnicos de servicios y rutas se conservan en el código y en las etiquetas técnicas necesarias.
 
 
-## Backend pendiente
+## Estado por componente
 
 - **Fleet:** vehículos, conductores, centros y reservas implementados; publica cambios de disponibilidad mediante Outbox y consume los eventos de Shipment. La reserva usa transacción `Serializable`, índice único de idempotencia, expiración por worker y liberación protegida frente a otra reserva activa.
 - **Shipment:** CRUD operativo, detalle/edición Angular, reserva Fleet, eventos de ciclo de vida, reversión de asignaciones expiradas y catálogo de Clientes implementados, con pruebas HTTP automatizadas.
 - **Simulation:** runs, motor autoritativo, recuperación en pausa, SignalR, rutas por calle y escenarios implementados.
-- **Incident:** persistencia, actividad, listado, detalle, creación, transiciones y resolución implementados con pruebas HTTP automatizadas; publica eventos mediante Outbox. Faltan consumidores de negocio y la creación idempotente de incidencias por referencia externa.
-- **RabbitMQ:** topología de ADR 0003, dispatchers Outbox y consumidores idempotentes en Fleet, Shipment e Incident implementados. Cada consumidor tiene su propia DLQ, y el reproceso está en `12-deployment-and-operations.md`. Faltan los efectos de negocio de Incident, que llegan con los escenarios de simulación. Los eventos anteriores a la corrección del dispatcher que ya agotaron sus intentos permanecen en `Outbox` sin publicarse; sus efectos ya se aplicaron.
+- **Incident:** persistencia, actividad, listado, detalle, creación, transiciones y resolución implementados con pruebas HTTP automatizadas; publica eventos mediante Outbox y abre incidencias con los eventos de escenario.
+- **RabbitMQ:** topología de ADR 0003, dispatchers Outbox y consumidores idempotentes en Fleet, Shipment e Incident implementados. Cada consumidor tiene su propia DLQ, y el reproceso está en `12-deployment-and-operations.md`.
 - **SignalR:** hub de Operación en vivo en Simulation, expuesto por YARP y consumido por Angular.
+- **Observabilidad:** logs JSON, trazas que cruzan el broker y métricas en las seis APIs; panel opcional (ADR 0013).
 - **Actualización en vivo:** Resumen, Envíos, Flota, Conductores, Incidencias y el contador del menú vuelven a leer sus datos cuando llega el aviso `changed` del hub. El navegador mantiene una sola conexión por sesión.
 - **Paginación:** Envíos y Flota piden cada página, búsqueda y filtro al servidor; sus totales salen de `/summary`. Los selectores y las búsquedas de placa o conductor recorren todas las páginas. Resumen e Incidencias siguen usando los 100 envíos más recientes para el mapa, la actividad y nombrar el envío de una incidencia.
 - **Cuentas:** cambio de contraseña propia, restablecimiento por administrador, cambio de rol y recuperación desde el host.
 - **Leaflet/mapa:** integrado en Operación en vivo con teselas de OpenStreetMap; si no cargan, las capas siguen funcionando y se avisa.
-- **CORS:** Gateway e Identity permiten explícitamente `http://localhost:4200` con credenciales y headers CSRF. El 2026-11-08 se verificó manualmente el flujo en navegador (ver "Pruebas ejecutadas"); sigue sin existir una prueba de navegador automatizada en el repositorio.
+- **CORS:** Gateway e Identity permiten explícitamente `http://localhost:4200` con credenciales y headers CSRF; la prueba de navegador lo ejercita en cada ejecución de CI.
 - **Sesión frontend:** el interceptor mantiene el access token solo en memoria, envía `withCredentials` para las cookies y reconstruye el encabezado `Bearer` con el token vigente después de una renovación; no usa `localStorage` ni `sessionStorage`.
 
 ## Pruebas ejecutadas
+
+### Observabilidad y prueba de navegador (2026-11-09)
+
+Automatizadas: 143 pruebas xUnit y 60 pruebas Vitest. Integración: la prueba Playwright pasó contra una pila creada con `start.sh` desde un clon limpio y volúmenes vacíos. Manuales sobre esa misma pila: los logs de peticiones llevan su traza; un mensaje inválido publicado en RabbitMQ llegó a `incident.domain-events.dlq` y escribió su log de error. La pila temporal y sus volúmenes se eliminaron.
 
 ### Arranque con un comando y CI (2026-11-09)
 
@@ -279,4 +284,4 @@ La contraseña debe tener al menos 12 caracteres, mayúscula, minúscula, dígit
 
 ## Próximos pasos
 
-El orden y los criterios de salida están en [13-roadmap.md](./13-roadmap.md) y su justificación en [ADR 0011](./adr/0011-module-delivery-sequence.md). Quedan observabilidad y pruebas de navegador automatizadas.
+El orden y los criterios de salida están en [13-roadmap.md](./13-roadmap.md) y su justificación en [ADR 0011](./adr/0011-module-delivery-sequence.md). Queda la revisión de accesibilidad de la Fase 8.
