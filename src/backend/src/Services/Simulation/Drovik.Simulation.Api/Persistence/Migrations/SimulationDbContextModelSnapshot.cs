@@ -60,6 +60,9 @@ namespace Drovik.Simulation.Api.Persistence.Migrations
                     b.Property<DateTime?>("PublishedAtUtc")
                         .HasColumnType("datetime2");
 
+                    b.Property<string>("TraceParent")
+                        .HasColumnType("nvarchar(max)");
+
                     b.HasKey("Id");
 
                     b.HasIndex("PublishedAtUtc", "NextAttemptAtUtc", "OccurredAtUtc");

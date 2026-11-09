@@ -8,6 +8,7 @@ x-api-env: &api-env
   RabbitMq__Host: rabbitmq
   RabbitMq__UserName: ${RABBITMQ_DEFAULT_USER}
   RabbitMq__Password: ${RABBITMQ_DEFAULT_PASS}
+  Observability__OtlpEndpoint: ${DROVIK_OTLP_ENDPOINT:-}
 
 x-api: &api
   profiles: [app]
@@ -131,6 +132,7 @@ services:
         condition: service_healthy
     environment:
       ASPNETCORE_ENVIRONMENT: Development
+      Observability__OtlpEndpoint: ${DROVIK_OTLP_ENDPOINT:-}
       ReverseProxy__Clusters__identity__Destinations__local__Address: http://identity:8080/
       ReverseProxy__Clusters__fleet__Destinations__local__Address: http://fleet:8080/
       ReverseProxy__Clusters__shipment__Destinations__local__Address: http://shipment:8080/
@@ -153,6 +155,17 @@ services:
       interval: 5s
       timeout: 3s
       retries: 12
+
+  # Optional: receives traces and metrics, kept in memory. See docs/12-deployment-and-operations.md.
+  otel-dashboard:
+    profiles: [observability]
+    image: mcr.microsoft.com/dotnet/aspire-dashboard:13.6.4
+    restart: unless-stopped
+    environment:
+      DASHBOARD__FRONTEND__AUTHMODE: Unsecured
+      DASHBOARD__OTLP__AUTHMODE: Unsecured
+    ports:
+      - "127.0.0.1:18888:18888"
 
 volumes:
   sqlserver-data:

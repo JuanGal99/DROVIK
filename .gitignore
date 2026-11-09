@@ -30,6 +30,10 @@ secrets/
 .DS_Store
 Thumbs.db
 
+# Browser test output
+playwright-report/
+test-results/
+
 # Logs and local data
 *.log
 /data/

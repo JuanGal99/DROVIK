@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -9,6 +10,8 @@ public sealed class OutboxMessage
     public string EventType { get; set; } = string.Empty;
     public DateTime OccurredAtUtc { get; set; }
     public string? CorrelationId { get; set; }
+    /// <summary>W3C trace of the request that caused the event; it has to be stored because publishing happens later.</summary>
+    public string? TraceParent { get; set; }
     public int ContractVersion { get; set; } = 1;
     public string Payload { get; set; } = string.Empty;
     public int Attempts { get; set; }
@@ -31,7 +34,8 @@ public sealed record EventEnvelope(
     int EventVersion,
     DateTime OccurredAtUtc,
     string? CorrelationId,
-    JsonElement Data)
+    JsonElement Data,
+    string? TraceParent = null)
 {
     /// <exception cref="JsonException">The data does not match the contract; retrying cannot fix it.</exception>
     public T ReadData<T>() where T : class =>
@@ -48,9 +52,9 @@ public static class EventEnvelopeSerializer
     };
 
     /// <exception cref="JsonException">The stored payload is not valid JSON.</exception>
-    public static byte[] Serialize(OutboxMessage message) => JsonSerializer.SerializeToUtf8Bytes(
+    public static byte[] Serialize(OutboxMessage message, string? traceParent = null) => JsonSerializer.SerializeToUtf8Bytes(
         new EventEnvelope(message.Id, message.EventType, message.ContractVersion, message.OccurredAtUtc, message.CorrelationId,
-            JsonSerializer.Deserialize<JsonElement>(message.Payload)),
+            JsonSerializer.Deserialize<JsonElement>(message.Payload), traceParent ?? message.TraceParent),
         ContractOptions);
 
     /// <exception cref="JsonException">The bytes are not a complete envelope.</exception>
@@ -80,6 +84,7 @@ public static class OutboxMessageFactory
             EventType = eventType,
             OccurredAtUtc = occurredAtUtc,
             CorrelationId = correlationId,
+            TraceParent = Activity.Current?.Id,
             Payload = JsonSerializer.Serialize(payload, PayloadOptions)
         };
     }

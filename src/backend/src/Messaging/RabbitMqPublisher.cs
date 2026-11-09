@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Net.Sockets;
 using System.Text;
 using System.Text.Json;
@@ -34,11 +35,14 @@ public sealed class RabbitMqPublisher(IOptions<RabbitMqOptions> options, ILogger
         if (string.IsNullOrWhiteSpace(settings.UserName) || string.IsNullOrWhiteSpace(settings.Password))
             return PublishOutcome.BrokerUnavailable;
 
+        using var activity = MessagingTelemetry.Source.StartActivity($"{message.EventType} publish", ActivityKind.Producer, message.TraceParent);
+        activity?.SetTag("messaging.system", "rabbitmq");
+        activity?.SetTag("messaging.message.id", message.Id.ToString());
         byte[] body;
         string routingKey;
         try
         {
-            body = EventEnvelopeSerializer.Serialize(message);
+            body = EventEnvelopeSerializer.Serialize(message, activity?.Id);
             routingKey = DomainEvents.RoutingKey(message.EventType, message.ContractVersion);
         }
         catch (Exception ex) when (ex is JsonException or ArgumentException)

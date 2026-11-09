@@ -25,6 +25,8 @@ public sealed class DataChangeRelay(IHubContext<OperationsHub> hub, IOptions<Rab
         (DomainEvents.ShipmentCancelled, "shipments"),
         (DomainEvents.VehicleAvailabilityChanged, "fleet"),
         (DomainEvents.DriverAvailabilityChanged, "fleet"),
+        (DomainEvents.VehicleDetailsChanged, "fleet"),
+        (DomainEvents.DriverDetailsChanged, "fleet"),
         (DomainEvents.IncidentCreated, "incidents"),
         (DomainEvents.IncidentStatusChanged, "incidents"),
         (DomainEvents.IncidentResolved, "incidents"),

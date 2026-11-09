@@ -17,6 +17,8 @@ public sealed class DataChangeRelayTests
     [InlineData(DomainEvents.ShipmentCreated, "shipments")]
     [InlineData(DomainEvents.VehicleAvailabilityChanged, "fleet")]
     [InlineData(DomainEvents.DriverAvailabilityChanged, "fleet")]
+    [InlineData(DomainEvents.VehicleDetailsChanged, "fleet")]
+    [InlineData(DomainEvents.DriverDetailsChanged, "fleet")]
     [InlineData(DomainEvents.IncidentCreated, "incidents")]
     [InlineData(DomainEvents.IncidentResolved, "incidents")]
     public async Task Tells_screens_which_data_changed(string eventType, string area)

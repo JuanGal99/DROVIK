@@ -6,6 +6,7 @@
     <UserSecretsId>c9768708-c36e-46c9-9d24-fb6b19782522</UserSecretsId>
   </PropertyGroup>
   <ItemGroup>
+    <ProjectReference Include="..\..\..\Observability\Drovik.Observability.csproj" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" />
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" PrivateAssets="all">

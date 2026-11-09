@@ -6,6 +6,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\Observability\Drovik.Observability.csproj" />
     <PackageReference Include="Yarp.ReverseProxy" />
   </ItemGroup>
 </Project>

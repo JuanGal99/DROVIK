@@ -9,6 +9,8 @@ public static class DomainEvents
 {
     public const string VehicleAvailabilityChanged = nameof(VehicleAvailabilityChanged);
     public const string DriverAvailabilityChanged = nameof(DriverAvailabilityChanged);
+    public const string VehicleDetailsChanged = nameof(VehicleDetailsChanged);
+    public const string DriverDetailsChanged = nameof(DriverDetailsChanged);
     public const string ReservationExpired = nameof(ReservationExpired);
     public const string ShipmentCreated = nameof(ShipmentCreated);
     public const string ShipmentAssigned = nameof(ShipmentAssigned);
@@ -27,6 +29,8 @@ public static class DomainEvents
     {
         [VehicleAvailabilityChanged] = "fleet",
         [DriverAvailabilityChanged] = "fleet",
+        [VehicleDetailsChanged] = "fleet",
+        [DriverDetailsChanged] = "fleet",
         [ReservationExpired] = "fleet",
         [ShipmentCreated] = "shipment",
         [ShipmentAssigned] = "shipment",
@@ -67,6 +71,8 @@ public static class DomainEvents
 // Version 1 payloads. Additive fields must be optional so older stored events keep deserializing.
 public sealed record VehicleAvailabilityChangedV1(Guid VehicleId, string Status, Guid? ShipmentId = null);
 public sealed record DriverAvailabilityChangedV1(Guid DriverId, string Availability, Guid? ShipmentId = null);
+public sealed record VehicleDetailsChangedV1(Guid VehicleId);
+public sealed record DriverDetailsChangedV1(Guid DriverId);
 public sealed record ReservationExpiredV1(Guid ReservationId, Guid ShipmentId);
 public sealed record ShipmentCreatedV1(Guid ShipmentId, string TrackingCode, string CustomerId, string Status);
 public sealed record ShipmentAssignedV1(Guid ShipmentId, Guid VehicleId, Guid DriverId, Guid ReservationId);

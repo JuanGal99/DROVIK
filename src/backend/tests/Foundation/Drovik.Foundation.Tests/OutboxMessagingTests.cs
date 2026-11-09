@@ -1,3 +1,5 @@
+using System.Diagnostics;
+using System.Diagnostics.Metrics;
 using System.Text.Json;
 using Drovik.Messaging;
 using Microsoft.Data.Sqlite;
@@ -184,6 +186,82 @@ public sealed class OutboxMessagingTests
 
         Assert.Equal(1, harness.Consumer.Attempts);
         Assert.Equal(1, await harness.InboxCountAsync());
+    }
+
+    [Fact]
+    public void EventsRememberTheTraceOfTheRequestThatCausedThem()
+    {
+        using var source = new ActivitySource("Drovik.Tests.Outbox");
+        using var listener = ListenTo(source.Name, _ => { });
+        using var request = source.StartActivity("request")!;
+
+        var message = OutboxMessageFactory.Create(DomainEvents.ReservationExpired, new ReservationExpiredV1(Guid.NewGuid(), Guid.NewGuid()));
+
+        Assert.Equal(request.Id, message.TraceParent);
+        Assert.Equal(request.Id, EventEnvelopeSerializer.Deserialize(EventEnvelopeSerializer.Serialize(message)).TraceParent);
+    }
+
+    [Fact]
+    public void EnvelopesPublishedBeforeTracesExistStillRead()
+    {
+        var body = """{"eventId":"11111111-1111-1111-1111-111111111111","eventType":"ReservationExpired","eventVersion":1,"occurredAtUtc":"2026-11-09T00:00:00Z","correlationId":null,"data":{}}"""u8;
+
+        Assert.Null(EventEnvelopeSerializer.Deserialize(body).TraceParent);
+    }
+
+    [Fact]
+    public async Task ConsumerContinuesTheTraceAcrossTheBroker()
+    {
+        const string traceId = "0af7651916cd43dd8440ad30c5d3f1a1";
+        const string parentSpanId = "b7ad6b7169203331";
+        var finished = new List<Activity>();
+        using var listener = ListenTo(MessagingTelemetry.Name, activity =>
+        {
+            if (activity.TraceId.ToString() == traceId) lock (finished) finished.Add(activity);
+        });
+        await using var harness = await ConsumerHarness.CreateAsync((_, _) => Task.CompletedTask);
+        var message = OutboxMessageFactory.Create(DomainEvents.ShipmentCreated, new ShipmentCreatedV1(Guid.NewGuid(), "SH-1", "cus", "Pending"));
+        message.TraceParent = $"00-{traceId}-{parentSpanId}-01";
+
+        await harness.Consumer.ProcessAsync(EventEnvelopeSerializer.Serialize(message), redelivered: false, CancellationToken.None);
+
+        var activity = Assert.Single(finished);
+        Assert.Equal(ActivityKind.Consumer, activity.Kind);
+        Assert.Equal(parentSpanId, activity.ParentSpanId.ToString());
+    }
+
+    [Fact]
+    public async Task DeadLetteredEventsAreCounted()
+    {
+        var outcomes = new List<string>();
+        using var meter = new MeterListener();
+        meter.InstrumentPublished = (instrument, listener) =>
+        {
+            if (instrument.Meter.Name == MessagingTelemetry.Name && instrument.Name == MessagingTelemetry.ConsumedCounter) listener.EnableMeasurementEvents(instrument);
+        };
+        meter.SetMeasurementEventCallback<long>((_, _, tags, _) =>
+        {
+            var values = tags.ToArray().ToDictionary(tag => tag.Key, tag => tag.Value?.ToString());
+            if (values["consumer"] == "test") lock (outcomes) outcomes.Add(values["outcome"]!);
+        });
+        meter.Start();
+        await using var harness = await ConsumerHarness.CreateAsync((_, _) => Task.CompletedTask);
+
+        await harness.Consumer.ProcessAsync("esto-no-es-json"u8.ToArray(), redelivered: false, CancellationToken.None);
+
+        Assert.Contains(nameof(ConsumeOutcome.DeadLetter), outcomes);
+    }
+
+    private static ActivityListener ListenTo(string sourceName, Action<Activity> stopped)
+    {
+        var listener = new ActivityListener
+        {
+            ShouldListenTo = source => source.Name == sourceName,
+            Sample = (ref ActivityCreationOptions<ActivityContext> _) => ActivitySamplingResult.AllDataAndRecorded,
+            ActivityStopped = stopped,
+        };
+        ActivitySource.AddActivityListener(listener);
+        return listener;
     }
 
     private sealed class ConsumerHarness : IAsyncDisposable

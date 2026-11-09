@@ -1,3 +1,4 @@
+using Drovik.Observability;
 using System.Security.Claims;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
@@ -16,6 +17,7 @@ using Microsoft.IdentityModel.Tokens;
 using static Drovik.Shipment.Api.Application.ApiResults;
 
 var builder = WebApplication.CreateBuilder(args);
+builder.AddDrovikObservability("shipment");
 builder.Services.ConfigureHttpJsonOptions(options => options.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 var connectionString = builder.Configuration.GetConnectionString("ShipmentDatabase")
     ?? throw new InvalidOperationException("ConnectionStrings:ShipmentDatabase must be configured through local secrets.");
@@ -50,6 +52,7 @@ builder.Services.AddAuthorization();
 builder.Services.AddHealthChecks();
 
 var app = builder.Build();
+app.UseDrovikRequestLogging();
 app.UseAuthentication();
 app.UseAuthorization();
 if (app.Environment.IsDevelopment())
