@@ -118,7 +118,7 @@ La navegación lateral puede plegarse en escritorio para ampliar el área de tra
 
 ### Arranque con un comando y CI (2026-11-09)
 
-@@V@@
+Manual desde un clon limpio y volúmenes vacíos: `start.sh` generó `.env`, construyó las imágenes y dejó los 9 contenedores sanos; login, asignación, operación con SignalR por Gateway, avería con incidencia por evento, entrega automática y liberación del vehículo. `.github/workflows/ci.yml` compila y prueba backend, frontend e imágenes.
 
 ### Selección en el mapa y velocidad en curso (2026-11-09)
 
