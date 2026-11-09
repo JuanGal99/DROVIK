@@ -12,6 +12,10 @@ Requisitos: Git, .NET SDK fijado por `global.json`, Node/npm fijados por `.nvmrc
 
 ## 12.3 Modalidades de ejecución
 
+**Aplicación completa (recomendada para probarla).** `start.cmd` o `./start.sh` solo requieren Docker: generan el `.env` local si falta, construyen las imágenes y levantan infraestructura, servicios, Gateway y Angular con el perfil `app` de Compose, y al final muestran la dirección y el administrador. Se detiene con `docker compose --profile app down`, sin perder datos. El `.env` existente nunca se sobrescribe: solo se añaden las claves que falten. Solo Angular (4200) y el Gateway (5200) se publican, y únicamente en `127.0.0.1`.
+
+**Desarrollo.** Lo que sigue describe la ejecución directa desde IDE/CLI, con `docker compose up -d` para la infraestructura.
+
 La ruta principal recomendada es Compose para SQL Server y RabbitMQ, servicios ASP.NET Core ejecutados directamente desde el IDE/CLI y Angular servido con Angular CLI. Así se depuran procesos con herramientas nativas y se mantiene una infraestructura local reproducible. Angular usa `http://localhost:4200` y consume el Gateway en `http://localhost:5200`; el browser no llama a APIs internas.
 
 En la instalación Windows validada, Docker Desktop y el Engine estaban activos, pero la CLI y `docker-credential-desktop.exe` no estaban en `PATH`. En una nueva sesión de PowerShell, si `docker` no se reconoce, añadir la carpeta instalada para esa cuenta: `$env:PATH="$env:LOCALAPPDATA\Programs\DockerDesktop\resources\bin;$env:PATH"`. El cambio solo afecta esa sesión. En instalaciones donde Docker ya esté en `PATH`, este paso no hace falta.

@@ -116,6 +116,10 @@ La navegación lateral puede plegarse en escritorio para ampliar el área de tra
 
 ## Pruebas ejecutadas
 
+### Arranque con un comando y CI (2026-11-09)
+
+@@V@@
+
 ### Selección en el mapa y velocidad en curso (2026-11-09)
 
 Automatizadas: 117/117 pruebas backend y 48/48 pruebas Angular; builds correctos. Manual en navegador con datos temporales: placa al pasar sobre un vehículo, selección enlazada entre mapa y tablero, y cambio de velocidad con la operación en marcha.
@@ -268,4 +272,4 @@ La contraseña debe tener al menos 12 caracteres, mayúscula, minúscula, dígit
 
 ## Próximos pasos
 
-El orden y los criterios de salida están en [13-roadmap.md](./13-roadmap.md) y su justificación en [ADR 0011](./adr/0011-module-delivery-sequence.md). Quedan el arranque con un solo comando, CI, observabilidad y pruebas de navegador automatizadas.
+El orden y los criterios de salida están en [13-roadmap.md](./13-roadmap.md) y su justificación en [ADR 0011](./adr/0011-module-delivery-sequence.md). Quedan observabilidad y pruebas de navegador automatizadas.

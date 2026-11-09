@@ -2,6 +2,8 @@
 
 ### Logistics Intelligence Platform
 
+[![CI](https://github.com/JuanGal99/DROVIK/actions/workflows/ci.yml/badge.svg)](https://github.com/JuanGal99/DROVIK/actions/workflows/ci.yml)
+
 <p align="center">
   <img src="assets/branding/drovik-banner.svg" alt="DROVIK — Logistics Intelligence Platform" width="100%">
 </p>
@@ -20,6 +22,16 @@ Es un proyecto de portafolio pensado para ejecutarse en local. Empresa, datos, p
 - **Incidencias:** registro, atención, resolución e historial.
 - **Administración:** gestión de usuarios y reinicio de datos con semillas, solo para administradores.
 
+## Capturas
+
+![Operación en vivo](docs/screenshots/operacion-en-vivo.png)
+
+| | |
+|---|---|
+| ![Resumen](docs/screenshots/resumen.png) | ![Escenarios](docs/screenshots/escenarios.png) |
+| ![Envíos](docs/screenshots/envios.png) | ![Incidencias](docs/screenshots/incidencias.png) |
+| ![Flota](docs/screenshots/flota.png) | ![Administración](docs/screenshots/administracion.png) |
+
 ## Arquitectura
 
 ![DROVIK System Architecture](assets/architecture/architecture-overview.svg)
@@ -34,17 +46,29 @@ Angular 21, TypeScript, Leaflet y SignalR en el frontend; ASP.NET Core sobre .NE
 
 ## Ejecución local
 
-Requisitos: Git, Docker Desktop con Compose v2, .NET SDK 10.0.403 y Node.js 24.11.1 con npm 11.6.2.
+Solo necesitas [Docker Desktop](https://www.docker.com/products/docker-desktop/) con Compose v2 en marcha. Clona el repositorio y ejecuta un comando:
 
-1. Clonar el repositorio, copiar `.env.example` a `.env` y sustituir los valores por contraseñas locales.
-2. Iniciar la infraestructura con `docker compose up -d` y esperar a que `docker compose ps` muestre ambos servicios como `healthy`.
-3. Configurar las cadenas de conexión y las claves JWT con User Secrets, y añadir las variables `RabbitMq__*`, siguiendo [la guía de ejecución](docs/12-deployment-and-operations.md).
-4. Crear el primer administrador una sola vez con el comando `--bootstrap-admin` descrito en la guía. No hay credenciales predeterminadas.
-5. Iniciar las APIs en los puertos 5201 a 5205 y el Gateway en el 5200, con `ASPNETCORE_ENVIRONMENT=Development`. Cada servicio aplica sus migraciones al arrancar.
-6. Desde `src/frontend/drovik-web`, ejecutar `npm ci` y `npm start`.
-7. Abrir [http://localhost:4200](http://localhost:4200).
+En Windows:
 
-Para abrir la aplicación desde otro dispositivo de la misma red, usar `npm run start:lan` como se explica en la guía.
+```bat
+start.cmd
+```
+
+En macOS, Linux o Git Bash:
+
+```bash
+./start.sh
+```
+
+La primera vez tarda varios minutos porque compila las imágenes. Al terminar muestra la dirección, [http://localhost:4200](http://localhost:4200), y el correo y la contraseña del administrador. Las contraseñas y claves se generan solas en el archivo local `.env`, que no se sube al repositorio.
+
+Para detener la aplicación:
+
+```bash
+docker compose --profile app down
+```
+
+Los datos se conservan entre reinicios. Para desarrollar los servicios desde un IDE y ver otras opciones, consulta [la guía de ejecución](docs/12-deployment-and-operations.md).
 
 ## Cómo probar una operación
 
@@ -70,7 +94,7 @@ cd src/frontend/drovik-web && npm test -- --watch=false
 
 ## Estado del proyecto
 
-Los módulos descritos arriba están implementados e integrados. Quedan pendientes el arranque con un solo comando, la integración continua, los logs y trazas con Serilog y OpenTelemetry, y las pruebas automatizadas de navegador. El detalle está en el [estado de implementación](docs/current-implementation-status.md) y en el [roadmap](docs/13-roadmap.md).
+Los módulos descritos arriba están implementados e integrados. Quedan pendientes los logs y trazas con Serilog y OpenTelemetry y las pruebas automatizadas de navegador. El detalle está en el [estado de implementación](docs/current-implementation-status.md) y en el [roadmap](docs/13-roadmap.md).
 
 ## Documentación
 
