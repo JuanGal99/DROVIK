@@ -1,6 +1,6 @@
 # Estado actual de implementación
 
-Fecha de verificación: 2026-11-07.
+Fecha de verificación: 2026-11-08.
 
 ## Resumen
 
@@ -57,7 +57,9 @@ Todas las rutas de negocio exigen `Administrator` u `Operator`. La migración `F
 
 ### Shipment conectado realmente
 
-Shipment posee sus tablas, historial y migración `ShipmentBusiness`. Angular consume `/api/v1/shipments` a través de YARP y usa Fleet para cargar vehículos, conductores y centros. La asignación solicita una reserva idempotente a Fleet y confirma la reserva antes de persistir la asignación local.
+Shipment posee sus tablas, historial y migración `ShipmentBusiness`. Angular consume `/api/v1/shipments` a través de YARP y usa Fleet para cargar vehículos, conductores y centros. La asignación solicita una reserva idempotente a Fleet, persiste la asignación junto con su evento y después intenta confirmar; si el guardado falla, libera la reserva. Si Fleet no responde al reservar, Shipment devuelve `503`. Una vez persistida la asignación o el cierre del envío, una caída de Fleet ya no afecta al usuario: Fleet completa la confirmación o la liberación al consumir el evento.
+
+La operación se limita a Bogotá con una red cerrada de 8 puntos (clientes) propiedad de Shipment (ADR 0012). `/customers` la muestra en solo lectura; al crear o editar un envío se eligen origen y destino, y el servidor copia del catálogo etiquetas y coordenadas. La migración `ShipmentCustomers` convierte cada referencia de texto anterior en un cliente inactivo llamado `Heredado: <referencia>`, sin perder envíos, y fuera de la lista. Un envío pendiente anterior al catálogo debe recibir origen y destino válidos antes de asignarse. Los tres centros de Fleet están en Bogotá y solo son base de los vehículos.
 
 La interfaz permite consultar el detalle actualizado y editar destino, coordenadas, peso y prioridad mientras el envío está `Pending`, con estados de carga, error y confirmación. El contrato usa `Normal`/`High`; la etiqueta visible `High` es `Alta`.
 
@@ -65,16 +67,18 @@ La interfaz permite consultar el detalle actualizado y editar destino, coordenad
 |---|---|---|
 | GET | `/api/v1/shipments` | Implementado: búsqueda, estado, prioridad y paginación |
 | GET | `/api/v1/shipments/{id}` | Implementado |
-| POST | `/api/v1/shipments` | Implementado: crea envío pendiente |
+| GET | `/api/v1/customers` | Implementado: búsqueda, estado y paginación; solo lectura |
+| GET | `/api/v1/customers/{id}` | Implementado |
+| POST | `/api/v1/shipments` | Implementado: crea envío pendiente entre dos puntos del catálogo |
 | PUT | `/api/v1/shipments/{id}` | Implementado para envíos pendientes |
 | POST | `/api/v1/shipments/{id}/assign` | Implementado con reserva Fleet e idempotencia |
-| POST | `/api/v1/shipments/{id}/status` | Implementado con transiciones y liberación al entregar/cancelar |
+| POST | `/api/v1/shipments/{id}/status` | Implementado con transiciones y liberación durable al entregar/cancelar |
 
 ## Incident
 
 Incident ya dejó de ser un shell: posee migración `IncidentBusiness`, entidades `Incidents`/`IncidentActivities`, validación de transiciones y endpoints protegidos por rol mediante Gateway. Angular consume la API para listar, filtrar, consultar detalle, crear, iniciar atención y resolver incidencias.
 
-RabbitMQ ya tiene una primera integración real en Fleet, Shipment e Incident: Outbox transaccional, dispatchers con reintentos y envelope versionado. Incident consume eventos de Fleet/Shipment mediante `drovik.incident.audit.v1` y registra `ProcessedEvents` para evitar duplicados. No se han implementado todavía consumidores de eventos de Incident ni proyecciones de negocio.
+RabbitMQ conecta Fleet, Shipment e Incident con Outbox transaccional, dispatchers con reintentos y el envelope versionado de ADR 0003. Fleet y Shipment tienen consumidores de negocio; Incident registra los eventos de Fleet/Shipment como auditoría en `incident.domain-events`. Ningún servicio consume todavía los eventos de Incident.
 
 ## Frontend
 
@@ -86,12 +90,13 @@ RabbitMQ ya tiene una primera integración real en Fleet, Shipment e Incident: O
 
 ### Visual o sintético
 
-- `/overview`: el KPI de flota disponible consulta la misma API de Flota que `/fleet`; los envíos, actividad e indicadores restantes siguen siendo de demostración en memoria y se identifican como sintéticos.
-- `/fleet`: vehículos persistidos en Fleet/SQL Server; CRUD, filtros, estados de carga/error y desactivación.
-- `/drivers`: conductores persistidos en Fleet/SQL Server; CRUD, filtros, estados de carga/error y desactivación.
-- `/shipments`: listado, detalle, creación, edición, asignación, historial y transiciones persistidos mediante Gateway. El formulario usa `CustomerId` como referencia opaca; no presenta un catálogo sintético como si fuera Customers Service.
-- `/operations`, `/customers`, `/simulation` y `/settings`: placeholders visuales.
-- `/incidents`: integrado realmente con Incident mediante Gateway; los identificadores de vehículo/envío se muestran como referencias externas.
+- `/overview`: esquema de los 8 puntos con los envíos en curso, envíos por estado, flota disponible, incidencias abiertas y actividad reciente, todo calculado desde las API reales. El esquema une origen y destino y lo indica: no representa recorridos ni posiciones.
+- `/fleet`: vehículos persistidos en Fleet/SQL Server; alta, edición con selector de base, filtros y estados de carga/error. La desactivación existe en la API; la interfaz todavía no la expone.
+- `/drivers`: conductores persistidos en Fleet/SQL Server; alta, edición, filtros y estados de carga/error. La desactivación existe en la API; la interfaz todavía no la expone.
+- `/shipments`: listado, detalle, creación, edición, asignación, historial y transiciones persistidos mediante Gateway. El formulario elige origen y destino de la red de puntos.
+- `/customers`: catálogo de solo lectura persistido en Shipment mediante Gateway, con estados de carga, error y vacío.
+- `/operations`, `/simulation` y `/settings`: placeholders visuales.
+- `/incidents`: integrado realmente con Incident mediante Gateway; vehículo y envío se eligen de listas y se muestran por placa y código.
 
 La navegación lateral puede plegarse en escritorio para ampliar el área de trabajo y se mantiene expandible en pantallas pequeñas. La interfaz visible usa español; los nombres técnicos de servicios y rutas se conservan en el código y en las etiquetas técnicas necesarias.
 
@@ -99,17 +104,75 @@ Estas pantallas no llaman todavía al Gateway porque sus endpoints propietarios 
 
 ## Backend pendiente
 
-- **Fleet:** vehículos, conductores, centros y reservas implementados; publica cambios de disponibilidad mediante Outbox. La reserva usa transacción `Serializable`, índice único de idempotencia, expiración y liberación protegida frente a otra reserva activa.
-- **Shipment:** CRUD operativo, detalle/edición Angular, reserva Fleet y eventos de ciclo de vida mediante Outbox implementados; faltan pruebas HTTP automatizadas reproducibles.
+- **Fleet:** vehículos, conductores, centros y reservas implementados; publica cambios de disponibilidad mediante Outbox y consume los eventos de Shipment. La reserva usa transacción `Serializable`, índice único de idempotencia, expiración por worker y liberación protegida frente a otra reserva activa.
+- **Shipment:** CRUD operativo, detalle/edición Angular, reserva Fleet, eventos de ciclo de vida, reversión de asignaciones expiradas y catálogo de Clientes implementados, con pruebas HTTP automatizadas.
 - **Simulation:** solo health checks; faltan runs, motor autoritativo, recuperación, SignalR y geometrías.
-- **Incident:** persistencia, actividad, listado, detalle, creación, transiciones y resolución implementados; faltan eventos RabbitMQ, consumidores idempotentes y pruebas HTTP autenticadas reproducibles.
-- **RabbitMQ:** exchange durable, dispatchers Outbox en Fleet/Shipment/Incident y consumidor idempotente de auditoría en Incident implementados. Faltan consumidores de negocio de Incident, pruebas E2E autenticadas reproducibles y observabilidad de DLQ.
+- **Incident:** persistencia, actividad, listado, detalle, creación, transiciones y resolución implementados con pruebas HTTP automatizadas; publica eventos mediante Outbox. Faltan consumidores de negocio y la creación idempotente de incidencias por referencia externa.
+- **RabbitMQ:** topología de ADR 0003, dispatchers Outbox y consumidores idempotentes en Fleet, Shipment e Incident implementados. Cada consumidor tiene su propia DLQ, y el reproceso está en `12-deployment-and-operations.md`. Faltan los efectos de negocio de Incident, que llegan con los escenarios de simulación. Los eventos anteriores a la corrección del dispatcher que ya agotaron sus intentos permanecen en `Outbox` sin publicarse; sus efectos ya se aplicaron.
 - **SignalR:** no hay hubs ni conexión Angular implementados.
 - **Leaflet/mapa:** no está instalado ni integrado; no se representan posiciones como GPS real.
-- **CORS:** Gateway e Identity permiten explícitamente `http://localhost:4200` con credenciales y headers CSRF. No se verificó un flujo de navegador automatizado; sí se verificó el flujo HTTP mediante YARP.
+- **CORS:** Gateway e Identity permiten explícitamente `http://localhost:4200` con credenciales y headers CSRF. El 2026-11-08 se verificó manualmente el flujo en navegador (ver "Pruebas ejecutadas"); sigue sin existir una prueba de navegador automatizada en el repositorio.
 - **Sesión frontend:** el interceptor mantiene el access token solo en memoria, envía `withCredentials` para las cookies y reconstruye el encabezado `Bearer` con el token vigente después de una renovación; no usa `localStorage` ni `sessionStorage`.
 
 ## Pruebas ejecutadas
+
+### Rediseño de la interfaz (2026-11-09)
+
+Un sistema visual único en `src/styles/`: tipografía Barlow autoalojada, tamaños mínimos de 12 px (antes 8-10 px), estados con marca y texto, y sin mensajes técnicos ni controles sin función.
+
+Automatizadas: `npm run build` correcto (bundle inicial 323 kB) y 35/35 pruebas Angular; 79/79 pruebas backend.
+
+Manuales contra la pila real, con bases y vhost temporales ya eliminados: capturas de Login, Resumen, Envíos, detalle, Incidencias, Flota y Conductores a 1360 px y Resumen a 742 px; título de página al navegar, cierre con Escape, selectores de vehículo y envío en incidencias y de base en flota.
+
+No verificado: lectores de pantalla y foco atrapado dentro de los diálogos.
+
+### Red cerrada de puntos (2026-11-09)
+
+Sustituye al alta y edición libre de clientes de la primera versión del bloque.
+
+Automatizadas:
+
+- Backend: `dotnet build` sin advertencias y 79/79 pruebas xUnit, incluidas catálogo de solo lectura, permisos, puntos dentro de Bogotá y ruta derivada del catálogo.
+- `dotnet ef migrations has-pending-model-changes`: sin cambios.
+- Frontend: `npm run build` correcto y 32/32 pruebas. Los estilos comunes de las pantallas de catálogo pasaron a `src/styles/_ops-page.scss`; una comparación estática de las declaraciones resultantes no encontró diferencias en Flota, Conductores ni Envíos. Persisten avisos de presupuesto en `app`, `overview`, `incidents` y `shipments`.
+
+Manuales contra la pila real, con bases y vhost temporales ya eliminados:
+
+- Las migraciones se aplicaron sobre una base creada con el esquema anterior y envíos con referencias de texto: se conservaron los envíos y se generaron los clientes heredados.
+- Por Gateway: 8 puntos activos y 3 centros en Bogotá, `401` sin sesión, `405` al intentar escribir en el catálogo, rechazo de referencias de texto, de puntos inexistentes o heredados y de origen igual a destino, destino escrito a mano ignorado, bloqueo de asignación sin origen, paso de un envío heredado al catálogo y regresión del flujo completo.
+- Navegador: pantalla de catálogo y búsqueda, y creación de un envío eligiendo origen y destino. Capturas revisadas de Clientes y Flota.
+
+
+### Bloque de eventos y reservas (2026-11-08)
+
+Automatizadas:
+
+- Backend: `dotnet restore --locked-mode`, `dotnet build` sin advertencias y 68/68 pruebas xUnit. Las nuevas alimentan al consumidor real de Fleet con las filas que Shipment escribió en su Outbox, y cubren confirmación y liberación durables, duplicados, eventos tardíos, expiración y reversión de la asignación.
+- `dotnet ef migrations has-pending-model-changes`: sin cambios en los cinco servicios.
+- Frontend: 24/24 pruebas y `npm run build` correcto (bundle inicial 313 kB). Este bloque no cambió código Angular; persisten los avisos de presupuesto de estilos.
+- `docker compose config --quiet` y `git diff --check` correctos.
+
+Manuales contra la pila real, con SQL Server y RabbitMQ en Compose y bases y vhost temporales ya eliminados:
+
+- Flujo completo por Gateway: login, asignación, entrega, liberación e incidencias.
+- Colas y DLQ declaradas para los tres consumidores, y `POST /api/v1/reservations` por Gateway con `404`.
+- Vehículo en `InTransit` por evento RabbitMQ. Con Fleet detenido, `Delivered` respondió `200`; al reiniciar Fleet, el vehículo y el conductor quedaron disponibles por evento.
+- Reserva sin confirmar liberada a los 64 s con TTL de 1 minuto.
+- Un mensaje inválido llegó solo a la DLQ de su consumidor.
+- Migración de índice único de conductor aplicada en SQL Server.
+
+No verificado de forma real: la reversión de una asignación expirada (solo automatizada), concurrencia bajo carga y navegador en este bloque.
+
+### Revisión del 2026-11-08
+
+- Backend: `dotnet build` sin advertencias y 49/49 pruebas xUnit. `DomainApiTests` ejecuta Fleet, Shipment e Incident por HTTP sobre SQLite, con Shipment llamando a los endpoints reales de Fleet, y cubre autorización, validación, reservas y caídas de Fleet.
+- Frontend: `npm run build` correcto (bundle inicial 313 kB, antes 483 kB, por carga diferida de rutas) y 24/24 pruebas. Persisten los avisos de presupuesto de estilos.
+- `dotnet ef migrations has-pending-model-changes`: sin cambios en los servicios. Los tokens de concurrencia de `Status` no requieren DDL.
+- Pila real con SQL Server y RabbitMQ en Compose, usando bases y vhost temporales ya eliminados: login, asignación, entrega y liberación de recursos, y creación, atención y resolución de incidencias mediante Gateway; eventos Outbox publicados, 9 eventos registrados en `ProcessedEvents` y un mensaje inválido enrutado a la DLQ.
+- Navegador manual en `http://localhost:4200`: login, restauración de sesión al recargar, `/shipments` e `/incidents` con carga diferida, y registro de una incidencia desde la interfaz.
+- No verificado de forma real: la expiración de 15 minutos del access token en navegador (la renovación concurrente y el CSRF vigente están cubiertos por pruebas unitarias) y la concurrencia bajo carga contra SQL Server.
+
+### Validaciones anteriores (2026-11-07)
 
 - Backend: `dotnet restore --locked-mode`, `dotnet build` y `dotnet test`; 28 pruebas aprobadas, incluidas pruebas de envelope e idempotencia Outbox.
 - Frontend: `npm test -- --watch=false`; 18 pruebas aprobadas.
@@ -181,8 +244,4 @@ La contraseña debe tener al menos 12 caracteres, mayúscula, minúscula, dígit
 
 ## Próximos pasos
 
-1. Automatizar la prueba HTTP Gateway → Shipment/Fleet y definir compensación durable para fallos parciales.
-2. Publicar eventos versionados de disponibilidad y estados mediante RabbitMQ cuando el alcance lo autorice.
-3. Implementar eventos de Incident y consumidores RabbitMQ idempotentes.
-4. Implementar Simulation, SignalR, geometrías locales y mapa Leaflet.
-5. Añadir prueba de navegador completa login → Gateway → Identity y E2E de los flujos operativos.
+El orden y los criterios de salida están en [13-roadmap.md](./13-roadmap.md) y su justificación en [ADR 0011](./adr/0011-module-delivery-sequence.md). El siguiente bloque es Rutas en Simulation.

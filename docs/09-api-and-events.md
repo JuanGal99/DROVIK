@@ -4,11 +4,11 @@
 
 Angular consume una URL estable de YARP; no expone los servicios internos. Rutas REST en inglés con prefijo `/api/v1/`. Cada servicio publica/valida su OpenAPI. Cambios aditivos compatibles permanecen en v1; cambios incompatibles incrementan la versión de ruta y se documentan antes de migrar consumidores.
 
-El Gateway enruta los prefijos de dominio versionados al servicio propietario sin reescribir la ruta: `/api/v1/auth` y `/api/v1/users` a Identity; `/api/v1/vehicles`, `/drivers`, `/centers` y `/reservations` a Fleet; `/api/v1/shipments` a Shipment; `/api/v1/simulations` a Simulation; `/api/v1/incidents` a Incident. Los destinos locales predeterminados usan los puertos 5201–5205; se pueden sobrescribir mediante configuración `ReverseProxy:Clusters:<service>:Destinations:local:Address`. La ruta YARP solo enruta; los endpoints funcionales de Identity se enumeran abajo y las rutas de otros dominios no implican que sus endpoints ya estén implementados.
+El Gateway enruta los prefijos de dominio versionados al servicio propietario sin reescribir la ruta: `/api/v1/auth` y `/api/v1/users` a Identity; `/api/v1/vehicles`, `/drivers` y `/centers` a Fleet; `/api/v1/shipments` y `/api/v1/customers` a Shipment; `/api/v1/simulations` a Simulation; `/api/v1/incidents` a Incident. Los destinos locales predeterminados usan los puertos 5201–5205; se pueden sobrescribir mediante configuración `ReverseProxy:Clusters:<service>:Destinations:local:Address`. La ruta YARP solo enruta; los endpoints funcionales de Identity se enumeran abajo y las rutas de otros dominios no implican que sus endpoints ya estén implementados.
 
 Usar respuestas de error Problem Details con código y detalle seguro. Validación de entrada retorna 400; sesión ausente 401; permiso insuficiente 403; recurso inexistente 404; conflicto de estado/reserva 409. Listados siempre paginados y con límites máximos.
 
-Rutas conceptuales: Identity `/api/v1/auth/login`, `/api/v1/users`; Fleet `/api/v1/vehicles`, `/drivers`, `/centers`, `/reservations`; Shipment `/api/v1/shipments`, `/{id}/assign`, `/{id}/status`; Simulation `/api/v1/simulations/{id}/start|pause|resume|cancel`; Incident `/api/v1/incidents`. Los contratos detallados se especifican por fase antes de integrar consumidores.
+Rutas conceptuales: Identity `/api/v1/auth/login`, `/api/v1/users`; Fleet `/api/v1/vehicles`, `/drivers`, `/centers`; Shipment `/api/v1/customers`, `/api/v1/shipments`, `/{id}/assign`, `/{id}/status`; Simulation `/api/v1/simulations/{id}/start|pause|resume|cancel`; Incident `/api/v1/incidents`. Los contratos detallados se especifican por fase antes de integrar consumidores.
 
 ### Identity Service v1 — contrato implementado
 
@@ -29,7 +29,7 @@ Identity publica el documento OpenAPI en `/openapi/v1.json` en el puerto local 5
 
 ### Fleet Service v1 — contrato implementado
 
-Las rutas de Fleet se consumen únicamente a través de YARP y requieren el rol `Administrator` u `Operator`. Los listados devuelven `{ items, totalCount, page, pageSize }`; `pageSize` se limita a 100. `DELETE` desactiva el recurso para conservar trazabilidad.
+Las rutas de Fleet se consumen únicamente a través de YARP y requieren el rol `Administrator` u `Operator`. Los listados devuelven `{ items, totalCount, page, pageSize }`; `pageSize` se limita a 100. `DELETE` desactiva el recurso para conservar trazabilidad. Cambiar manualmente el estado o desactivar un vehículo o conductor con una reserva activa devuelve 409.
 
 | Método y ruta | Entrada | Éxito |
 |---|---|---|
@@ -55,14 +55,23 @@ Las rutas de Shipment requieren `Administrator` u `Operator`. El servicio conser
 |---|---|---|
 | `GET /api/v1/shipments?search=&status=&priority=&page=&pageSize=` | Query opcional | 200 paginado |
 | `GET /api/v1/shipments/{id}` | — | 200 `ShipmentResponse` o 404 |
-| `POST /api/v1/shipments` | `customerId`, `originCenterId`, `destination`, coordenadas, `weightKg`, `priority` | 201 como `Pending` |
-| `PUT /api/v1/shipments/{id}` | Destino, coordenadas, peso y prioridad | 200; solo pendiente |
-| `POST /api/v1/shipments/{id}/assign` | `vehicleId`, `driverId`, `idempotencyKey` | 200; reserva y confirmación Fleet |
-| `POST /api/v1/shipments/{id}/status` | `status`, `note` opcional | 200; libera Fleet al entregar o cancelar |
+| `POST /api/v1/shipments` | `originCustomerId` y `customerId` (puntos activos y distintos del catálogo), `weightKg`, `priority` | 201 como `Pending`; nombres, etiquetas y coordenadas de origen y destino salen del catálogo |
+| `PUT /api/v1/shipments/{id}` | `originCustomerId`, `customerId`, `weightKg`, `priority` | 200; solo pendiente |
+| `POST /api/v1/shipments/{id}/assign` | `vehicleId`, `driverId`, `idempotencyKey` | 200; reserva Fleet, persiste y confirma. Repetir con la misma clave devuelve la asignación; con otra clave, 409 |
+| `POST /api/v1/shipments/{id}/status` | `status`, `note` opcional (máx. 500) | 200; al entregar o cancelar persiste primero. Fleet libera los recursos al instante o, si no responde, al consumir el evento |
 
-Fleet expone `POST /api/v1/reservations`, `/confirm` y `/release` para este flujo. Las reservas tienen clave de idempotencia y TTL; la migración `FleetReservations` completa su persistencia.
+Fleet expone `POST /api/v1/reservations`, `/confirm` y `/release` únicamente para Shipment: son un contrato entre servicios y el Gateway no los publica. Las reservas tienen clave de idempotencia y TTL configurable; la migración `FleetReservations` completa su persistencia.
 
-La reserva ejecuta una transacción local `Serializable`, consulta la clave de idempotencia dentro de la transacción y aplica un índice único. Las reservas expiradas se liberan al intentar reutilizar sus recursos; `confirm` es idempotente para una reserva ya confirmada y rechaza reservas expiradas. `release` no libera recursos si existe otra reserva activa para el mismo vehículo o conductor.
+La reserva ejecuta una transacción local `Serializable`, consulta la clave de idempotencia dentro de la transacción y aplica un índice único. Un worker expira las reservas sin confirmar al cumplirse el TTL y libera sus recursos; también se expiran al intentar reutilizarlos. `confirm` es idempotente para una reserva ya confirmada y rechaza reservas expiradas o liberadas, `release` no libera recursos si existe otra reserva activa para el mismo vehículo o conductor, y una clave cuya reserva ya terminó no puede reutilizarse.
+
+### Clientes (Shipment) v1 — contrato implementado
+
+Clientes es la red cerrada de puntos de Shipment (ADR 0012): 8 puntos en Bogotá, de solo lectura, que sirven de origen y destino. Las rutas se consumen mediante YARP y requieren `Administrator` u `Operator`.
+
+| Método y ruta | Entrada | Éxito |
+|---|---|---|
+| `GET /api/v1/customers?search=&isActive=&page=&pageSize=` | Query opcional | 200 paginado, ordenado por nombre. `CustomerResponse`: `id`, `name`, `addressLabel`, `latitude`, `longitude`, `isActive` |
+| `GET /api/v1/customers/{id}` | — | 200 o 404 |
 
 ### Incident Service v1 — contrato implementado
 
@@ -80,27 +89,25 @@ Tipos: `MechanicalFailure`, `Delay`, `Safety`, `Delivery`, `Other`. Severidades:
 
 Incident publica sus eventos mediante Outbox; la topología y el consumidor de auditoría se describen en la sección de implementación inicial.
 
-### Eventos y Outbox v1 — implementación inicial
+### Eventos y Outbox v1 — implementado
 
-Fleet, Shipment e Incident escriben sus eventos en una tabla `OutboxMessages` dentro de la misma transacción local que modifica sus datos. Un dispatcher por servicio publica registros pendientes en el exchange durable `drovik.events.v1`; si RabbitMQ no está disponible, el registro permanece pendiente y se reintenta con backoff exponencial hasta el máximo configurado. Un fallo posterior a la publicación puede producir una redelivería, por lo que los consumidores deben ser idempotentes.
+Fleet, Shipment e Incident escriben sus eventos en una tabla `Outbox` dentro de la misma transacción local que modifica sus datos. Un dispatcher por servicio los publica en el exchange durable `drovik.domain.events`; si RabbitMQ no está disponible o no confirma la publicación, el registro permanece pendiente y el dispatcher reintenta con backoff exponencial de hasta 60 s sin consumir intentos. Solo los mensajes que incumplen el contrato consumen intentos hasta `MaxAttempts`. Un fallo posterior a la publicación puede producir una redelivería, por lo que los consumidores son idempotentes.
 
-El envelope JSON contiene `eventId`, `eventType`, `occurredAtUtc`, `correlationId`, `contractVersion` y `payload`. Las routing keys son los nombres de evento:
+| Consumidor | Cola | Eventos | Efecto |
+|---|---|---|---|
+| Fleet | `fleet.domain-events` | `ShipmentAssigned`, `ShipmentStatusChanged`, `ShipmentDelivered`, `ShipmentCancelled` | Confirma o libera la reserva y marca el vehículo `InTransit` |
+| Shipment | `shipment.domain-events` | `ReservationExpired` | Devuelve a `Pending` la asignación cuya reserva expiró |
+| Incident | `incident.domain-events` | Eventos de Fleet y Shipment | Auditoría en `ProcessedEvents`, sin efecto de negocio todavía |
 
-| Productor | Eventos publicados | Consumidor actual |
-|---|---|---|
-| Fleet | `VehicleAvailabilityChanged`, `DriverAvailabilityChanged` | Incident audit |
-| Shipment | `ShipmentCreated`, `ShipmentAssigned`, `ShipmentStatusChanged`, `ShipmentDelivered`, `ShipmentCancelled` | Incident audit |
-| Incident | `IncidentCreated`, `IncidentStatusChanged`, `IncidentResolved` | Pendiente de consumidor |
-
-Incident consume los eventos de Fleet y Shipment en la cola durable `drovik.incident.audit.v1`, confirma manualmente (`ack`) solo después de insertar `ProcessedEvents` y descarta redeliverías cuyo `eventId` ya existe. Los errores no procesables se envían al exchange `drovik.events.dlx.v1` sin reintentos infinitos. No se comparten entidades ni tablas entre servicios.
+Cada consumidor confirma (`ack`) solo después de guardar en una transacción su efecto y el registro en `ProcessedEvents`, de modo que un `eventId` repetido no vuelve a aplicarse. Los fallos transitorios tienen tres reintentos con backoff y una redelivería; los mensajes inválidos o agotados van a la cola durable `<cola>.dlq`, a través del exchange `drovik.domain.events.dlx`. Un evento publicado cuando la cola de un consumidor aún no existe no le llega: las colas se declaran al arrancar cada servicio.
 
 ## 9.2 Envelope y versionado de eventos
 
-Campos mínimos aprobados: `EventId` (UUID), `EventType` (nombre estable PascalCase), `EventVersion` (entero), `OccurredAtUtc` (ISO-8601 UTC), `CorrelationId` y `Data` (contrato del evento). Se recomienda `CausationId` opcional para trazabilidad. Nombres de eventos en inglés; no publicar entidades de persistencia ni secretos.
+Implementado con los campos `eventId` (UUID), `eventType` (nombre estable PascalCase), `eventVersion` (entero), `occurredAtUtc` (ISO-8601 UTC), `correlationId` y `data` (contrato del evento), todos en camelCase; los enums viajan como texto. Nombres de eventos en inglés; no publicar entidades de persistencia ni secretos. `causationId` queda como campo opcional aditivo para cuando un flujo lo necesite.
 
-RabbitMQ usa topic exchange durable `drovik.domain.events`. Routing key estable: `<domain>.<event>.<version>` en minúsculas/kebab-case y sufijo `vN`, por ejemplo `fleet.vehicle-availability-changed.v1`. Cada consumidor mantiene cola durable `<consumer>.domain-events`; bindings explícitos por routing key. Declaración de topología repetible e idempotente al iniciar.
+RabbitMQ usa el topic exchange durable `drovik.domain.events`. Routing key estable: `<domain>.<event>.<version>` en minúsculas/kebab-case y sufijo `vN`, por ejemplo `fleet.vehicle-availability-changed.v1`. Cada consumidor mantiene una cola durable `<consumer>.domain-events` con bindings explícitos por routing key, y una DLQ propia. La topología se declara de forma repetible e idempotente al iniciar.
 
-Cambios aditivos de datos mantienen `EventVersion`; eliminación/renombre/cambio semántico incompatible requiere nueva versión y convivencia del consumidor mientras migra. Versionar también esquemas/eventos en `contracts/` antes de publicar a RabbitMQ.
+Los contratos v1 son los records de `src/backend/src/Messaging/DomainEvents.cs`, junto con el catálogo que asigna cada evento a su dominio. Un evento fuera del catálogo se rechaza sin publicarse. Cambios aditivos de datos mantienen `eventVersion` y deben ser opcionales para el consumidor; eliminación, renombre o cambio semántico incompatible requieren nueva versión y convivencia del consumidor mientras migra.
 
 ## 9.3 Catálogo de eventos
 
@@ -108,12 +115,12 @@ Consumidores indicados son los planificados; cada contrato concreta filtros y ef
 
 | Evento | Dueño/productor | Consumidor previsto |
 |---|---|---|
-| VehicleAvailabilityChanged | Fleet | Shipment (proyección operativa opcional); realtime para actualizar vistas |
-| VehicleMaintenanceStatusChanged | Fleet | Shipment; realtime |
-| DriverAvailabilityChanged | Fleet | Shipment; realtime |
+| VehicleAvailabilityChanged | Fleet | Incident (auditoría); realtime para actualizar vistas. Incluye el paso a mantenimiento |
+| DriverAvailabilityChanged | Fleet | Incident (auditoría); realtime |
+| ReservationExpired | Fleet | Shipment; Incident (auditoría) |
 | ShipmentCreated | Shipment | Simulation (contexto de operación) |
-| ShipmentAssigned | Shipment | Simulation; Incident para trazabilidad si procede |
-| ShipmentStatusChanged / Delivered / Cancelled | Shipment | Simulation, Incident y proyecciones de dashboard |
+| ShipmentAssigned | Shipment | Fleet (confirma la reserva); Simulation; Incident (auditoría) |
+| ShipmentStatusChanged / Delivered / Cancelled | Shipment | Fleet (vehículo en ruta y liberación); Simulation; Incident (auditoría) y proyecciones de dashboard |
 | SimulationStarted / Paused / Completed | Simulation | Incident y realtime |
 | VehicleBreakdownDetected / RouteDelayDetected / RouteDeviationDetected | Simulation | Incident; Shipment para los cambios de estado que correspondan |
 | VehiclePositionUpdated | Simulation | SignalR/realtime; no fan-out general por RabbitMQ |

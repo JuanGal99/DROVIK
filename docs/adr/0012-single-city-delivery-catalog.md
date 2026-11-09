@@ -1,0 +1,22 @@
+# ADR 0012: Operación en una ciudad con una red cerrada de 8 puntos
+
+- Estado: Aceptado (2026-11-09).
+- Contexto: el destino de un envío era texto libre con coordenadas escritas a mano, y los centros de la demo estaban en tres ciudades. Eso impide saber de antemano por dónde se mueve la operación y obliga al mapa a representar puntos arbitrarios. El propietario del producto pidió limitar los envíos a unos ocho puntos en una sola ciudad, como una empresa con varias sedes, tanto para el origen como para el destino.
+- Decisión:
+  - La operación se limita a Bogotá.
+  - Los envíos van entre los puntos de un catálogo cerrado de 8 clientes ficticios, propiedad de Shipment. Cada uno tiene nombre, localidad y coordenadas fijas. Origen y destino salen del mismo catálogo y deben ser distintos.
+  - Los tres centros de Fleet quedan solo como base de los vehículos; no participan en la ruta de un envío.
+  - El catálogo es de solo lectura en la API y la interfaz. Cambiarlo es una decisión de datos: se hace con una migración de seed.
+  - Al crear o editar un envío solo se eligen los dos puntos. Etiquetas y coordenadas se copian del catálogo; el servidor ignora cualquier destino enviado por el cliente HTTP.
+  - La copia se conserva en el envío para que el registro de una entrega no cambie si más adelante se corrige un punto.
+  - El nombre técnico `Customer` se mantiene para no renombrar API y tablas sin beneficio funcional.
+  - El estado `Draft` se retira del producto: un envío siempre se crea completo, como `Pending`. Con destinos cerrados no hay datos parciales que justifiquen un borrador.
+- Alternativas consideradas:
+  - Mantener el alta y edición de clientes con validación de coordenadas: conserva el problema de destinos imprevisibles.
+  - Mantener los centros de distribución como origen: separa los lugares de salida de los de entrega y añade al mapa puntos que no son parte de la red pedida.
+  - Eliminar destino y coordenadas de `Shipments` y leerlos siempre del cliente: reescribiría el historial si cambia un punto y borraría datos existentes.
+  - Limitar por validación geográfica (cualquier punto dentro de Bogotá): el mapa y las rutas seguirían recibiendo puntos arbitrarios.
+- Consecuencias:
+  - 8 puntos dan 56 trayectos dirigidos, de modo que las geometrías de respaldo se pueden generar completas, sin OSRM.
+  - Los envíos creados antes del catálogo conservan su cliente como `Heredado: <referencia>`, inactivo y fuera de la lista, y su centro original en `LegacyOriginCenterId`. Los pendientes deben elegir origen y destino del catálogo al editarlos antes de poder asignarse.
+  - Añadir otra ciudad requeriría revisar este ADR.

@@ -22,7 +22,7 @@ Fuente editable: [architecture-overview.mmd](../assets/architecture/architecture
 - **YARP Gateway:** punto de entrada HTTP y enrutamiento, sin lógica de negocio.
 - **Identity:** credenciales, usuarios, roles y sesiones.
 - **Fleet:** vehículos, conductores, centros y disponibilidad.
-- **Shipment:** clientes, envíos, asignaciones e historial.
+- **Shipment:** red cerrada de puntos (clientes), envíos, asignaciones e historial.
 - **Simulation:** estado autoritativo, escenarios y generación de posiciones/eventos.
 - **Incident:** ciclo de vida e historial de incidentes.
 - **SignalR:** entrega de cambios al navegador; inicialmente alojado con Simulation o Incident, sin servicio adicional.

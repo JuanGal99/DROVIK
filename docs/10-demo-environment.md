@@ -2,7 +2,7 @@
 
 ## 10.1 Datos
 
-Seed completamente sintético, coherente y reproducible. Cantidades iniciales propuestas (4 centros, 15 vehículos, 18 conductores, 25 clientes, 250 envíos, 20 geometrías de respaldo y 30–40 incidentes) son ajustables, no requisitos de rendimiento. Usar valores ficticios, evitar datos personales reales.
+Seed completamente sintético, coherente y reproducible. La demo opera en Bogotá con 3 bases de vehículos y una red fija de 8 puntos (ADR 0012), que dan 56 geometrías de respaldo. Las demás cantidades propuestas (15 vehículos, 18 conductores, 250 envíos y 30–40 incidentes) son ajustables, no requisitos de rendimiento. Usar valores ficticios, evitar datos personales reales.
 
 ## 10.2 Escenarios
 

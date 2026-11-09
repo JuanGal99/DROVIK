@@ -20,6 +20,6 @@ Las referencias a recursos de otros servicios son identificadores, no claves for
 
 ## 5.3 Entidades y reglas de datos
 
-Las entidades conceptuales existentes se mantienen: Vehicle (Plate, Model, Type, Capacity, Status, CurrentOdometer); Driver (FullName y datos ficticios); DistributionCenter (Name, AddressLabel, Latitude, Longitude, IsActive); Shipment (TrackingCode, referencias identificadoras, destino, Weight, Priority, Status y fechas UTC); SimulationRun, SimulationVehicleState y SimulationEvent; Incident e IncidentActivity.
+Customer pertenece a Shipment y guarda Name (único), AddressLabel (localidad de Bogotá), Latitude, Longitude e IsActive; solo datos de empresas ficticias, sin contactos personales. El catálogo cambia únicamente por migración de seed (ADR 0012). Shipment copia etiquetas y coordenadas de origen y destino al crear o editar el envío. Las entidades conceptuales existentes se mantienen: Vehicle (Plate, Model, Type, Capacity, Status, CurrentOdometer); Driver (FullName y datos ficticios); DistributionCenter (Name, AddressLabel, Latitude, Longitude, IsActive); Shipment (TrackingCode, referencias identificadoras, destino, Weight, Priority, Status y fechas UTC); SimulationRun, SimulationVehicleState y SimulationEvent; Incident e IncidentActivity.
 
 Fechas almacenadas/transportadas en UTC. Indexar claves de búsqueda, estados, TrackingCode y fechas según consultas reales. No almacenar datos personales reales. Datos seed reproducibles; reset protegido, auditable e idempotente.

@@ -7,7 +7,7 @@ Simulation Service es autoridad del estado simulado; Angular solo representa el 
 ## 7.2 Ciclo
 
 1. Validar que la ejecución puede comenzar y que envíos/vehículos están asignados.
-2. Obtener una geometría de respaldo local; OSRM es una fuente opcional.
+2. Obtener la geometría del trayecto entre los dos puntos del envío (56 combinaciones posibles, ADR 0012) de las geometrías locales; OSRM es una fuente opcional.
 3. Persistir SimulationRun y estado inicial por vehículo.
 4. Avanzar usando tiempo transcurrido del servidor y multiplicador limitado.
 5. Interpolar posiciones sobre la geometría y publicar actualizaciones limitadas.

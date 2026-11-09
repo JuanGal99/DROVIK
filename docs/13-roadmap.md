@@ -22,37 +22,43 @@ Las fases se completan localmente. Capturas/video son materiales de portafolio; 
 - **Gateway (integrado en `main`):** YARP 2.3.0 enruta prefijos versionados a los cinco servicios, configura CORS explícito para Angular local y tiene pruebas de proxy y ruta desconocida.
 - **Identity (integrado y validado en `main`):** ASP.NET Core Identity, roles Administrator/Operator, creación administrada de cuentas, login, access JWT RS256 de 15 minutos, refresh hash de siete días con rotación/familia, logout, `/me`, CSRF y bootstrap explícito de primer administrador. Migración aplicada a SQL Server; readiness y pruebas xUnit 25/25.
 - **Contratos:** revisar tabla Identity de `09-api-and-events.md`; Angular ya implementa el cliente de Identity mediante el Gateway, access token en memoria y refresh por cookie HttpOnly. Las pantallas de dominio siguen usando datos sintéticos porque sus endpoints aún no existen. Las claves se configuran localmente.
-- **Pendiente para cerrar Fase 2:** prueba de flujo autenticado de navegador completo Angular → Gateway → Identity (cookies, CSRF y CORS en cadena); comprobar configuración de claves públicas y permisos en cada servicio de dominio. Fase 2 no se cierra hasta verificar esos puntos además del build/tests.
+- **Pendiente para cerrar Fase 2:** prueba de flujo autenticado de navegador completo Angular → Gateway → Identity (cookies, CSRF y CORS en cadena); comprobar configuración de claves públicas y permisos en cada servicio de dominio. Fase 2 no se cierra hasta verificar esos puntos además del build/tests. El 2026-11-08 se verificó de forma manual el login en navegador contra la pila real, con claves públicas en todos los servicios; falta automatizarlo y confirmar el cierre.
 
 ## Fase 3 — Fleet Service (en progreso)
 - **Implementado:** vehículos, conductores y centros con EF Core, migración `FleetBusiness`, seed sintético, DTOs, CRUD, filtros, paginación, estados y desactivación.
 - **Implementado:** Angular consume Fleet mediante YARP con servicios HTTP tipados, estados de carga/error y pruebas de componentes HTTP.
 - **Validado:** login Administrator → Gateway → Fleet, creación/edición persistente y consulta posterior desde SQL Server.
-- **Implementado parcialmente:** reservas explícitas atómicas para Shipment, con migración `FleetReservations`, idempotencia y liberación.
-- **Implementado parcialmente:** eventos versionados de disponibilidad mediante Outbox transaccional y dispatcher RabbitMQ; falta automatizar autorización/integración y observabilidad de DLQ.
-- **Salida verificable:** migración limpia, validaciones/paginación, CRUD persistente y protocolo de reserva están cubiertos; eventos y pruebas automatizadas aún no.
+- **Implementado:** reservas explícitas atómicas para Shipment, con idempotencia, expiración por worker, estado terminal `Expired` y confirmación/liberación durables por eventos. El Gateway no publica este contrato.
+- **Implementado:** eventos versionados de disponibilidad mediante Outbox transaccional y consumidor idempotente de eventos de Shipment. Falta la observabilidad de DLQ (Fase 9).
+- **Salida verificable:** migración limpia, validaciones/paginación, CRUD persistente, protocolo de reserva y eventos cubiertos por pruebas automatizadas y por una validación contra RabbitMQ y SQL Server reales. La fase sigue abierta mientras la interfaz no exponga la desactivación.
 
-## Fase 4 — Shipment Service (en progreso)
+## Fase 4 — Shipment Service (completada)
 - **Implementado parcialmente:** envíos persistidos, historial, listado paginado, creación, edición pendiente, asignación, idempotencia y transiciones mediante API.
 - **Implementado parcialmente:** Angular consume Shipment mediante YARP y carga Fleet para seleccionar recursos.
-- Clientes siguen siendo referencias `CustomerId`; no existe todavía Customers Service.
+- **Implementado:** red cerrada de 8 puntos en Bogotá, propiedad de Shipment (ADR 0012), de solo lectura, con pantalla Angular y selectores en envíos. Origen y destino siempre salen del catálogo.
 - **Validado:** transiciones inválidas, capacidad/disponibilidad, actor/historial, idempotencia, liberación y concurrencia mediante pruebas automatizadas de persistencia y una prueba HTTP concurrente a través de Gateway.
-- **Implementado parcialmente:** eventos de dominio `ShipmentCreated`, `ShipmentAssigned`, `ShipmentStatusChanged`, `ShipmentDelivered` y `ShipmentCancelled` mediante Outbox; faltan pruebas HTTP automatizadas reproducibles y consumidores de negocio.
-- **Salida verificable parcial:** el flujo Angular → Gateway → Shipment/Fleet → SQL Server funciona; la fase no se cierra hasta automatizar el flujo HTTP y definir la compensación durable.
+- **Implementado:** eventos de dominio de ciclo de vida mediante Outbox, consumidos por Fleet, y compensación durable: una reserva que expira devuelve la asignación a `Pending`. Hay pruebas HTTP automatizadas reproducibles.
+- **Salida verificable:** flujo HTTP automatizado, compensación durable, red de puntos y retiro de `Draft` completos.
 
-## Fase 5 — Simulation Service
-- Geometrías locales, motor autoritativo y start/pause/resume/cancel.
-- Persistencia y recuperación definidas; escenarios y eventos.
-- **Salida verificable:** ejecución repetible con reloj controlado, sin proveedor externo, un ejecutor por run y pruebas de reinicio.
+## Bloques de Clientes, rutas, mapa, simulación y tiempo real
 
-## Fase 6 — Realtime y mapa
-- SignalR, Leaflet, reconexión, frecuencia limitada e indicador sintético.
-- **Salida verificable:** UI recibe estados/posiciones seleccionados; reconexión recupera estado coherente; geometrías offline funcionan.
+Sustituyen a las antiguas Fases 5 y 6, según las dependencias analizadas en ADR 0011. Se ejecutan uno a la vez.
+
+| Bloque | Alcance | Depende de | Salida verificable |
+|---|---|---|---|
+| 1. Cimientos de eventos y reservas (**completado**) | Topología ADR 0003, consumidor base, confirmación y liberación durables, expiración | — | Pruebas automatizadas y caída real de Fleet sin pérdida de liberación |
+| 2. Clientes (**completado**) | Red cerrada de 8 puntos en Bogotá, consulta en `/api/v1/customers`, pantalla Angular y selectores en envíos | 1 | Un envío solo va entre dos puntos distintos del catálogo |
+| 3. Resumen real (**completado**) | Esquema de la red, envíos por estado y actividad desde Fleet, Shipment e Incident | 2 | Cada cifra se concilia con su API; sin datos en memoria |
+| 4. Rutas | `RouteGeometry` en Simulation para los 56 trayectos entre puntos, proveedor local determinista y OSRM opcional | 2 | Funciona sin OSRM; los 56 trayectos tienen geometría y siempre la misma |
+| 5. Mapa de solo lectura | Leaflet en `/operations` con los 8 puntos, envíos activos y trazados | 4 | Capas correctas sin teselas externas, con aviso y atribución |
+| 6. Motor de simulación | Runs, start/pause/resume/cancel, reloj controlado, recuperación en pausa, estado instantáneo | 4 | Ejecución repetible, un ejecutor por run y pruebas de reinicio |
+| 7. Tiempo real | Hub SignalR en Simulation por YARP, posiciones limitadas y reconexión por estado instantáneo | 5, 6 | La UI sigue al motor y una reconexión recupera un estado coherente |
+| 8. Escenarios | Congestión, avería y desvío; Incident y Shipment consumen sus eventos | 6 | Una avería crea una sola incidencia y el envío refleja el retraso |
 
 ## Fase 7 — Incident Service
 - **Implementado parcialmente:** Incident persiste incidencias y actividades en SQL Server mediante la migración `IncidentBusiness`, expone listado filtrable/paginado, detalle, creación, cambios de estado y resolución mediante Gateway.
 - **Implementado:** autorización `Administrator`/`Operator`, validación de transiciones, referencias opacas a Fleet/Shipment y trazabilidad de actor/fecha UTC. La migración y las tablas `Incidents`/`IncidentActivities` fueron verificadas en la instancia local.
-- **Validado parcialmente:** readiness de Incident `200` y rutas de lectura/escritura sin autenticación `401` a través de YARP; falta repetir el flujo completo con una cuenta Administrator y una Operator.
+- **Validado parcialmente:** readiness de Incident `200` y rutas de lectura/escritura sin autenticación `401` a través de YARP; el 2026-11-08 se completó el flujo con una cuenta Administrator contra SQL Server real; falta repetirlo con una cuenta Operator (el rol está cubierto por pruebas HTTP automatizadas).
 - **Implementado parcialmente:** publicación de `IncidentCreated`, `IncidentStatusChanged` e `IncidentResolved` mediante Outbox; Incident consume eventos de Fleet/Shipment con Inbox idempotente para auditoría.
 - **Pendiente:** consumidores de negocio, pruebas HTTP autenticadas automatizadas y resolución de duplicados externos.
 - **Salida verificable pendiente:** flujo autenticado de resolución e historial, publicación con credenciales reales y DLQ verificable mediante integración reproducible.
