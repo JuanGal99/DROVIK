@@ -23,6 +23,9 @@ export class OperationsPage implements OnDestroy {
   readonly speed = signal(10);
   readonly connectionLabel = computed(() => CONNECTION_LABELS[this.live.connection()]);
   readonly finished = computed(() => this.live.run()?.status === 'Completed');
+  readonly selectedId = signal<string | null>(null);
+  readonly currentSpeed = computed(() => this.live.isActive() ? this.live.run()!.speedMultiplier : this.speed());
+  readonly plateOf = (vehicle: LiveVehicle) => this.plate(vehicle);
   private readonly refresh = setInterval(() => this.live.connection() === 'live' ? this.live.sync() : this.live.load(), REFRESH_MS);
 
   constructor() {
@@ -48,5 +51,18 @@ export class OperationsPage implements OnDestroy {
     return seconds < 60 ? `Llega en ${seconds} s` : `Llega en ${Math.ceil(seconds / 60)} min`;
   }
 
-  setSpeed(value: string): void { this.speed.set(Number(value)); }
+  setSpeed(value: string): void {
+    this.speed.set(Number(value));
+    if (this.live.isActive()) this.live.changeSpeed(Number(value));
+  }
+
+  toggleSelected(shipmentId: string): void {
+    this.selectedId.update((current) => current === shipmentId ? null : shipmentId);
+  }
+
+  /** A vehicle clicked on the map is brought into view on the board, which can be a long list. */
+  selectFromMap(shipmentId: string): void {
+    this.selectedId.set(shipmentId);
+    document.getElementById(`vehicle-${shipmentId}`)?.scrollIntoView({ block: 'nearest' });
+  }
 }

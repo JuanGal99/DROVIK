@@ -16,4 +16,5 @@
 .map-vehicle.is-delayed { background: var(--warning); }
 .map-vehicle.is-arrived { background: var(--success); }
 .map-vehicle.is-broken { background: var(--danger); }
+.map-vehicle.is-selected { outline: 3px solid var(--text-primary); outline-offset: 1px; }
 .leaflet-zoom-anim .map-vehicle { transition: none; }

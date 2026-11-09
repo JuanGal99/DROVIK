@@ -1,5 +1,5 @@
 <section class="ops-page operations" aria-labelledby="operations-title">
-  <div class="map-area"><app-live-map [points]="customers.customers()" [vehicles]="live.vehicles()" /></div>
+  <div class="map-area"><app-live-map [points]="customers.customers()" [vehicles]="live.vehicles()" [plateOf]="plateOf" [selectedId]="selectedId()" (vehicleClicked)="selectFromMap($event)" /></div>
 
   <aside class="panel">
     <header>
@@ -15,11 +15,10 @@
           <button class="primary-action" type="button" [disabled]="live.busy()" (click)="live.resume()"><i class="pi pi-play" aria-hidden="true"></i> Reanudar</button>
         }
         <button class="secondary-action danger-action" type="button" [disabled]="live.busy()" (click)="live.stop()">Detener</button>
-        <span class="speed-value">Velocidad x{{ live.run()?.speedMultiplier }}</span>
       } @else {
         <button class="primary-action" type="button" [disabled]="live.busy()" (click)="live.start(speed())"><i class="pi pi-play" aria-hidden="true"></i> Iniciar operación</button>
-        <label class="filter-field"><span>Velocidad</span><select aria-label="Velocidad de la operación" [value]="speed()" (change)="setSpeed($any($event.target).value)">@for (option of speeds; track option) { <option [value]="option" [selected]="option === speed()">x{{ option }}</option> }</select></label>
       }
+      <label class="filter-field speed-field"><span>Velocidad</span><select aria-label="Velocidad de la operación" [disabled]="live.busy()" (change)="setSpeed($any($event.target).value)">@for (option of speeds; track option) { <option [value]="option" [selected]="option === currentSpeed()">x{{ option }}</option> }</select></label>
     </div>
     @if (live.actionError()) { <p class="form-error" role="alert">{{ live.actionError() }}</p> }
     @if (live.run()?.status === 'Paused') { <p class="run-note">Operación en pausa.</p> }
@@ -32,9 +31,11 @@
     } @else {
       <ol class="vehicles">
         @for (vehicle of live.vehicles(); track vehicle.shipmentId) {
-          <li [class.delayed]="vehicle.isDelayed && vehicle.status === 'Moving'" [class.broken]="vehicle.isBrokenDown" [class.arrived]="vehicle.status === 'Arrived'">
-            <div class="vehicle-head"><strong>{{ plate(vehicle) }}</strong><span>{{ arrival(vehicle) }}</span></div>
-            <p>{{ vehicle.originName }} a {{ vehicle.destinationName }}</p>
+          <li [class.delayed]="vehicle.isDelayed && vehicle.status === 'Moving'" [class.broken]="vehicle.isBrokenDown" [class.arrived]="vehicle.status === 'Arrived'" [class.selected]="vehicle.shipmentId === selectedId()" [id]="'vehicle-' + vehicle.shipmentId">
+            <button type="button" class="vehicle-select" [attr.aria-pressed]="vehicle.shipmentId === selectedId()" (click)="toggleSelected(vehicle.shipmentId)">
+              <span class="vehicle-head"><strong>{{ plate(vehicle) }}</strong><span>{{ arrival(vehicle) }}</span></span>
+              <span class="vehicle-route">{{ vehicle.originName }} a {{ vehicle.destinationName }}</span>
+            </button>
             <div class="progress" role="progressbar" [attr.aria-valuenow]="vehicle.progressPercent" aria-valuemin="0" aria-valuemax="100" [attr.aria-label]="'Avance de ' + vehicle.trackingCode"><span [style.width.%]="vehicle.progressPercent"></span></div>
             <small>{{ vehicle.trackingCode }}@if (vehicle.isDelayed && vehicle.status === 'Moving') { , con retraso }@if (vehicle.isDetoured) { , desviado }</small>
             @if (vehicle.status === 'Moving' && live.isActive()) {

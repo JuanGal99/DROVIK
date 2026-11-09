@@ -279,6 +279,45 @@ public sealed class LiveOperationsTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Speed_can_change_while_the_operation_runs()
+    {
+        _shipments.Add(ShipmentId);
+        var run = await StartAndGetId();
+
+        using var changed = await _client.PostAsJsonAsync($"/api/v1/simulations/{run}/speed", new { speedMultiplier = 60 });
+
+        Assert.Equal(HttpStatusCode.OK, changed.StatusCode);
+        _clock.Advance(TimeSpan.FromSeconds(2));
+        await Engine.TickAsync(CancellationToken.None);
+        Assert.Equal(LiveState.BaseSpeedMetersPerSecond * 60 * 2, (await Vehicle()).ProgressMeters, 3);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(121)]
+    public async Task Speed_outside_the_allowed_range_is_rejected(int speed)
+    {
+        _shipments.Add(ShipmentId);
+        var run = await StartAndGetId();
+
+        using var response = await _client.PostAsJsonAsync($"/api/v1/simulations/{run}/speed", new { speedMultiplier = speed });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Speed_cannot_change_after_the_operation_ends()
+    {
+        _shipments.Add(ShipmentId);
+        var run = await StartAndGetId();
+        using (await _client.PostAsync($"/api/v1/simulations/{run}/cancel", null)) { }
+
+        using var response = await _client.PostAsJsonAsync($"/api/v1/simulations/{run}/speed", new { speedMultiplier = 60 });
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+    }
+
+    [Fact]
     public async Task Scenario_requires_a_vehicle_on_the_road()
     {
         _shipments.Add(ShipmentId);

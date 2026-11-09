@@ -85,6 +85,7 @@ Rutas mediante YARP con `Administrator` u `Operator`. Solo puede haber una opera
 | `POST /api/v1/simulations` | `{ speedMultiplier }` (1 a 120) | 201; 409 si ya hay una activa o no hay envíos en ruta; 503 si Shipment no responde |
 | `POST /api/v1/simulations/{id}/pause`, `/resume`, `/cancel` | — | 200; 409 si el estado no lo admite |
 | `POST /api/v1/simulations/{id}/sync` | — | 200; incorpora o retira envíos que entraron o salieron de ruta |
+| `POST /api/v1/simulations/{id}/speed` | `{ speedMultiplier }` (1 a 120) | 200; 409 si la operación terminó |
 | `POST /api/v1/simulations/{id}/scenarios` | `{ shipmentId, scenario }` con `Congestion`, `Breakdown`, `Detour` o `Repair` | 200 con rutas; 409 si no aplica |
 | `POST /api/v1/simulations/demo-reset` (también `/shipments`, `/incidents`, `/vehicles`) | Solo `Administrator` | 204; cada servicio borra sus datos operativos |
 

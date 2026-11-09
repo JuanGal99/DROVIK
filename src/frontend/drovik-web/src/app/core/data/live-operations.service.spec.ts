@@ -85,6 +85,18 @@ describe('LiveOperationsService', () => {
     expect(service.vehicles()[0].route?.length).toBe(3);
   });
 
+  it('changes the speed of a running operation without losing the routes', () => {
+    loaded();
+
+    service.changeSpeed(60);
+
+    const request = http.expectOne(`${url}/run-1/speed`);
+    expect(request.request.body).toEqual({ speedMultiplier: 60 });
+    request.flush({ run: { ...run, speedMultiplier: 60 }, vehicles: [{ ...vehicle, route: null }] });
+    expect(service.run()?.speedMultiplier).toBe(60);
+    expect(service.vehicles()[0].route?.length).toBe(2);
+  });
+
   it('clears the board when the operation is stopped', () => {
     loaded();
 

@@ -1,9 +1,9 @@
-import { afterNextRender, Component, effect, ElementRef, input, OnDestroy, signal, viewChild } from '@angular/core';
+import { afterNextRender, Component, effect, ElementRef, input, OnDestroy, output, signal, viewChild } from '@angular/core';
 import * as L from 'leaflet';
 import { Customer } from '../../core/data/customers-data.service';
 import { LiveVehicle } from '../../core/data/live-operations.service';
 
-interface VehicleLayer { marker: L.Marker; line: L.Polyline; route?: LiveVehicle['route']; }
+interface VehicleLayer { marker: L.Marker; line: L.Polyline; route?: LiveVehicle['route']; label?: string; }
 
 @Component({
   selector: 'app-live-map',
@@ -18,6 +18,9 @@ interface VehicleLayer { marker: L.Marker; line: L.Polyline; route?: LiveVehicle
 export class LiveMap implements OnDestroy {
   readonly points = input<Customer[]>([]);
   readonly vehicles = input<LiveVehicle[]>([]);
+  readonly plateOf = input<(vehicle: LiveVehicle) => string>((vehicle) => vehicle.trackingCode);
+  readonly selectedId = input<string | null>(null);
+  readonly vehicleClicked = output<string>();
   readonly tilesFailed = signal(false);
 
   private readonly container = viewChild.required<ElementRef<HTMLDivElement>>('map');
@@ -40,7 +43,8 @@ export class LiveMap implements OnDestroy {
       this.map.set(map);
     });
     effect(() => this.drawPoints(this.map(), this.points()));
-    effect(() => this.drawVehicles(this.map(), this.vehicles()));
+    effect(() => this.drawVehicles(this.map(), this.vehicles(), this.plateOf(), this.selectedId()));
+    effect(() => this.reveal(this.map(), this.selectedId()));
   }
 
   ngOnDestroy(): void {
@@ -62,7 +66,13 @@ export class LiveMap implements OnDestroy {
     }
   }
 
-  private drawVehicles(map: L.Map | null, vehicles: LiveVehicle[]): void {
+  // Separate from drawing so the map only moves when the selection changes, not on every position update.
+  private reveal(map: L.Map | null, selectedId: string | null): void {
+    const marker = selectedId ? this.vehicleLayers.get(selectedId)?.marker : undefined;
+    if (map && marker) map.panInside(marker.getLatLng(), { padding: [70, 70] });
+  }
+
+  private drawVehicles(map: L.Map | null, vehicles: LiveVehicle[], plateOf: (vehicle: LiveVehicle) => string, selectedId: string | null): void {
     if (!map) return;
     const current = new Set(vehicles.map((vehicle) => vehicle.shipmentId));
     for (const [id, layer] of this.vehicleLayers) {
@@ -81,7 +91,15 @@ export class LiveMap implements OnDestroy {
         layer.route = vehicle.route;
       }
       layer.marker.getElement()?.classList.toggle('is-broken', vehicle.isBrokenDown && !arrived);
-      layer.line.setStyle({ color, opacity: arrived ? 0.25 : 0.75 });
+      const selected = vehicle.shipmentId === selectedId;
+      layer.line.setStyle({ color, opacity: selected ? 1 : arrived ? 0.25 : 0.75, weight: selected ? 5 : 3 });
+      layer.marker.getElement()?.classList.toggle('is-selected', selected);
+      layer.marker.setZIndexOffset(selected ? 1000 : 500);
+      const label = plateOf(vehicle);
+      if (label !== layer.label) {
+        layer.marker.setTooltipContent(escapeHtml(label));
+        layer.label = label;
+      }
       layer.marker.getElement()?.classList.toggle('is-delayed', vehicle.isDelayed && !arrived);
       layer.marker.getElement()?.classList.toggle('is-arrived', arrived);
     }
@@ -94,7 +112,7 @@ export class LiveMap implements OnDestroy {
       marker: L.marker([vehicle.latitude, vehicle.longitude], {
         icon: L.divIcon({ className: 'map-vehicle', html: '<i class="pi pi-truck"></i>', iconSize: [28, 28] }),
         zIndexOffset: 500,
-      }).bindTooltip(escapeHtml(vehicle.trackingCode), { direction: 'top', offset: [0, -14] }).addTo(map),
+      }).bindTooltip('', { direction: 'top', offset: [0, -14] }).on('click', () => this.vehicleClicked.emit(vehicle.shipmentId)).addTo(map),
     };
     this.vehicleLayers.set(vehicle.shipmentId, layer);
     return layer;
