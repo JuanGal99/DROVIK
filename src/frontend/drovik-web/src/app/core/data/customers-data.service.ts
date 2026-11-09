@@ -31,7 +31,7 @@ export class CustomersDataService {
       map((response) => response.items),
       tap((customers) => this.customers.set(customers)),
       catchError((error: ApiError) => {
-        this.error.set(error.error?.detail ?? 'No se pudo cargar el catálogo de clientes.');
+        this.error.set(error.error?.detail ?? 'No se pudo cargar el catálogo de puntos.');
         return throwError(() => error);
       }),
       finalize(() => this.loading.set(false)),

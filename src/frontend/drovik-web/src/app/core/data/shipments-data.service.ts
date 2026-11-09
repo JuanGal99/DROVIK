@@ -2,6 +2,7 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject, signal } from '@angular/core';
 import { catchError, forkJoin, finalize, map, Observable, tap, throwError } from 'rxjs';
 import { environment } from '../../../environments/environment';
+import { newIdempotencyKey } from '../id/idempotency-key';
 import { Driver, DriversDataService } from './drivers-data.service';
 import { FleetDataService, Vehicle } from './fleet-data.service';
 
@@ -50,7 +51,6 @@ export class ShipmentsDataService {
   private readonly http = inject(HttpClient);
   private readonly fleet = inject(FleetDataService);
   private readonly drivers = inject(DriversDataService);
-  readonly synthetic = false;
   readonly loading = signal(false);
   readonly saving = signal(false);
   readonly error = signal<string | null>(null);
@@ -111,7 +111,7 @@ export class ShipmentsDataService {
   assign(shipmentId: string, vehicleId: string, driverId: string): Observable<Shipment> {
     this.saving.set(true);
     return this.http.post<ShipmentResponse>(`${environment.gatewayUrl}/api/v1/shipments/${shipmentId}/assign`, {
-      vehicleId, driverId, idempotencyKey: crypto.randomUUID(),
+      vehicleId, driverId, idempotencyKey: newIdempotencyKey(),
     }).pipe(
       map((item) => this.mapShipment(item)),
       tap((shipment) => this.shipments.update((items) => items.map((item) => item.id === shipment.id ? shipment : item))),

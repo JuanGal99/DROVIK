@@ -22,6 +22,7 @@
   - Mapa y SignalR primero: exigiría posiciones ficticias para mostrar algo, lo que contradice ADR 0004. Rechazada.
   - Clientes como sexto servicio: contradice ADR 0001 y `04-service-boundaries.md`, que los asignan a Shipment. Rechazada.
 - Decisiones técnicas de los bloques siguientes:
+  - Mapa y controles de simulación comparten una sola pantalla, "Operación en vivo" (`/operations`), porque observar y controlar un recorrido son la misma tarea.
   - Las posiciones no se calculan en Angular; el mapa solo representa lo que entrega Simulation.
   - El hub SignalR vive en Simulation y se expone por YARP. El JWT solo se acepta por query string en la ruta del hub, y esa ruta no registra la query.
   - Las teselas de OpenStreetMap son un recurso externo: el mapa muestra atribución y, sin teselas, sigue dibujando las capas vectoriales con un aviso. Ningún flujo principal depende de ellas.

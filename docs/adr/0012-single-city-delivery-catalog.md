@@ -9,7 +9,7 @@
   - El catálogo es de solo lectura en la API y la interfaz. Cambiarlo es una decisión de datos: se hace con una migración de seed.
   - Al crear o editar un envío solo se eligen los dos puntos. Etiquetas y coordenadas se copian del catálogo; el servidor ignora cualquier destino enviado por el cliente HTTP.
   - La copia se conserva en el envío para que el registro de una entrega no cambie si más adelante se corrige un punto.
-  - El nombre técnico `Customer` se mantiene para no renombrar API y tablas sin beneficio funcional.
+  - En la interfaz se llaman "Puntos de la red". El nombre técnico `Customer` se mantiene para no renombrar API y tablas sin beneficio funcional.
   - El estado `Draft` se retira del producto: un envío siempre se crea completo, como `Pending`. Con destinos cerrados no hay datos parciales que justifiquen un borrador.
 - Alternativas consideradas:
   - Mantener el alta y edición de clientes con validación de coordenadas: conserva el problema de destinos imprevisibles.
