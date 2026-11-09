@@ -1,8 +1,37 @@
 name: drovik
 
+# `docker compose up -d` starts only the infrastructure, for running the services from an IDE.
+# `start.cmd` or `start.sh` start everything through the "app" profile.
+x-api-env: &api-env
+  ASPNETCORE_ENVIRONMENT: Development
+  Jwt__PublicKeySpkiBase64: ${JWT_PUBLIC_KEY:-}
+  RabbitMq__Host: rabbitmq
+  RabbitMq__UserName: ${RABBITMQ_DEFAULT_USER}
+  RabbitMq__Password: ${RABBITMQ_DEFAULT_PASS}
+
+x-api: &api
+  profiles: [app]
+  image: drovik-backend:local
+  build:
+    context: .
+    dockerfile: src/backend/Dockerfile
+  restart: unless-stopped
+  depends_on:
+    sqlserver:
+      condition: service_healthy
+    rabbitmq:
+      condition: service_healthy
+  healthcheck:
+    test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/8080 && printf 'GET /health/ready HTTP/1.0\r\nHost: localhost\r\n\r\n' >&3 && grep -q ' 200 ' <&3"]
+    interval: 5s
+    timeout: 5s
+    retries: 30
+    start_period: 20s
+
 services:
   sqlserver:
     image: mcr.microsoft.com/mssql/server:2022-CU23-ubuntu-22.04
+    restart: unless-stopped
     environment:
       ACCEPT_EULA: "Y"
       MSSQL_PID: Developer
@@ -20,6 +49,7 @@ services:
 
   rabbitmq:
     image: rabbitmq:4.4.0-management
+    restart: unless-stopped
     environment:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER:?Set RABBITMQ_DEFAULT_USER in .env}
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS:?Set RABBITMQ_DEFAULT_PASS in .env}
@@ -29,11 +59,100 @@ services:
     volumes:
       - rabbitmq-data:/var/lib/rabbitmq
     healthcheck:
-      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      # A port check on purpose: CLI tools run as root here and would create the broker's cookie with the wrong owner on first boot.
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/5672"]
       interval: 10s
       timeout: 5s
       retries: 12
       start_period: 15s
+
+  identity:
+    <<: *api
+    # The first start creates the administrator; later starts leave existing accounts alone.
+    entrypoint: ["sh", "-c", "dotnet Drovik.Identity.Api.dll --bootstrap-admin; unset DROVIK_BOOTSTRAP_ADMIN_EMAIL DROVIK_BOOTSTRAP_ADMIN_PASSWORD; exec dotnet Drovik.Identity.Api.dll"]
+    working_dir: /app/Identity
+    environment:
+      <<: *api-env
+      ConnectionStrings__IdentityDatabase: "Server=sqlserver,1433;Database=DrovikIdentity;User Id=sa;Password=${MSSQL_SA_PASSWORD};Encrypt=True;TrustServerCertificate=True;MultipleActiveResultSets=True"
+      Jwt__PrivateKeyPkcs8Base64: ${JWT_PRIVATE_KEY:-}
+      DROVIK_BOOTSTRAP_ADMIN_EMAIL: ${DROVIK_ADMIN_EMAIL:-}
+      DROVIK_BOOTSTRAP_ADMIN_PASSWORD: ${DROVIK_ADMIN_PASSWORD:-}
+
+  fleet:
+    <<: *api
+    entrypoint: ["dotnet", "/app/Fleet/Drovik.Fleet.Api.dll"]
+    working_dir: /app/Fleet
+    environment:
+      <<: *api-env
+      ConnectionStrings__FleetDatabase: "Server=sqlserver,1433;Database=DrovikFleet;User Id=sa;Password=${MSSQL_SA_PASSWORD};Encrypt=True;TrustServerCertificate=True;MultipleActiveResultSets=True"
+
+  shipment:
+    <<: *api
+    entrypoint: ["dotnet", "/app/Shipment/Drovik.Shipment.Api.dll"]
+    working_dir: /app/Shipment
+    environment:
+      <<: *api-env
+      ConnectionStrings__ShipmentDatabase: "Server=sqlserver,1433;Database=DrovikShipment;User Id=sa;Password=${MSSQL_SA_PASSWORD};Encrypt=True;TrustServerCertificate=True;MultipleActiveResultSets=True"
+      Fleet__BaseUrl: http://fleet:8080
+
+  simulation:
+    <<: *api
+    entrypoint: ["dotnet", "/app/Simulation/Drovik.Simulation.Api.dll"]
+    working_dir: /app/Simulation
+    environment:
+      <<: *api-env
+      ConnectionStrings__SimulationDatabase: "Server=sqlserver,1433;Database=DrovikSimulation;User Id=sa;Password=${MSSQL_SA_PASSWORD};Encrypt=True;TrustServerCertificate=True;MultipleActiveResultSets=True"
+      Shipment__BaseUrl: http://shipment:8080
+
+  incident:
+    <<: *api
+    entrypoint: ["dotnet", "/app/Incident/Drovik.Incident.Api.dll"]
+    working_dir: /app/Incident
+    environment:
+      <<: *api-env
+      ConnectionStrings__IncidentDatabase: "Server=sqlserver,1433;Database=DrovikIncident;User Id=sa;Password=${MSSQL_SA_PASSWORD};Encrypt=True;TrustServerCertificate=True;MultipleActiveResultSets=True"
+
+  gateway:
+    <<: *api
+    entrypoint: ["dotnet", "/app/Gateway/Drovik.Gateway.Api.dll"]
+    working_dir: /app/Gateway
+    ports:
+      - "127.0.0.1:5200:8080"
+    depends_on:
+      identity:
+        condition: service_healthy
+      fleet:
+        condition: service_healthy
+      shipment:
+        condition: service_healthy
+      simulation:
+        condition: service_healthy
+      incident:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ReverseProxy__Clusters__identity__Destinations__local__Address: http://identity:8080/
+      ReverseProxy__Clusters__fleet__Destinations__local__Address: http://fleet:8080/
+      ReverseProxy__Clusters__shipment__Destinations__local__Address: http://shipment:8080/
+      ReverseProxy__Clusters__simulation__Destinations__local__Address: http://simulation:8080/
+      ReverseProxy__Clusters__incident__Destinations__local__Address: http://incident:8080/
+
+  web:
+    profiles: [app]
+    image: drovik-web:local
+    build:
+      context: src/frontend/drovik-web
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:4200:80"
+    depends_on:
+      gateway:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1/"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
 
 volumes:
   sqlserver-data:
