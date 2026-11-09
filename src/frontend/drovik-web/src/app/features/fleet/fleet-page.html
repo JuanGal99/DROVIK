@@ -1,52 +1,50 @@
-<section class="fleet-page" aria-labelledby="fleet-title">
+<section class="ops-page fleet-page" aria-labelledby="fleet-title">
   <div class="page-heading">
-    <div><div class="heading-meta"><i class="pi pi-truck" aria-hidden="true"></i> RECURSOS OPERATIVOS <span>/</span> CATÁLOGO</div><h1 id="fleet-title">Flota</h1><p>Vehículos registrados y su estado operativo actual.</p></div>
-    <div class="heading-actions"><span class="demo-label"><i class="pi pi-database" aria-hidden="true"></i> Datos persistidos · API de Flota</span><button class="primary-action" type="button" (click)="openCreate()"><i class="pi pi-plus" aria-hidden="true"></i> Registrar vehículo</button></div>
+    <div><h1 id="fleet-title">Flota</h1><p>Vehículos registrados y su estado operativo actual.</p></div>
+    <div class="heading-actions"><button class="primary-action" type="button" (click)="openCreate()"><i class="pi pi-plus" aria-hidden="true"></i> Registrar vehículo</button></div>
   </div>
   <div class="summary-strip" aria-label="Resumen de flota">
     <div><span>Vehículos registrados</span><strong>{{ data.vehicles().length }}</strong></div>
     <div><span>Disponibles</span><strong class="text-success">{{ availableCount() }}</strong></div>
     <div><span>En mantenimiento</span><strong class="text-warning">{{ serviceCount() }}</strong></div>
-    <div class="summary-note"><i class="pi pi-info-circle" aria-hidden="true"></i> Estado consultado desde la API de Flota.</div>
+
   </div>
-  <div class="section-heading"><div><h2>Vehículos</h2><p>Consulta fichas y actualiza los datos del catálogo.</p></div><span class="result-count">{{ filtered().length }} resultados</span></div>
   <section class="table-panel" aria-label="Listado de vehículos">
     <div class="table-toolbar">
-      <label class="search-field"><i class="pi pi-search" aria-hidden="true"></i><input type="search" placeholder="Buscar placa, modelo o centro" aria-label="Buscar vehículos" [ngModel]="query()" (ngModelChange)="query.set($event); updateFilter()"></label>
+      <label class="search-field"><i class="pi pi-search" aria-hidden="true"></i><input type="search" placeholder="Buscar placa, modelo o base" aria-label="Buscar vehículos" [ngModel]="query()" (ngModelChange)="query.set($event); updateFilter()"></label>
       <label class="filter-field"><span>Estado</span><select aria-label="Filtrar vehículos por estado" [ngModel]="statusFilter()" (ngModelChange)="statusFilter.set($event); updateFilter()"><option>Todos</option>@for (status of statuses; track status) { <option [value]="status">{{ statusLabel(status) }}</option> }</select></label>
       <label class="filter-field"><span>Tipo</span><select aria-label="Filtrar vehículos por tipo" [ngModel]="typeFilter()" (ngModelChange)="typeFilter.set($event); updateFilter()"><option>Todos</option>@for (type of types; track type) { <option [value]="type">{{ type }}</option> }</select></label>
     </div>
     @if (data.loading()) { <div class="state-message"><i class="pi pi-spin pi-spinner" aria-hidden="true"></i> Cargando vehículos…</div> }
-    @else if (data.error()) { <div class="state-message error-state" role="alert"><i class="pi pi-exclamation-triangle" aria-hidden="true"></i>{{ data.error() }}<button type="button" (click)="data.loadVehicles().subscribe({next: () => data.loading.set(false), error: () => data.error.set('No se pudo cargar la flota de demostración.')})">Reintentar</button></div> }
+    @else if (data.error()) { <div class="state-message error-state" role="alert"><i class="pi pi-exclamation-triangle" aria-hidden="true"></i>{{ data.error() }}<button type="button" (click)="data.loadVehicles().subscribe({next: () => data.loading.set(false), error: () => data.error.set('No se pudo cargar la flota.')})">Reintentar</button></div> }
     @else {
-      <div class="table-scroll"><table><thead><tr><th>VEHÍCULO</th><th>TIPO</th><th>CAPACIDAD</th><th>CENTRO</th><th>ODÓMETRO</th><th>ESTADO</th><th><span class="sr-only">Acciones</span></th></tr></thead><tbody>
+      <div class="table-scroll"><table><thead><tr><th>Vehículo</th><th>Tipo</th><th>Capacidad</th><th>Base</th><th>Odómetro</th><th>Estado</th><th><span class="sr-only">Acciones</span></th></tr></thead><tbody>
         @for (vehicle of pageItems(); track vehicle.id) { <tr (click)="select(vehicle)" (keydown.enter)="select(vehicle)" tabindex="0" aria-label="Abrir ficha de {{ vehicle.plate }}"><td><strong class="vehicle-id">{{ vehicle.plate }}</strong><small>{{ vehicle.model }}</small></td><td>{{ vehicle.type }}</td><td>{{ vehicle.capacityKg | number }} kg</td><td>{{ vehicle.center }}</td><td>{{ vehicle.currentOdometer | number }} km</td><td><span class="status-badge" [class]="statusClass(vehicle.status)"><i></i>{{ statusLabel(vehicle.status) }}</span></td><td><button class="row-action" type="button" aria-label="Ver {{ vehicle.plate }}" (click)="$event.stopPropagation(); select(vehicle)"><i class="pi pi-angle-right"></i></button></td></tr> }
         @empty { <tr><td colspan="7" class="empty-row"><i class="pi pi-search" aria-hidden="true"></i><strong>No hay vehículos para mostrar</strong><span>Ajusta los filtros o registra un vehículo nuevo.</span></td></tr> }
       </tbody></table></div>
     }
-    <footer class="table-footer"><span>Datos persistidos en SQL Server · API de Flota</span>@if (filtered().length) { <div class="pagination"><button type="button" aria-label="Página anterior" [disabled]="page() === 1" (click)="changePage(-1)"><i class="pi pi-angle-left"></i></button><span>Página {{ page() }} de {{ pageCount() }}</span><button type="button" aria-label="Página siguiente" [disabled]="page() === pageCount()" (click)="changePage(1)"><i class="pi pi-angle-right"></i></button></div> }</footer>
+    <footer class="table-footer"><span>{{ filtered().length }} de {{ data.vehicles().length }} vehículos</span>@if (filtered().length) { <div class="pagination"><button type="button" aria-label="Página anterior" [disabled]="page() === 1" (click)="changePage(-1)"><i class="pi pi-angle-left"></i></button><span>Página {{ page() }} de {{ pageCount() }}</span><button type="button" aria-label="Página siguiente" [disabled]="page() === pageCount()" (click)="changePage(1)"><i class="pi pi-angle-right"></i></button></div> }</footer>
   </section>
 
   @if (selected(); as vehicle) {
     <div class="drawer-backdrop" (click)="closeDetails()"></div><aside class="detail-drawer" aria-labelledby="detail-title" aria-modal="true" role="dialog">
-      <header><div><span class="drawer-kicker">FICHA DE VEHÍCULO</span><h2 id="detail-title">{{ vehicle.plate }}</h2></div><button type="button" class="close-button" aria-label="Cerrar ficha" (click)="closeDetails()"><i class="pi pi-times"></i></button></header>
-      <p class="drawer-model">{{ vehicle.model }} · {{ vehicle.type }}</p><span class="status-badge" [class]="statusClass(vehicle.status)"><i></i>{{ statusLabel(vehicle.status) }}</span>
-      <dl class="detail-list"><div><dt>Capacidad de carga</dt><dd>{{ vehicle.capacityKg | number }} kg</dd></div><div><dt>Odómetro</dt><dd>{{ vehicle.currentOdometer | number }} km</dd></div><div><dt>Centro asignado</dt><dd>{{ vehicle.center }}</dd></div><div><dt>Última actualización</dt><dd>{{ vehicle.lastUpdated | date:'dd/MM/yyyy HH:mm':'UTC' }} UTC</dd></div></dl>
-      <p class="drawer-note"><i class="pi pi-info-circle"></i> El estado no puede cambiarse desde esta ficha mientras no se definan las transiciones manuales del dominio.</p>
+      <header><div><h2 id="detail-title">{{ vehicle.plate }}</h2></div><button type="button" class="close-button" aria-label="Cerrar ficha" (click)="closeDetails()"><i class="pi pi-times"></i></button></header>
+      <p class="drawer-model">{{ vehicle.model }}, {{ vehicle.type }}</p><span class="status-badge" [class]="statusClass(vehicle.status)"><i></i>{{ statusLabel(vehicle.status) }}</span>
+      <dl class="detail-list"><div><dt>Capacidad de carga</dt><dd>{{ vehicle.capacityKg | number }} kg</dd></div><div><dt>Odómetro</dt><dd>{{ vehicle.currentOdometer | number }} km</dd></div><div><dt>Base</dt><dd>{{ vehicle.center }}</dd></div><div><dt>Última actualización</dt><dd>{{ vehicle.lastUpdated | date:'dd/MM/yyyy HH:mm':'UTC' }} UTC</dd></div></dl>
       <footer><button class="secondary-action" type="button" (click)="closeDetails()">Cerrar</button><button class="primary-action" type="button" (click)="openEdit(vehicle)"><i class="pi pi-pencil"></i> Editar datos</button></footer>
     </aside>
   }
 
   @if (editorOpen()) {
-    <div class="modal-backdrop" (click)="editorOpen.set(false)"></div><section class="vehicle-modal" role="dialog" aria-modal="true" aria-labelledby="form-title">
-      <header><div><span class="drawer-kicker">CATÁLOGO DE FLOTA</span><h2 id="form-title">{{ editingId() ? 'Editar vehículo' : 'Registrar vehículo' }}</h2></div><button type="button" class="close-button" aria-label="Cerrar formulario" (click)="editorOpen.set(false)"><i class="pi pi-times"></i></button></header>
+    <div class="modal-backdrop" (click)="editorOpen.set(false)"></div><section class="ops-modal" role="dialog" aria-modal="true" aria-labelledby="form-title">
+      <header><div><h2 id="form-title">{{ editingId() ? 'Editar vehículo' : 'Registrar vehículo' }}</h2></div><button type="button" class="close-button" aria-label="Cerrar formulario" (click)="editorOpen.set(false)"><i class="pi pi-times"></i></button></header>
       <form #vehicleForm="ngForm" (ngSubmit)="save()">
         <div class="form-grid"><label>Placa<input name="plate" required maxlength="12" pattern="[A-Za-z0-9-]+" [ngModel]="draft().plate" (ngModelChange)="setDraft('plate', $event)" #plate="ngModel"><small>Única; hasta 12 caracteres.</small>@if (plate.invalid && plate.touched) { <em>Ingresa una placa válida.</em> }</label>
         <label>Modelo<input name="model" required maxlength="60" [ngModel]="draft().model" (ngModelChange)="setDraft('model', $event)"></label>
         <label>Tipo<select name="type" required [ngModel]="draft().type" (ngModelChange)="setDraft('type', $event)">@for (type of types; track type) { <option [value]="type">{{ type }}</option> }</select></label>
         <label>Capacidad (kg)<input name="capacityKg" type="number" required min="1" max="100000" [ngModel]="draft().capacityKg" (ngModelChange)="setDraft('capacityKg', $event)"></label>
         <label>Odómetro (km)<input name="odometer" type="number" required min="0" max="9999999" [ngModel]="draft().currentOdometer" (ngModelChange)="setDraft('currentOdometer', $event)"></label>
-        <label>Centro de distribución<input name="center" required maxlength="80" [ngModel]="draft().center" (ngModelChange)="setDraft('center', $event)"></label>
+        <label>Base del vehículo<select name="center" required [ngModel]="draft().center" (ngModelChange)="setDraft('center', $event)"><option value="">Selecciona una base</option>@for (center of data.centers(); track center.id) { <option [value]="center.name">{{ center.name }}</option> }</select></label>
         </div>
         @if (formError()) { <p class="form-error" role="alert">{{ formError() }}</p> }
         <footer><button class="secondary-action" type="button" (click)="editorOpen.set(false)">Cancelar</button><button class="primary-action" type="submit" [disabled]="vehicleForm.invalid">{{ editingId() ? 'Guardar cambios' : 'Añadir al catálogo' }}</button></footer>

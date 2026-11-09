@@ -1,10 +1,12 @@
 import { HttpErrorResponse, HttpInterceptorFn } from '@angular/common/http';
 import { inject } from '@angular/core';
+import { Router } from '@angular/router';
 import { catchError, switchMap, throwError } from 'rxjs';
 import { AuthService } from './auth.service';
 
 export const authInterceptor: HttpInterceptorFn = (request, next) => {
   const auth = inject(AuthService);
+  const router = inject(Router);
   const withCredentials = request.clone({ withCredentials: true });
   const withAuthHeader = (currentRequest: typeof withCredentials) => {
     const token = auth.token;
@@ -22,6 +24,9 @@ export const authInterceptor: HttpInterceptorFn = (request, next) => {
         switchMap(() => next(withAuthHeader(withCredentials))),
         catchError((refreshError) => {
           auth.clearSession();
+          if (!router.url.startsWith('/login')) {
+            void router.navigate(['/login'], { queryParams: { returnUrl: router.url } });
+          }
           return throwError(() => refreshError);
         }),
       );

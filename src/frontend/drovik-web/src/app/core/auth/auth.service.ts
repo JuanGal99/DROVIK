@@ -13,6 +13,7 @@ export class AuthService {
   private accessToken: string | null = null;
   private csrfToken: string | null = null;
   private readonly initialization$: Observable<void>;
+  private refreshInFlight$: Observable<AuthUser> | null = null;
 
   constructor(private readonly http: HttpClient) {
     this.initialization$ = this.initializeSession().pipe(shareReplay({ bufferSize: 1, refCount: false }));
@@ -28,7 +29,7 @@ export class AuthService {
   login(email: string, password: string): Observable<AuthUser> {
     this.busy.set(true);
     this.error.set(null);
-    return this.ensureCsrf().pipe(
+    return this.requestCsrf().pipe(
       switchMap(() => this.http.post<AuthResponse>(
         `${environment.gatewayUrl}/api/v1/auth/login`,
         { email, password },
@@ -44,8 +45,12 @@ export class AuthService {
     );
   }
 
+  /**
+   * Refresh tokens rotate and Identity revokes the whole family when one is reused, so every
+   * caller that needs a refresh at the same time must share a single request.
+   */
   refresh(): Observable<AuthUser> {
-    return this.ensureCsrf().pipe(
+    this.refreshInFlight$ ??= this.requestCsrf().pipe(
       switchMap(() => this.http.post<AuthResponse>(
         `${environment.gatewayUrl}/api/v1/auth/refresh`,
         {},
@@ -53,12 +58,15 @@ export class AuthService {
       )),
       tap((response) => this.setSession(response)),
       map((response) => response.user),
+      finalize(() => this.refreshInFlight$ = null),
+      shareReplay({ bufferSize: 1, refCount: false }),
     );
+    return this.refreshInFlight$;
   }
 
   logout(): Observable<void> {
     this.busy.set(true);
-    return this.ensureCsrf().pipe(
+    return this.requestCsrf().pipe(
       switchMap(() => this.http.post<void>(
         `${environment.gatewayUrl}/api/v1/auth/logout`,
         {},
@@ -83,20 +91,20 @@ export class AuthService {
   }
 
   private initializeSession(): Observable<void> {
-    return this.ensureCsrf().pipe(
-      switchMap(() => this.refresh().pipe(catchError(() => of(null)))),
-      tap(() => this.ready.set(true)),
+    return this.refresh().pipe(
       map(() => undefined),
-      catchError((error) => {
-        this.error.set(this.problemMessage(error, 'No se pudo conectar con el Gateway.'));
-        this.ready.set(true);
+      catchError((error: { status?: number; error?: { detail?: string } }) => {
+        if (error.status === 0 || (error.status ?? 0) >= 500) {
+          this.error.set(this.problemMessage(error, 'No se pudo conectar con el Gateway.'));
+        }
         return of(undefined);
       }),
+      tap(() => this.ready.set(true)),
     );
   }
 
-  private ensureCsrf(): Observable<string> {
-    if (this.csrfToken) return of(this.csrfToken);
+  /** The CSRF cookie lives 30 minutes while sessions last days, so each session call gets a current token. */
+  private requestCsrf(): Observable<string> {
     return this.http.get<CsrfResponse>(`${environment.gatewayUrl}/api/v1/auth/csrf`, { withCredentials: true }).pipe(
       tap((response) => this.csrfToken = response.token),
       map((response) => response.token),

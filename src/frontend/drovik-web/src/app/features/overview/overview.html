@@ -1,33 +1,68 @@
-<section class="overview-page" aria-labelledby="overview-title">
+<section class="ops-page overview" aria-labelledby="overview-title">
   <div class="page-heading">
-    <div><div class="heading-meta"><span class="live-mark"></span> JUEVES, 6 DE NOVIEMBRE <span class="meta-separator">/</span> TURNO MAÑANA</div><h1 id="overview-title">Centro de operaciones</h1><p>Estado general de la red de distribución.</p></div>
-    <div class="heading-actions"><span class="demo-label"><i class="pi pi-info-circle" aria-hidden="true"></i> Datos de demostración</span><button class="primary-action" type="button" (click)="exportSummary()"><i class="pi pi-download" aria-hidden="true"></i> Exportar resumen</button></div>
+    <div>
+      <h1 id="overview-title">Centro de operaciones</h1>
+      <p class="date">{{ today }}, Bogotá</p>
+    </div>
+    <div class="heading-actions"><a class="primary-action" routerLink="/shipments"><i class="pi pi-box" aria-hidden="true"></i> Ir a envíos</a></div>
   </div>
 
-  <div class="simulation-notice" role="note"><span class="notice-icon"><i class="pi pi-play-circle" aria-hidden="true"></i></span><div><strong>Entorno de simulación</strong><span>Las posiciones y la actividad mostradas son sintéticas. No representan una operación en tiempo real.</span></div><span class="notice-state"><span></span> ESCENARIO NORMAL</span></div>
+  @if (data.loading() && !data.points().length) {
+    <div class="state-message"><i class="pi pi-spin pi-spinner" aria-hidden="true"></i> Cargando la operación…</div>
+  } @else if (data.failed()) {
+    <div class="state-message error-state" role="alert"><i class="pi pi-exclamation-triangle" aria-hidden="true"></i> No se pudo cargar la operación. <button type="button" (click)="load()">Reintentar</button></div>
+  } @else {
+    <div class="board">
+      <figure class="network">
+        <figcaption>
+          <h2>Red de Bogotá</h2>
+          <ul class="legend" aria-label="Leyenda">
+            <li class="moving">En tránsito</li>
+            <li class="delayed">Retrasado</li>
+            <li class="waiting">Por salir</li>
+          </ul>
+        </figcaption>
+        <app-network-map [points]="data.points()" [routes]="data.routes()" />
+        <p class="network-note">
+          @if (data.routes().length) { Cada línea une el origen y el destino de un envío en curso. No es el recorrido real. }
+          @else { No hay envíos en curso. Cuando crees uno, aparecerá aquí. }
+        </p>
+      </figure>
 
-  <section class="metrics-grid" aria-label="Indicadores operativos">
-    @for (metric of data.metrics(); track metric.label) {
-      <article class="metric"><div class="metric-top"><span>{{ metric.label }}</span><i [class]="metric.icon + ' metric-icon ' + metric.tone" aria-hidden="true"></i></div><strong class="metric-value">{{ metric.value }}</strong><span class="metric-context">{{ metric.context }}</span></article>
-    }
-  </section>
-
-  <div class="section-heading"><div><h2>Seguimiento de envíos</h2><p>Actividad operativa reciente · <span>Datos sintéticos</span></p></div><a class="text-link" routerLink="/shipments">Ver todos <i class="pi pi-arrow-up-right" aria-hidden="true"></i></a></div>
-
-  <section class="work-grid">
-    <div class="table-panel">
-      <div class="table-toolbar"><label class="search-field"><i class="pi pi-search" aria-hidden="true"></i><input type="search" [ngModel]="query()" (ngModelChange)="query.set($event)" placeholder="Buscar envío, cliente o zona" aria-label="Buscar envío, cliente o zona"></label><select [ngModel]="stateFilter()" (ngModelChange)="stateFilter.set($event)" aria-label="Filtrar por estado">@for (state of states; track state) { <option [value]="state">{{ state }}</option> }</select></div>
-      <div class="table-scroll"><table><thead><tr><th>ENVÍO</th><th>DESTINO / CLIENTE</th><th>VEHÍCULO</th><th>ETA</th><th>ESTADO</th></tr></thead><tbody>
-        @for (shipment of filteredShipments(); track shipment.id) { <tr><td class="shipment-id">{{ shipment.id }}</td><td><strong class="destination">{{ shipment.destination }}</strong><small class="customer">{{ shipment.customer }}</small></td><td class="vehicle">{{ shipment.vehicle }}</td><td class="eta">{{ shipment.eta }}</td><td><span class="state-badge" [class]="stateClass(shipment.state)"><span></span>{{ shipment.state }}</span></td></tr> }
-        @empty { <tr><td class="empty-row" colspan="5">No hay envíos que coincidan con la búsqueda.</td></tr> }
-      </tbody></table></div>
-      <div class="table-footer"><span>Mostrando {{ filteredShipments().length }} registros de muestra</span><span class="sample-note">Datos sintéticos</span></div>
+      <aside class="pulse" aria-label="Estado de la operación">
+        <h2>Envíos por estado</h2>
+        <dl class="stages">
+          @for (stage of data.stages(); track stage.status) {
+            <div [class]="'stage ' + stage.status.toLowerCase()">
+              <dt>{{ stageLabel(stage.status) }}</dt>
+              <dd>{{ stage.count }}</dd>
+              <span class="bar" aria-hidden="true"><span [style.width.%]="stage.share"></span></span>
+            </div>
+          }
+        </dl>
+        <div class="resources">
+          <a routerLink="/fleet"><span>Vehículos disponibles</span><strong>{{ data.vehiclesAvailable() }} <small>de {{ data.vehiclesInService() }}</small></strong></a>
+          <a routerLink="/incidents"><span>Incidencias abiertas</span><strong [class.alert]="data.openIncidents() > 0">{{ data.openIncidents() }}</strong></a>
+        </div>
+      </aside>
     </div>
 
-    <aside class="activity-panel" aria-labelledby="activity-title"><div class="panel-heading"><div><h2 id="activity-title">Actividad reciente</h2><p>Registro de la simulación</p></div><i class="pi pi-history panel-icon" aria-hidden="true"></i></div><div class="activity-list">
-      @for (item of data.activity; track item.time) { <article class="activity-item"><span class="activity-marker" [class]="item.tone"><i></i></span><div class="activity-copy"><strong>{{ item.title }}</strong><span>{{ item.detail }}</span></div><time>{{ item.time }}</time></article> }
-    </div><a class="activity-link" routerLink="/incidents">Abrir registro de actividad <i class="pi pi-arrow-right" aria-hidden="true"></i></a></aside>
-  </section>
-
-  <footer class="overview-footnote"><span><i class="pi pi-database" aria-hidden="true"></i> Datos centralizados para demostración</span><span>Última actualización: 09:41 · hora local</span></footer>
+    <section class="activity" aria-labelledby="activity-title">
+      <h2 id="activity-title">Actividad reciente</h2>
+      @if (data.activity().length) {
+        <ol>
+          @for (item of data.activity(); track item.key) {
+            <li>
+              <time [attr.datetime]="item.at">{{ item.at | date:'dd MMM, HH:mm':'UTC':'es' }}</time>
+              <strong>{{ item.trackingCode }}</strong>
+              <span>{{ eventLabel(item.status) }}</span>
+              @if (item.note) { <small>{{ item.note }}</small> }
+            </li>
+          }
+        </ol>
+      } @else {
+        <p class="activity-empty">Todavía no hay movimientos. <a routerLink="/shipments">Crea el primer envío</a>.</p>
+      }
+    </section>
+  }
 </section>

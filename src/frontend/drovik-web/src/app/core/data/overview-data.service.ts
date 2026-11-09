@@ -1,47 +1,56 @@
-import { computed, Injectable, inject } from '@angular/core';
-import { Observable } from 'rxjs';
+import { computed, Injectable, inject, signal } from '@angular/core';
+import { finalize, forkJoin, Observable } from 'rxjs';
+import { NetworkRoute } from '../../shared/network-map/network-map';
+import { CustomersDataService } from './customers-data.service';
 import { FleetDataService } from './fleet-data.service';
+import { IncidentsDataService } from './incidents-data.service';
+import { Shipment, ShipmentsDataService, ShipmentStatus } from './shipments-data.service';
 
-export type ShipmentState = 'En tránsito' | 'Pendiente' | 'Retrasado' | 'Entregado';
-export interface ShipmentRow { id: string; destination: string; customer: string; eta: string; state: ShipmentState; vehicle: string; }
-export interface ActivityItem { time: string; title: string; detail: string; tone: 'blue' | 'amber' | 'green' | 'red'; }
+export interface ActivityItem { key: string; at: string; trackingCode: string; status: ShipmentStatus; note?: string; }
 
+const ROUTE_TONES: Partial<Record<ShipmentStatus, NetworkRoute['tone']>> = { Pending: 'waiting', Assigned: 'waiting', InTransit: 'moving', Delayed: 'delayed' };
+const STAGES: ShipmentStatus[] = ['Pending', 'Assigned', 'InTransit', 'Delayed', 'Delivered'];
+const isOpen = (shipment: Shipment) => shipment.status in ROUTE_TONES;
+
+/** Everything on the overview is derived from the same APIs as the detail screens, so the figures always reconcile. */
 @Injectable({ providedIn: 'root' })
 export class OverviewDataService {
+  private readonly shipmentsData = inject(ShipmentsDataService);
   private readonly fleet = inject(FleetDataService);
-  readonly synthetic = true;
-  readonly openIncidentCount = 3;
-  readonly fleetLoading = this.fleet.loading;
-  readonly fleetError = this.fleet.error;
-  readonly metrics = computed(() => {
-    const vehicles = this.fleet.vehicles();
-    const available = vehicles.filter((vehicle) => vehicle.status === 'Available').length;
-    const percentage = vehicles.length ? Math.round((available / vehicles.length) * 100) : 0;
-    const fleetUnavailable = this.fleetLoading() || !!this.fleetError();
-    return [
-      { label: 'Envíos del día', value: '128', context: '34 en tránsito · 94 pendientes', icon: 'pi pi-box', tone: 'blue' },
-      { label: 'Flota disponible', value: fleetUnavailable ? '—' : `${available} / ${vehicles.length}`, context: this.fleetLoading() ? 'Consultando API de Flota…' : this.fleetError() ? 'No disponible temporalmente' : `${percentage}% de vehículos listos`, icon: 'pi pi-truck', tone: 'green' },
-      { label: 'Incidencias abiertas', value: '3', context: '1 requiere atención prioritaria', icon: 'pi pi-exclamation-circle', tone: 'amber' },
-      { label: 'Entregas a tiempo', value: '92.4%', context: 'En la operación de hoy', icon: 'pi pi-check-circle', tone: 'cyan' },
-    ] as const;
+  private readonly customers = inject(CustomersDataService);
+  private readonly incidents = inject(IncidentsDataService);
+
+  readonly loading = signal(false);
+  readonly failed = signal(false);
+  readonly points = this.customers.customers;
+  readonly openIncidents = this.incidents.openCount;
+
+  readonly openShipments = computed(() => this.shipmentsData.shipments().filter(isOpen));
+  readonly routes = computed<NetworkRoute[]>(() => this.openShipments()
+    .filter((shipment) => shipment.originCustomerId)
+    .map((shipment) => ({ id: shipment.id, originId: shipment.originCustomerId!, destinationId: shipment.customerId, tone: ROUTE_TONES[shipment.status]! })));
+  readonly stages = computed(() => {
+    const shipments = this.shipmentsData.shipments();
+    const largest = Math.max(1, ...STAGES.map((status) => shipments.filter((item) => item.status === status).length));
+    return STAGES.map((status) => {
+      const count = shipments.filter((item) => item.status === status).length;
+      return { status, count, share: Math.round((count / largest) * 100) };
+    });
   });
+  readonly vehiclesAvailable = computed(() => this.fleet.vehicles().filter((vehicle) => vehicle.status === 'Available').length);
+  readonly vehiclesInService = computed(() => this.fleet.vehicles().filter((vehicle) => vehicle.status !== 'Inactive').length);
+  readonly activity = computed<ActivityItem[]>(() => this.shipmentsData.shipments()
+    .flatMap((shipment) => shipment.statusHistory.map((entry, index) => ({
+      key: `${shipment.id}-${index}`, at: entry.occurredAt, trackingCode: shipment.trackingCode, status: entry.status, note: entry.note,
+    })))
+    .sort((a, b) => b.at.localeCompare(a.at))
+    .slice(0, 7));
 
-  loadFleet(): Observable<unknown> {
-    return this.fleet.loadVehicles();
+  load(): Observable<unknown> {
+    this.loading.set(true);
+    this.failed.set(false);
+    return forkJoin([this.shipmentsData.loadShipments(), this.customers.loadCustomers(), this.incidents.loadOpenCount()]).pipe(
+      finalize(() => this.loading.set(false)),
+    );
   }
-
-  readonly shipments: ShipmentRow[] = [
-    { id: 'SH-2048', destination: 'Chapinero, Bogotá', customer: 'Mercado Central', eta: '10:24', state: 'En tránsito', vehicle: 'TRK-018' },
-    { id: 'SH-2046', destination: 'Envigado, Antioquia', customer: 'Alimentos del Valle', eta: '10:40', state: 'En tránsito', vehicle: 'VAN-006' },
-    { id: 'SH-2044', destination: 'Usaquén, Bogotá', customer: 'Farmacia Norte', eta: '11:05', state: 'Retrasado', vehicle: 'TRK-011' },
-    { id: 'SH-2041', destination: 'Centro, Medellín', customer: 'Comercial Andina', eta: '11:20', state: 'Pendiente', vehicle: '—' },
-    { id: 'SH-2039', destination: 'Laureles, Medellín', customer: 'Casa Verde', eta: '09:52', state: 'Entregado', vehicle: 'VAN-014' },
-  ];
-
-  readonly activity: ActivityItem[] = [
-    { time: '09:38', title: 'Envío entregado', detail: 'SH-2039 · Casa Verde · Medellín', tone: 'green' },
-    { time: '09:31', title: 'Retraso detectado', detail: 'SH-2044 · 12 min sobre ETA estimada', tone: 'amber' },
-    { time: '09:18', title: 'Vehículo asignado', detail: 'TRK-018 → SH-2048 · Bogotá', tone: 'blue' },
-    { time: '09:06', title: 'Incidencia registrada', detail: 'IN-008 · Avería mecánica · Prioridad alta', tone: 'red' },
-  ];
 }

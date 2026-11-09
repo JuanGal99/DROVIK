@@ -13,6 +13,7 @@ const STATUS_LABELS: Record<VehicleStatus, string> = {
   templateUrl: './fleet-page.html',
   styleUrl: './fleet-page.scss',
   standalone: true,
+  host: { '(document:keydown.escape)': 'closeOverlays()' },
 })
 export class FleetPage {
   readonly data = inject(FleetDataService);
@@ -28,6 +29,8 @@ export class FleetPage {
   readonly types: VehicleType[] = ['Camión', 'Furgón', 'Camioneta'];
   readonly statuses: VehicleStatus[] = ['Available', 'Assigned', 'InTransit', 'Maintenance', 'Inactive'];
   readonly draft = signal<VehicleDraft>(this.emptyDraft());
+
+  closeOverlays(): void { this.editorOpen.set(false); this.selected.set(null); }
   readonly filtered = computed(() => {
     const term = this.query().trim().toLocaleLowerCase('es');
     return this.data.vehicles().filter((vehicle) =>

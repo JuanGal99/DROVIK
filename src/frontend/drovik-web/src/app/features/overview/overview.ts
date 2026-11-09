@@ -1,45 +1,33 @@
-import { Component, computed, inject, signal } from '@angular/core';
-import { FormsModule } from '@angular/forms';
+import { CommonModule } from '@angular/common';
+import { Component, computed, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { OverviewDataService, ShipmentState } from '../../core/data/overview-data.service';
+import { OverviewDataService } from '../../core/data/overview-data.service';
+import { ShipmentStatus } from '../../core/data/shipments-data.service';
+import '../../core/locale/es-locale';
+import { NetworkMap } from '../../shared/network-map/network-map';
+
+const STATUS_LABELS: Record<ShipmentStatus, string> = {
+  Pending: 'Pendientes', Assigned: 'Asignados', InTransit: 'En tránsito', Delayed: 'Retrasados', Delivered: 'Entregados', Cancelled: 'Cancelados',
+};
+const EVENT_LABELS: Record<ShipmentStatus, string> = {
+  Pending: 'Pendiente', Assigned: 'Asignado', InTransit: 'En tránsito', Delayed: 'Retrasado', Delivered: 'Entregado', Cancelled: 'Cancelado',
+};
 
 @Component({
   selector: 'app-overview',
-  imports: [FormsModule, RouterLink],
+  imports: [CommonModule, RouterLink, NetworkMap],
   templateUrl: './overview.html',
   styleUrl: './overview.scss',
   standalone: true,
 })
 export class Overview {
   readonly data = inject(OverviewDataService);
-  readonly query = signal('');
-  readonly stateFilter = signal('Todos los estados');
-  readonly states = ['Todos los estados', 'En tránsito', 'Pendiente', 'Retrasado', 'Entregado'];
-  readonly filteredShipments = computed(() => {
-    const query = this.query().trim().toLocaleLowerCase('es');
-    const state = this.stateFilter();
-    return this.data.shipments.filter((shipment) =>
-      (state === 'Todos los estados' || shipment.state === state) &&
-      (!query || `${shipment.id} ${shipment.customer} ${shipment.destination} ${shipment.vehicle}`.toLocaleLowerCase('es').includes(query)),
-    );
-  });
+  readonly today = new Intl.DateTimeFormat('es-CO', { weekday: 'long', day: 'numeric', month: 'long' }).format(new Date());
+  readonly hasStages = computed(() => this.data.stages().some((stage) => stage.count > 0));
 
-  constructor() {
-    this.data.loadFleet().subscribe({ error: () => undefined });
-  }
+  constructor() { this.load(); }
 
-  stateClass(state: ShipmentState): string {
-    return ({ 'En tránsito': 'in-transit', Pendiente: 'pending', Retrasado: 'delayed', Entregado: 'delivered' })[state];
-  }
-
-  exportSummary(): void {
-    const rows = [['Indicador', 'Valor'], ...this.data.metrics().map(({ label, value }) => [label, value])];
-    const content = rows.map((row) => row.map((cell) => `"${cell.replaceAll('"', '""')}"`).join(',')).join('\r\n');
-    const url = URL.createObjectURL(new Blob([`\uFEFF${content}`], { type: 'text/csv;charset=utf-8' }));
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = 'drovik-resumen-sintetico.csv';
-    link.click();
-    URL.revokeObjectURL(url);
-  }
+  load(): void { this.data.load().subscribe({ error: () => this.data.failed.set(true) }); }
+  stageLabel(status: ShipmentStatus): string { return STATUS_LABELS[status]; }
+  eventLabel(status: ShipmentStatus): string { return EVENT_LABELS[status]; }
 }
