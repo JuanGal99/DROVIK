@@ -6,7 +6,7 @@ import { BrandMark } from './shared/brand-mark/brand-mark';
 import { IncidentsDataService } from './core/data/incidents-data.service';
 import { AuthService } from './core/auth/auth.service';
 
-interface NavigationItem { label: string; route: string; icon: string; soon?: boolean; }
+interface NavigationItem { label: string; route: string; icon: string; }
 
 const ROLE_LABELS: Record<string, string> = { Administrator: 'Administrador', Operator: 'Operador' };
 
@@ -24,7 +24,7 @@ export class App {
   readonly auth = inject(AuthService);
   readonly navigation: NavigationItem[] = [
     { label: 'Resumen', route: '/overview', icon: 'pi pi-th-large' },
-    { label: 'Operación en vivo', route: '/operations', icon: 'pi pi-map', soon: true },
+    { label: 'Operación en vivo', route: '/operations', icon: 'pi pi-map' },
     { label: 'Envíos', route: '/shipments', icon: 'pi pi-box' },
     { label: 'Flota', route: '/fleet', icon: 'pi pi-truck' },
     { label: 'Conductores', route: '/drivers', icon: 'pi pi-id-card' },

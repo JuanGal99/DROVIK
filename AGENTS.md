@@ -75,8 +75,9 @@ matrices oficiales antes de actualizaciones.
     producto.
 -   La simulación es autoritativa en el servidor. Angular solo presenta
     el estado recibido.
--   No simules GPS real ni tráfico real. La interfaz debe indicar
-    claramente que los datos son simulados.
+-   No integres GPS real ni tráfico real. La interfaz se presenta como
+    una operación real, sin avisos de datos simulados o de demostración;
+    el README y la documentación declaran que los datos son sintéticos.
 -   No guardes secretos, contraseñas ni tokens en el repositorio.
 
 ## Reglas de implementación
@@ -222,7 +223,7 @@ precise, technical, efficient and trustworthy.
 -   Decorative charts without meaningful data.
 -   Excessive whitespace in operational interfaces.
 -   Random colors and inconsistent component styles.
--   Placeholder content presented as real operational data.
+-   Hardcoded placeholder figures in place of data from the APIs.
 
 ### Implementation Constraints
 
@@ -265,8 +266,7 @@ hierarchy, layout and relevant interaction states.
     Markdown/ADR solicitados; no implementes código ni infraestructura.
 -   Mantén nombres técnicos, clases, rutas y eventos en inglés;
     documentación explicativa e interfaz en español.
--   No escribas secretos, contraseñas o tokens en el repositorio. No
-    presentes datos simulados como reales.
+-   No escribas secretos, contraseñas o tokens en el repositorio.
 -   Usa `main` como rama estable y ramas cortas `feat/*` o `fix/*`;
     el agente revisa su propio diff antes de fusionar. No abras una rama
     `develop`.

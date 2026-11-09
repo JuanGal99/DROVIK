@@ -24,7 +24,7 @@
         </figcaption>
         <app-network-map [points]="data.points()" [routes]="data.routes()" />
         <p class="network-note">
-          @if (data.routes().length) { Cada línea une el origen y el destino de un envío en curso. No es el recorrido real. }
+          @if (data.routes().length) { Cada línea une el origen y el destino de un envío en curso. }
           @else { No hay envíos en curso. Cuando crees uno, aparecerá aquí. }
         </p>
       </figure>

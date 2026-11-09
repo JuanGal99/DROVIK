@@ -6,7 +6,7 @@ using Microsoft.Extensions.Options;
 
 namespace Drovik.Shipment.Api.Messaging;
 
-/// <summary>Undoes an assignment whose Fleet reservation expired before it could be confirmed.</summary>
+/// <summary>Undoes assignments whose reservation expired and delivers shipments that finished their route.</summary>
 public sealed class ShipmentEventConsumer(
     IServiceScopeFactory scopeFactory,
     IOptions<RabbitMqOptions> options,
@@ -15,13 +15,37 @@ public sealed class ShipmentEventConsumer(
     private readonly ILogger<ShipmentEventConsumer> log = logger;
 
     protected override string ConsumerName => "shipment";
-    protected override IReadOnlyCollection<string> Subscriptions { get; } = [DomainEvents.ReservationExpired];
+    protected override IReadOnlyCollection<string> Subscriptions { get; } = [DomainEvents.ReservationExpired, DomainEvents.ShipmentRouteCompleted];
 
-    protected override async Task HandleAsync(EventEnvelope envelope, ShipmentDbContext database, CancellationToken cancellationToken)
+    protected override Task HandleAsync(EventEnvelope envelope, ShipmentDbContext database, CancellationToken cancellationToken) =>
+        envelope.EventType switch
+        {
+            DomainEvents.ReservationExpired => UndoAssignmentAsync(envelope, database, cancellationToken),
+            DomainEvents.ShipmentRouteCompleted => DeliverAsync(envelope, database, cancellationToken),
+            _ => throw new PermanentEventException($"Shipment no procesa el evento {envelope.EventType}.")
+        };
+
+    private static async Task DeliverAsync(EventEnvelope envelope, ShipmentDbContext database, CancellationToken cancellationToken)
     {
-        if (envelope.EventType != DomainEvents.ReservationExpired)
-            throw new PermanentEventException($"Shipment no procesa el evento {envelope.EventType}.");
+        var data = envelope.ReadData<ShipmentRouteCompletedV1>();
+        var shipment = await database.Shipments.SingleOrDefaultAsync(item => item.Id == data.ShipmentId, cancellationToken);
+        if (shipment is not { Status: ShipmentStatus.InTransit or ShipmentStatus.Delayed }) return;
+        var now = DateTime.UtcNow;
+        shipment.Status = ShipmentStatus.Delivered;
+        shipment.UpdatedAtUtc = now;
+        database.StatusHistory.Add(new ShipmentStatusHistory
+        {
+            Id = Guid.NewGuid(), ShipmentId = shipment.Id, Status = ShipmentStatus.Delivered,
+            ActorId = "system", Source = "RouteCompleted", OccurredAtUtc = now
+        });
+        database.Outbox.Add(OutboxMessageFactory.Create(DomainEvents.ShipmentStatusChanged,
+            new ShipmentStatusChangedV1(shipment.Id, shipment.Status.ToString(), null, shipment.VehicleId, shipment.ReservationId), shipment.Id.ToString()));
+        database.Outbox.Add(OutboxMessageFactory.Create(DomainEvents.ShipmentDelivered,
+            new ShipmentClosedV1(shipment.Id, shipment.Status.ToString(), shipment.ReservationId), shipment.Id.ToString()));
+    }
 
+    private async Task UndoAssignmentAsync(EventEnvelope envelope, ShipmentDbContext database, CancellationToken cancellationToken)
+    {
         var data = envelope.ReadData<ReservationExpiredV1>();
         var shipment = await database.Shipments.SingleOrDefaultAsync(
             item => item.Id == data.ShipmentId && item.ReservationId == data.ReservationId, cancellationToken);

@@ -749,6 +749,7 @@
       "drovik.simulation.api": {
         "type": "Project",
         "dependencies": {
+          "Drovik.Messaging": "[1.0.0, )",
           "Microsoft.AspNetCore.Authentication.JwtBearer": "[10.0.14, )",
           "Microsoft.EntityFrameworkCore.SqlServer": "[10.0.14, )"
         }

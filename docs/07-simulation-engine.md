@@ -26,6 +26,6 @@ Persistir estado suficiente para reconstruir la ejecución (estado, progreso por
 
 Un índice/claim persistido por SimulationRun y una transición condicional de estado en SQL garantizan un solo ejecutor. Start/Resume usan operación idempotente; el worker reclama el run dentro de transacción y renueva su lease. Si se ejecutan varias instancias, lease con expiración y reclaim evita dos ejecutores; caída/reinicio deja el run en pausa y libera claim. No asumir que Redis lo resuelve. Duración exacta de lease/heartbeat se fija con pruebas de carga y recuperación.
 
-## 7.5 Honestidad de la demo
+## 7.5 Datos y pruebas
 
-Mostrar: **Simulación demostrativa — posiciones y eventos sintéticos**. Pruebas usan reloj controlado y geometrías locales; OSRM es opcional.
+La consola se presenta como una operación real (ADR 0004). Pruebas usan reloj controlado y geometrías locales; OSRM es opcional.

@@ -1,0 +1,35 @@
+:host { display: block; margin: -24px; }
+.operations { display: grid; height: calc(100dvh - 48px); grid-template-columns: minmax(0, 1fr) 360px; }
+.map-area { min-width: 0; min-height: 0; }
+.panel { display: flex; min-height: 0; flex-direction: column; overflow-y: auto; padding: 18px; border-left: 1px solid var(--line-subtle); background: var(--surface-panel); }
+.panel h1 { font-size: 26px; }
+.connection { display: flex; align-items: center; gap: 7px; margin: 4px 0 14px; color: var(--text-secondary); font-size: var(--type-small); }
+.connection i { width: 8px; height: 8px; background: var(--text-muted); }
+.connection.live i { background: var(--success); }
+.connection.reconnecting i, .connection.connecting i { background: var(--warning); }
+.connection.offline i { background: var(--danger); }
+.controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding-bottom: 14px; border-bottom: 1px solid var(--line-subtle); }
+.speed-value { margin-left: auto; color: var(--text-secondary); font-size: var(--type-small); }
+.form-error, .run-note { margin-top: 10px !important; font-size: var(--type-small); }
+.run-note { margin-bottom: 0; color: var(--warning); }
+.run-note.success { color: var(--success); }
+.vehicles { margin: 0; padding: 0; list-style: none; }
+.vehicles li { padding: 12px 0; border-bottom: 1px solid var(--line-subtle); }
+.vehicle-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.vehicle-head strong { font-family: var(--font-display); font-size: 17px; font-weight: 600; }
+.vehicle-head span { color: var(--text-secondary); font-size: var(--type-small); font-variant-numeric: tabular-nums; }
+.vehicles p { margin: 2px 0 8px; color: var(--text-secondary); font-size: var(--type-table); }
+.progress { height: 4px; background: var(--line-subtle); }
+.progress span { display: block; height: 100%; background: var(--accent); transition: width 1s linear; }
+.delayed .progress span { background: var(--warning); }
+.arrived .progress span { background: var(--success); }
+.vehicles small { display: block; margin-top: 6px; color: var(--text-muted); font-size: var(--type-small); }
+.vehicles .empty { display: grid; gap: 4px; padding-top: 24px; border: 0; font-size: var(--type-table); }
+.empty span { color: var(--text-secondary); line-height: 1.5; }
+.empty a { color: var(--accent); }
+@media (max-width: 860px) {
+  :host { margin: -16px; }
+  .operations { height: auto; grid-template-columns: 1fr; }
+  .map-area { height: 52dvh; }
+  .panel { border-top: 1px solid var(--line-subtle); border-left: 0; }
+}

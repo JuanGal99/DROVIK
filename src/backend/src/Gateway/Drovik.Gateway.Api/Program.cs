@@ -5,7 +5,7 @@ var allowedOrigins = (builder.Configuration["Security:AllowedOrigins"] ?? "http:
     .Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
 builder.Services.AddCors(options => options.AddPolicy("frontend", policy =>
     policy.WithOrigins(allowedOrigins).WithMethods("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
-        .WithHeaders("Authorization", "Content-Type", "X-CSRF-TOKEN").AllowCredentials()));
+        .WithHeaders("Authorization", "Content-Type", "X-CSRF-TOKEN", "X-Requested-With", "X-SignalR-User-Agent").AllowCredentials()));
 builder.Services.AddHealthChecks();
 builder.Services
     .AddReverseProxy()

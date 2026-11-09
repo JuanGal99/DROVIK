@@ -21,7 +21,6 @@
 - Iniciar, pausar, reanudar y finalizar simulaciones.
 - Mostrar posiciones y cambios de estado en tiempo real.
 - Escenarios previstos: normal, congestión simulada, avería y desvío.
-- Mostrar claramente que los datos son sintéticos.
 
 ### Incidentes y dashboard
 - Registrar incidentes manuales o derivados de eventos de simulación, seguir su actividad y resolverlos.

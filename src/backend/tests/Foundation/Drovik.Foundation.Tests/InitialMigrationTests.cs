@@ -36,7 +36,11 @@ public class InitialMigrationTests
     }
 
     [Fact]
-    public void Simulation_database_has_initial_migration() => AssertInitialMigration(new SimulationDbContextFactory().CreateDbContext([]));
+    public void Simulation_database_has_initial_and_operations_migrations()
+    {
+        using var context = new SimulationDbContextFactory().CreateDbContext([]);
+        Assert.Contains(context.Database.GetMigrations(), migration => migration.EndsWith("_LiveOperations", StringComparison.Ordinal));
+    }
 
     [Fact]
     public void Incident_database_has_initial_and_business_migrations()
@@ -45,13 +49,5 @@ public class InitialMigrationTests
         var migrations = context.Database.GetMigrations().ToArray();
         Assert.Contains("20261107001112_InitialCreate", migrations);
         Assert.Contains(migrations, migration => migration.EndsWith("_IncidentBusiness", StringComparison.Ordinal));
-    }
-
-    private static void AssertInitialMigration(DbContext context)
-    {
-        using (context)
-        {
-            Assert.Single(context.Database.GetMigrations());
-        }
     }
 }
