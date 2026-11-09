@@ -15,8 +15,9 @@ public sealed class IncidentDbContextFactory : IDesignTimeDbContextFactory<Incid
             .AddUserSecrets<IncidentDbContextFactory>(optional: true)
             .AddEnvironmentVariables()
             .Build();
+        // Design-time tools only need a provider to read the model, so a clean machine works without secrets.
         var connectionString = configuration.GetConnectionString("IncidentDatabase")
-            ?? throw new InvalidOperationException("ConnectionStrings:IncidentDatabase must be configured through local secrets.");
+            ?? "Server=localhost;Database=DrovikIncident;TrustServerCertificate=True";
         var options = new DbContextOptionsBuilder<IncidentDbContext>()
             .UseSqlServer(connectionString)
             .Options;

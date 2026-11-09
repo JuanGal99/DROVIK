@@ -15,8 +15,9 @@ public sealed class FleetDbContextFactory : IDesignTimeDbContextFactory<FleetDbC
             .AddUserSecrets<FleetDbContextFactory>(optional: true)
             .AddEnvironmentVariables()
             .Build();
+        // Design-time tools only need a provider to read the model, so a clean machine works without secrets.
         var connectionString = configuration.GetConnectionString("FleetDatabase")
-            ?? throw new InvalidOperationException("ConnectionStrings:FleetDatabase must be configured through local secrets.");
+            ?? "Server=localhost;Database=DrovikFleet;TrustServerCertificate=True";
         var options = new DbContextOptionsBuilder<FleetDbContext>()
             .UseSqlServer(connectionString)
             .Options;
