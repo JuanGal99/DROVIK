@@ -20,7 +20,7 @@ export class OperationsPage implements OnDestroy {
   readonly customers = inject(CustomersDataService);
   private readonly fleet = inject(FleetDataService);
   readonly speeds = [10, 30, 60];
-  readonly speed = signal(30);
+  readonly speed = signal(10);
   readonly connectionLabel = computed(() => CONNECTION_LABELS[this.live.connection()]);
   readonly finished = computed(() => this.live.run()?.status === 'Completed');
   private readonly refresh = setInterval(() => this.live.connection() === 'live' ? this.live.sync() : this.live.load(), REFRESH_MS);

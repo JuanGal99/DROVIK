@@ -49,7 +49,7 @@ Sustituyen a las antiguas Fases 5 y 6, según las dependencias analizadas en ADR
 | 1. Cimientos de eventos y reservas (**completado**) | Topología ADR 0003, consumidor base, confirmación y liberación durables, expiración | — | Pruebas automatizadas y caída real de Fleet sin pérdida de liberación |
 | 2. Clientes (**completado**) | Red cerrada de 8 puntos en Bogotá, consulta en `/api/v1/customers`, pantalla Angular y selectores en envíos | 1 | Un envío solo va entre dos puntos distintos del catálogo |
 | 3. Resumen real (**completado**) | Esquema de la red, envíos por estado y actividad desde Fleet, Shipment e Incident | 2 | Cada cifra se concilia con su API; sin datos en memoria |
-| 4. Rutas (**completado sin OSRM**) | `RouteGeometry` en Simulation para los 56 trayectos entre puntos, proveedor local determinista y OSRM opcional | 2 | Funciona sin OSRM; los 56 trayectos tienen geometría y siempre la misma |
+| 4. Rutas (**completado**) | Los 56 trayectos entre puntos por calles reales, guardados con Simulation, y proveedor local de respaldo | 2 | Funciona sin OSRM; los 56 trayectos tienen geometría y siempre la misma |
 | 5. Mapa (**completado**) | Leaflet en "Operación en vivo" (`/operations`) con los 8 puntos, envíos activos y trazados | 4 | Capas correctas sin teselas externas, con aviso y atribución |
 | 6. Motor de simulación (**completado**) | Controles en "Operación en vivo", runs, start/pause/resume/cancel, reloj controlado, recuperación en pausa, estado instantáneo | 4 | Ejecución repetible, un ejecutor por run y pruebas de reinicio |
 | 7. Tiempo real (**completado**) | Hub SignalR en Simulation por YARP, posiciones limitadas y reconexión por estado instantáneo | 5, 6 | La UI sigue al motor y una reconexión recupera un estado coherente |

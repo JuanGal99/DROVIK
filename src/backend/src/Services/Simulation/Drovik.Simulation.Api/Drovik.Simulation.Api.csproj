@@ -13,6 +13,9 @@
     <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" />
   </ItemGroup>
   <ItemGroup>
+    <EmbeddedResource Include="Application\delivery-routes.json" />
+  </ItemGroup>
+  <ItemGroup>
     <ProjectReference Include="..\..\..\Messaging\Drovik.Messaging.csproj" />
   </ItemGroup>
 </Project>

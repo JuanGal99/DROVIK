@@ -150,6 +150,141 @@ namespace Drovik.Fleet.Api.Persistence.Migrations
                             LicenseCategory = "C2",
                             LicenseExpiresOn = new DateOnly(2027, 1, 27),
                             UpdatedAtUtc = new DateTime(2026, 11, 7, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = new Guid("30000000-0000-0000-0000-000000000004"),
+                            Availability = "Available",
+                            FullName = "Diego Herrera",
+                            LicenseCategory = "C2",
+                            LicenseExpiresOn = new DateOnly(2028, 3, 14),
+                            UpdatedAtUtc = new DateTime(2026, 11, 9, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = new Guid("30000000-0000-0000-0000-000000000005"),
+                            Availability = "Available",
+                            FullName = "Paula Castaño",
+                            LicenseCategory = "C1",
+                            LicenseExpiresOn = new DateOnly(2027, 11, 5),
+                            UpdatedAtUtc = new DateTime(2026, 11, 9, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = new Guid("30000000-0000-0000-0000-000000000006"),
+                            Availability = "Available",
+                            FullName = "Julián Ospina",
+                            LicenseCategory = "C3",
+                            LicenseExpiresOn = new DateOnly(2029, 6, 21),
+                            UpdatedAtUtc = new DateTime(2026, 11, 9, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = new Guid("30000000-0000-0000-0000-000000000007"),
+                            Availability = "Available",
+                            FullName = "Natalia Pardo",
+                            LicenseCategory = "C2",
+                            LicenseExpiresOn = new DateOnly(2028, 8, 9),
+                            UpdatedAtUtc = new DateTime(2026, 11, 9, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = new Guid("30000000-0000-0000-0000-000000000008"),
+                            Availability = "Available",
+                            FullName = "Sergio Vargas",
+                            LicenseCategory = "C2",
+                            LicenseExpiresOn = new DateOnly(2027, 5, 30),
+                            UpdatedAtUtc = new DateTime(2026, 11, 9, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = new Guid("30000000-0000-0000-0000-000000000009"),
+                            Availability = "Available",
+                            FullName = "Marcela Ríos",
+                            LicenseCategory = "C1",
+                            LicenseExpiresOn = new DateOnly(2028, 1, 17),
+                            UpdatedAtUtc = new DateTime(2026, 11, 9, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = new Guid("30000000-0000-0000-0000-000000000010"),
+                            Availability = "Available",
+                            FullName = "Felipe Cárdenas",
+                            LicenseCategory = "C3",
+                            LicenseExpiresOn = new DateOnly(2029, 2, 11),
+                            UpdatedAtUtc = new DateTime(2026, 11, 9, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = new Guid("30000000-0000-0000-0000-000000000011"),
+                            Availability = "Available",
+                            FullName = "Valentina Duarte",
+                            LicenseCategory = "C2",
+                            LicenseExpiresOn = new DateOnly(2027, 12, 3),
+                            UpdatedAtUtc = new DateTime(2026, 11, 9, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = new Guid("30000000-0000-0000-0000-000000000012"),
+                            Availability = "Available",
+                            FullName = "Óscar Bermúdez",
+                            LicenseCategory = "C2",
+                            LicenseExpiresOn = new DateOnly(2028, 10, 26),
+                            UpdatedAtUtc = new DateTime(2026, 11, 9, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = new Guid("30000000-0000-0000-0000-000000000013"),
+                            Availability = "Available",
+                            FullName = "Carolina Peña",
+                            LicenseCategory = "C1",
+                            LicenseExpiresOn = new DateOnly(2027, 7, 8),
+                            UpdatedAtUtc = new DateTime(2026, 11, 9, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = new Guid("30000000-0000-0000-0000-000000000014"),
+                            Availability = "Available",
+                            FullName = "Hernán Quintero",
+                            LicenseCategory = "C3",
+                            LicenseExpiresOn = new DateOnly(2029, 4, 19),
+                            UpdatedAtUtc = new DateTime(2026, 11, 9, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = new Guid("30000000-0000-0000-0000-000000000015"),
+                            Availability = "Available",
+                            FullName = "Lucía Montoya",
+                            LicenseCategory = "C2",
+                            LicenseExpiresOn = new DateOnly(2028, 5, 2),
+                            UpdatedAtUtc = new DateTime(2026, 11, 9, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = new Guid("30000000-0000-0000-0000-000000000016"),
+                            Availability = "Available",
+                            FullName = "Ricardo Beltrán",
+                            LicenseCategory = "C2",
+                            LicenseExpiresOn = new DateOnly(2027, 9, 15),
+                            UpdatedAtUtc = new DateTime(2026, 11, 9, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = new Guid("30000000-0000-0000-0000-000000000017"),
+                            Availability = "Available",
+                            FullName = "Daniela Acosta",
+                            LicenseCategory = "C1",
+                            LicenseExpiresOn = new DateOnly(2028, 12, 22),
+                            UpdatedAtUtc = new DateTime(2026, 11, 9, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = new Guid("30000000-0000-0000-0000-000000000018"),
+                            Availability = "Inactive",
+                            FullName = "Mauricio Silva",
+                            LicenseCategory = "C2",
+                            LicenseExpiresOn = new DateOnly(2027, 2, 28),
+                            UpdatedAtUtc = new DateTime(2026, 11, 9, 0, 0, 0, 0, DateTimeKind.Utc)
                         });
                 });
 
@@ -280,6 +415,150 @@ namespace Drovik.Fleet.Api.Persistence.Migrations
                             Status = "Maintenance",
                             Type = "Camión",
                             UpdatedAtUtc = new DateTime(2026, 11, 7, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = new Guid("20000000-0000-0000-0000-000000000004"),
+                            CapacityKg = 4500,
+                            CurrentOdometer = 61230,
+                            DistributionCenterId = new Guid("10000000-0000-0000-0000-000000000001"),
+                            Model = "Hino 300",
+                            Plate = "TRK-024",
+                            Status = "Available",
+                            Type = "Camión",
+                            UpdatedAtUtc = new DateTime(2026, 11, 9, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = new Guid("20000000-0000-0000-0000-000000000005"),
+                            CapacityKg = 5200,
+                            CurrentOdometer = 97410,
+                            DistributionCenterId = new Guid("10000000-0000-0000-0000-000000000002"),
+                            Model = "Isuzu NPR",
+                            Plate = "TRK-031",
+                            Status = "Available",
+                            Type = "Camión",
+                            UpdatedAtUtc = new DateTime(2026, 11, 9, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = new Guid("20000000-0000-0000-0000-000000000006"),
+                            CapacityKg = 3500,
+                            CurrentOdometer = 38120,
+                            DistributionCenterId = new Guid("10000000-0000-0000-0000-000000000003"),
+                            Model = "Chevrolet NHR",
+                            Plate = "TRK-037",
+                            Status = "Available",
+                            Type = "Camión",
+                            UpdatedAtUtc = new DateTime(2026, 11, 9, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = new Guid("20000000-0000-0000-0000-000000000007"),
+                            CapacityKg = 6000,
+                            CurrentOdometer = 124800,
+                            DistributionCenterId = new Guid("10000000-0000-0000-0000-000000000001"),
+                            Model = "Foton Aumark",
+                            Plate = "TRK-042",
+                            Status = "Available",
+                            Type = "Camión",
+                            UpdatedAtUtc = new DateTime(2026, 11, 9, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = new Guid("20000000-0000-0000-0000-000000000008"),
+                            CapacityKg = 1600,
+                            CurrentOdometer = 54300,
+                            DistributionCenterId = new Guid("10000000-0000-0000-0000-000000000002"),
+                            Model = "Renault Master",
+                            Plate = "VAN-011",
+                            Status = "Available",
+                            Type = "Furgón",
+                            UpdatedAtUtc = new DateTime(2026, 11, 9, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = new Guid("20000000-0000-0000-0000-000000000009"),
+                            CapacityKg = 1500,
+                            CurrentOdometer = 71650,
+                            DistributionCenterId = new Guid("10000000-0000-0000-0000-000000000003"),
+                            Model = "Fiat Ducato",
+                            Plate = "VAN-014",
+                            Status = "Available",
+                            Type = "Furgón",
+                            UpdatedAtUtc = new DateTime(2026, 11, 9, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = new Guid("20000000-0000-0000-0000-000000000010"),
+                            CapacityKg = 1700,
+                            CurrentOdometer = 29870,
+                            DistributionCenterId = new Guid("10000000-0000-0000-0000-000000000001"),
+                            Model = "Peugeot Boxer",
+                            Plate = "VAN-019",
+                            Status = "Available",
+                            Type = "Furgón",
+                            UpdatedAtUtc = new DateTime(2026, 11, 9, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = new Guid("20000000-0000-0000-0000-000000000011"),
+                            CapacityKg = 1450,
+                            CurrentOdometer = 66290,
+                            DistributionCenterId = new Guid("10000000-0000-0000-0000-000000000002"),
+                            Model = "Hyundai H350",
+                            Plate = "VAN-023",
+                            Status = "Maintenance",
+                            Type = "Furgón",
+                            UpdatedAtUtc = new DateTime(2026, 11, 9, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = new Guid("20000000-0000-0000-0000-000000000012"),
+                            CapacityKg = 900,
+                            CurrentOdometer = 83120,
+                            DistributionCenterId = new Guid("10000000-0000-0000-0000-000000000003"),
+                            Model = "Toyota Hilux",
+                            Plate = "PKP-003",
+                            Status = "Available",
+                            Type = "Camioneta",
+                            UpdatedAtUtc = new DateTime(2026, 11, 9, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = new Guid("20000000-0000-0000-0000-000000000013"),
+                            CapacityKg = 950,
+                            CurrentOdometer = 45760,
+                            DistributionCenterId = new Guid("10000000-0000-0000-0000-000000000001"),
+                            Model = "Nissan Frontier",
+                            Plate = "PKP-007",
+                            Status = "Available",
+                            Type = "Camioneta",
+                            UpdatedAtUtc = new DateTime(2026, 11, 9, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = new Guid("20000000-0000-0000-0000-000000000014"),
+                            CapacityKg = 850,
+                            CurrentOdometer = 102340,
+                            DistributionCenterId = new Guid("10000000-0000-0000-0000-000000000002"),
+                            Model = "Chevrolet D-Max",
+                            Plate = "PKP-012",
+                            Status = "Available",
+                            Type = "Camioneta",
+                            UpdatedAtUtc = new DateTime(2026, 11, 9, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = new Guid("20000000-0000-0000-0000-000000000015"),
+                            CapacityKg = 900,
+                            CurrentOdometer = 139900,
+                            DistributionCenterId = new Guid("10000000-0000-0000-0000-000000000003"),
+                            Model = "Mitsubishi L200",
+                            Plate = "PKP-016",
+                            Status = "Inactive",
+                            Type = "Camioneta",
+                            UpdatedAtUtc = new DateTime(2026, 11, 9, 0, 0, 0, 0, DateTimeKind.Utc)
                         });
                 });
 

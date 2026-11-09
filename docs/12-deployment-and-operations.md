@@ -95,7 +95,7 @@ try {
 }
 ```
 
-Apagar las APIs y Angular desde sus terminales; luego ejecutar `docker compose down` en la raíz. Los volúmenes `sqlserver-data` y `rabbitmq-data` conservan los datos entre reinicios. Para borrar las bases y el estado del broker y volver a empezar, ejecutar `docker compose down -v` (destructivo) y `docker compose up -d`; al volver a iniciar los cinco servicios en Development, las cinco bases lógicas se recrean por migración. No hay aún datos sintéticos ni procedimiento de reset de seed; se añadirá cuando exista un seed funcional.
+Apagar las APIs y Angular desde sus terminales; luego ejecutar `docker compose down` en la raíz. Los volúmenes `sqlserver-data` y `rabbitmq-data` conservan los datos entre reinicios. Para borrar las bases y el estado del broker y volver a empezar, ejecutar `docker compose down -v` (destructivo) y `docker compose up -d`; al volver a iniciar los cinco servicios en Development, las cinco bases lógicas se recrean por migración. Para cargar envíos e incidencias de ejemplo, con la aplicación en marcha y sin envíos previos: `DROVIK_ADMIN_EMAIL=<correo> DROVIK_ADMIN_PASSWORD=<contraseña> node tools/seed-demo.mjs`.
 
 ### Abrir la aplicación desde otro dispositivo de la red local
 
