@@ -31,6 +31,7 @@ x-api: &api
 services:
   sqlserver:
     image: mcr.microsoft.com/mssql/server:2022-CU23-ubuntu-22.04
+    restart: unless-stopped
     environment:
       ACCEPT_EULA: "Y"
       MSSQL_PID: Developer
@@ -48,6 +49,7 @@ services:
 
   rabbitmq:
     image: rabbitmq:4.4.0-management
+    restart: unless-stopped
     environment:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER:?Set RABBITMQ_DEFAULT_USER in .env}
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS:?Set RABBITMQ_DEFAULT_PASS in .env}
