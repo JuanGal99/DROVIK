@@ -9,16 +9,18 @@
 .connection.reconnecting i, .connection.connecting i { background: var(--warning); }
 .connection.offline i { background: var(--danger); }
 .controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding-bottom: 14px; border-bottom: 1px solid var(--line-subtle); }
-.speed-value { margin-left: auto; color: var(--text-secondary); font-size: var(--type-small); }
+.speed-field { margin-left: auto; }
 .form-error, .run-note { margin-top: 10px !important; font-size: var(--type-small); }
 .run-note { margin-bottom: 0; color: var(--warning); }
 .run-note.success { color: var(--success); }
-.vehicles { margin: 0; padding: 0; list-style: none; }
-.vehicles li { padding: 12px 0; border-bottom: 1px solid var(--line-subtle); }
+.vehicles { margin: 0 -18px; padding: 0; list-style: none; }
+.vehicles li { padding: 12px 18px; border-bottom: 1px solid var(--line-subtle); }
+.vehicles li.selected { background: var(--surface-overlay); box-shadow: inset 4px 0 0 var(--accent); }
+.vehicle-select { display: block; width: 100%; padding: 0; border: 0; background: transparent; color: inherit; text-align: left; cursor: pointer; }
 .vehicle-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
 .vehicle-head strong { font-family: var(--font-display); font-size: 17px; font-weight: 600; }
 .vehicle-head span { color: var(--text-secondary); font-size: var(--type-small); font-variant-numeric: tabular-nums; }
-.vehicles p { margin: 2px 0 8px; color: var(--text-secondary); font-size: var(--type-table); }
+.vehicle-route { display: block; margin: 2px 0 8px; color: var(--text-secondary); font-size: var(--type-table); }
 .progress { height: 4px; background: var(--line-subtle); }
 .progress span { display: block; height: 100%; background: var(--accent); transition: width 1s linear; }
 .delayed .progress span { background: var(--warning); }
@@ -31,7 +33,7 @@
 .scenarios button:disabled { cursor: not-allowed; opacity: .4; }
 .scenarios .repair { border-color: var(--success); color: var(--success); }
 .vehicles small { display: block; margin-top: 6px; color: var(--text-muted); font-size: var(--type-small); }
-.vehicles .empty { display: grid; gap: 4px; padding-top: 24px; border: 0; font-size: var(--type-table); }
+.vehicles .empty { display: grid; gap: 4px; padding: 24px 18px 0; border: 0; font-size: var(--type-table); }
 .empty span { color: var(--text-secondary); line-height: 1.5; }
 .empty a { color: var(--accent); }
 @media (max-width: 860px) {

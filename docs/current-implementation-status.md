@@ -116,6 +116,10 @@ La navegación lateral puede plegarse en escritorio para ampliar el área de tra
 
 ## Pruebas ejecutadas
 
+### Selección en el mapa y velocidad en curso (2026-11-09)
+
+Automatizadas: 117/117 pruebas backend y 48/48 pruebas Angular; builds correctos. Manual en navegador con datos temporales: placa al pasar sobre un vehículo, selección enlazada entre mapa y tablero, y cambio de velocidad con la operación en marcha.
+
 ### Escenarios y Administración (2026-11-09)
 
 Automatizadas: 113/113 pruebas backend y 47/47 pruebas Angular; builds correctos. Manuales contra la pila real: con bases y vhost temporales ya eliminados, carga de la semilla Hora pico desde Administración, congestión, avería, reparación y desvío en vivo con sus incidencias creadas por eventos, y desactivación y reactivación de vehículos y conductores, incluido el rechazo si hay una reserva activa.

@@ -90,6 +90,7 @@ public static class LiveOperationsEndpoints
         simulations.MapPost("", StartAsync);
         simulations.MapPost("{id:guid}/sync", SyncAsync);
         simulations.MapPost("{id:guid}/scenarios", ApplyScenarioAsync);
+        simulations.MapPost("{id:guid}/speed", ChangeSpeedAsync);
         simulations.MapPost("demo-reset", ResetAsync).RequireAuthorization(new AuthorizeAttribute { Roles = "Administrator" });
         simulations.MapPost("{id:guid}/pause", (Guid id, SimulationDbContext database, IHubContext<OperationsHub> hub, TimeProvider clock, CancellationToken cancellationToken) =>
             ChangeAsync(id, SimulationRunStatus.Running, SimulationRunStatus.Paused, database, hub, clock, cancellationToken));
@@ -164,6 +165,26 @@ public static class LiveOperationsEndpoints
         // Time spent paused must not count as distance travelled.
         run.LastTickAtUtc = now;
         if (nextStatus == SimulationRunStatus.Cancelled) run.EndedAtUtc = now;
+        try
+        {
+            await database.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            return Problem(409, "Conflicto", "La operación cambió al mismo tiempo; inténtalo de nuevo.");
+        }
+        var state = LiveState.ToResponse(run, includeRoutes: false);
+        await hub.Clients.All.SendAsync("state", state, cancellationToken);
+        return Results.Ok(state);
+    }
+
+    private static async Task<IResult> ChangeSpeedAsync(Guid id, StartRunRequest request, SimulationDbContext database, IHubContext<OperationsHub> hub, CancellationToken cancellationToken)
+    {
+        if (request.SpeedMultiplier is < 1 or > 120) return Problem(400, "Velocidad inválida", "La velocidad debe estar entre 1 y 120.");
+        var run = await database.Runs.Include(item => item.Vehicles).SingleOrDefaultAsync(item => item.Id == id, cancellationToken);
+        if (run is null) return Results.NotFound();
+        if (!ActiveStatuses.Contains(run.Status)) return Problem(409, "Conflicto", "La operación ya terminó.");
+        run.SpeedMultiplier = request.SpeedMultiplier;
         try
         {
             await database.SaveChangesAsync(cancellationToken);

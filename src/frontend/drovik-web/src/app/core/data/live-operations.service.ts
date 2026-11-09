@@ -60,6 +60,11 @@ export class LiveOperationsService {
   resume(): void { this.command('resume'); }
   stop(): void { this.command('cancel'); }
 
+  changeSpeed(speedMultiplier: number): void {
+    const run = this.run();
+    if (run) this.act(this.http.post<LiveState>(`${this.endpoint}/${run.id}/speed`, { speedMultiplier }));
+  }
+
   applyScenario(shipmentId: string, scenario: LiveScenario): void {
     const run = this.run();
     if (run) this.act(this.http.post<LiveState>(`${this.endpoint}/${run.id}/scenarios`, { shipmentId, scenario }));
