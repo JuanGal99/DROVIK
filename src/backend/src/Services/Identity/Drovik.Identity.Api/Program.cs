@@ -39,7 +39,7 @@ builder.Services.AddScoped<TokenIssuer>();
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options => ConfigureJwtBearer(options, builder.Configuration));
 builder.Services.AddAuthorization();
-builder.Services.Configure<ForwardedHeadersOptions>(options => options.ForwardedHeaders = ForwardedHeaders.XForwardedProto);
+builder.Services.Configure<ForwardedHeadersOptions>(options => options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto);
 builder.Services.AddOpenApi();
 builder.Services.AddRateLimiter(options => options.AddPolicy("login", context =>
     RateLimitPartition.GetFixedWindowLimiter(
@@ -95,17 +95,17 @@ app.MapPost("/api/v1/auth/login", async (LoginRequest request, UserManager<Appli
     HttpContext context, CancellationToken cancellationToken) =>
 {
     if (!IsAllowedOrigin(context, allowedOrigins) || !ValidCsrf(context))
-        return Problem(StatusCodes.Status400BadRequest, "Request rejected", "CSRF validation failed.");
+        return Problem(StatusCodes.Status400BadRequest, "Solicitud rechazada", "La validación CSRF falló.");
     if (string.IsNullOrWhiteSpace(request.Email) || !new EmailAddressAttribute().IsValid(request.Email) || string.IsNullOrWhiteSpace(request.Password))
-        return Problem(StatusCodes.Status400BadRequest, "Invalid request", "Email and password are required.");
+        return Problem(StatusCodes.Status400BadRequest, "Solicitud inválida", "El correo y la contraseña son obligatorios.");
     var user = await users.FindByEmailAsync(request.Email.Trim());
     if (user is null)
     {
         _ = users.PasswordHasher.HashPassword(new ApplicationUser(), request.Password);
-        return Problem(StatusCodes.Status401Unauthorized, "Authentication failed", "Email or password is invalid.");
+        return Problem(StatusCodes.Status401Unauthorized, "Autenticación fallida", "El correo o la contraseña no son válidos.");
     }
     if (!(await signIn.CheckPasswordSignInAsync(user, request.Password, lockoutOnFailure: true)).Succeeded)
-        return Problem(StatusCodes.Status401Unauthorized, "Authentication failed", "Email or password is invalid.");
+        return Problem(StatusCodes.Status401Unauthorized, "Autenticación fallida", "El correo o la contraseña no son válidos.");
 
     var rawToken = TokenIssuer.CreateOpaqueToken();
     var now = DateTime.UtcNow;
@@ -123,7 +123,7 @@ app.MapPost("/api/v1/auth/refresh", async (HttpContext context, IdentityDbContex
     UserManager<ApplicationUser> users, TokenIssuer tokenIssuer, CancellationToken cancellationToken) =>
 {
     if (!IsAllowedOrigin(context, allowedOrigins) || !ValidCsrf(context))
-        return Problem(StatusCodes.Status400BadRequest, "Request rejected", "CSRF validation failed.");
+        return Problem(StatusCodes.Status400BadRequest, "Solicitud rechazada", "La validación CSRF falló.");
     if (!context.Request.Cookies.TryGetValue("drovik.refresh", out var rawToken) || string.IsNullOrEmpty(rawToken))
         return Results.Unauthorized();
     var hash = TokenIssuer.HashToken(rawToken);
@@ -170,7 +170,7 @@ app.MapPost("/api/v1/auth/refresh", async (HttpContext context, IdentityDbContex
 app.MapPost("/api/v1/auth/logout", async (HttpContext context, IdentityDbContext database, CancellationToken cancellationToken) =>
 {
     if (!IsAllowedOrigin(context, allowedOrigins) || !ValidCsrf(context))
-        return Problem(StatusCodes.Status400BadRequest, "Request rejected", "CSRF validation failed.");
+        return Problem(StatusCodes.Status400BadRequest, "Solicitud rechazada", "La validación CSRF falló.");
     if (context.Request.Cookies.TryGetValue("drovik.refresh", out var rawToken))
     {
         var hash = TokenIssuer.HashToken(rawToken);
@@ -197,16 +197,16 @@ app.MapPost("/api/v1/users", async (CreateUserRequest request, UserManager<Appli
     var role = request.Role?.Trim();
     if (string.IsNullOrWhiteSpace(request.Email) || !new EmailAddressAttribute().IsValid(request.Email) || string.IsNullOrWhiteSpace(request.Password)
         || role is not ("Administrator" or "Operator"))
-        return Problem(StatusCodes.Status400BadRequest, "Invalid request", "Email, password and an allowed role are required.");
+        return Problem(StatusCodes.Status400BadRequest, "Solicitud inválida", "El correo, la contraseña y un rol permitido son obligatorios.");
     var user = new ApplicationUser { Id = Guid.NewGuid(), Email = request.Email.Trim(), UserName = request.Email.Trim(), EmailConfirmed = true };
     await using var transaction = await database.Database.BeginTransactionAsync(cancellationToken);
     var result = await users.CreateAsync(user, request.Password);
     if (!result.Succeeded)
-        return Problem(StatusCodes.Status409Conflict, "User could not be created", "The email may already exist or the password does not meet policy.");
+        return Problem(StatusCodes.Status409Conflict, "No se pudo crear el usuario", "El correo puede existir ya o la contraseña no cumple la política.");
     var roleResult = await users.AddToRoleAsync(user, role);
     if (!roleResult.Succeeded)
     {
-        return Problem(StatusCodes.Status400BadRequest, "Invalid request", "The role could not be assigned.");
+        return Problem(StatusCodes.Status400BadRequest, "Solicitud inválida", "No se pudo asignar el rol.");
     }
     await transaction.CommitAsync(cancellationToken);
     return Results.Created((string?)null, new AuthUserDto(user.Id, user.Email!, [role]));

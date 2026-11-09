@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using System.Security.Claims;
+using System.Text.Json.Serialization;
 using Drovik.Incident.Api.Contracts;
 using Drovik.Incident.Api.Domain;
 using Drovik.Incident.Api.Persistence;
@@ -10,14 +11,16 @@ using Drovik.Messaging;
 using Drovik.Incident.Api.Messaging;
 
 var builder = WebApplication.CreateBuilder(args);
+builder.Services.ConfigureHttpJsonOptions(options => options.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 var connectionString = builder.Configuration.GetConnectionString("IncidentDatabase")
     ?? throw new InvalidOperationException("ConnectionStrings:IncidentDatabase must be configured through local secrets.");
 
 builder.Services.AddDbContext<IncidentDbContext>(options => options.UseSqlServer(connectionString));
 builder.Services.Configure<RabbitMqOptions>(builder.Configuration.GetSection("RabbitMq"));
-builder.Services.AddSingleton<RabbitMqPublisher>();
+builder.Services.AddSingleton<IEventPublisher, RabbitMqPublisher>();
 builder.Services.AddHostedService<OutboxDispatcher<IncidentDbContext>>();
-builder.Services.AddHostedService<IncidentEventConsumer>();
+builder.Services.AddSingleton<IncidentEventConsumer>();
+builder.Services.AddHostedService(services => services.GetRequiredService<IncidentEventConsumer>());
 var issuer = builder.Configuration["Jwt:Issuer"] ?? "DROVIK.Identity";
 var audience = builder.Configuration["Jwt:Audience"] ?? "DROVIK.Services";
 var publicKeyText = builder.Configuration["Jwt:PublicKeySpkiBase64"]
@@ -63,20 +66,21 @@ app.MapGet("/api/v1/incidents", async (
     string? type,
     DateTime? fromUtc,
     DateTime? toUtc,
-    int page,
-    int pageSize,
-    CancellationToken cancellationToken) =>
+    int page = 1,
+    int pageSize = 20,
+    CancellationToken cancellationToken = default) =>
 {
     page = Math.Max(1, page);
-    pageSize = Math.Clamp(pageSize == 0 ? 20 : pageSize, 1, 100);
-    var query = database.Incidents.AsNoTracking().Include(item => item.Activities).AsQueryable();
+    pageSize = Math.Clamp(pageSize, 1, 100);
+    var query = database.Incidents.AsNoTracking().AsQueryable();
     if (Enum.TryParse<IncidentStatus>(status, true, out var parsedStatus)) query = query.Where(item => item.Status == parsedStatus);
     if (Enum.TryParse<IncidentSeverity>(severity, true, out var parsedSeverity)) query = query.Where(item => item.Severity == parsedSeverity);
     if (Enum.TryParse<IncidentType>(type, true, out var parsedType)) query = query.Where(item => item.Type == parsedType);
     if (fromUtc.HasValue) query = query.Where(item => item.CreatedAtUtc >= fromUtc.Value.ToUniversalTime());
     if (toUtc.HasValue) query = query.Where(item => item.CreatedAtUtc <= toUtc.Value.ToUniversalTime());
     var totalCount = await query.CountAsync(cancellationToken);
-    var items = await query.OrderByDescending(item => item.CreatedAtUtc)
+    var items = await query.Include(item => item.Activities).AsSplitQuery()
+        .OrderByDescending(item => item.CreatedAtUtc).ThenBy(item => item.Id)
         .Skip((page - 1) * pageSize).Take(pageSize).ToListAsync(cancellationToken);
     return Results.Ok(new PagedIncidentsResponse(items.Select(ToResponse).ToList(), totalCount, page, pageSize));
 }).RequireAuthorization(incidentPolicy);
@@ -106,8 +110,8 @@ app.MapPost("/api/v1/incidents", async (
         Activities = [new IncidentActivity { Id = Guid.NewGuid(), Status = IncidentStatus.Open, ActorId = actorId, OccurredAtUtc = now }]
     };
     database.Incidents.Add(incident);
-    database.Outbox.Add(OutboxMessageFactory.Create("IncidentCreated",
-        new { incidentId = incident.Id, incident.Type, incident.Severity, incident.Status, incident.VehicleId, incident.ShipmentId },
+    database.Outbox.Add(OutboxMessageFactory.Create(DomainEvents.IncidentCreated,
+        new IncidentCreatedV1(incident.Id, incident.Type.ToString(), incident.Severity.ToString(), incident.Status.ToString(), incident.VehicleId, incident.ShipmentId),
         incident.Id.ToString()));
     await database.SaveChangesAsync(cancellationToken);
     return Results.Created($"/api/v1/incidents/{incident.Id}", ToResponse(incident));
@@ -120,6 +124,8 @@ app.MapPatch("/api/v1/incidents/{id:guid}/status", async (
     HttpContext context,
     CancellationToken cancellationToken) =>
 {
+    if (request.Note?.Length > 1000)
+        return Problem(StatusCodes.Status400BadRequest, "Solicitud inválida", "La nota no puede superar 1000 caracteres.");
     if (!TryActor(context, out var actorId)) return Results.Unauthorized();
     var incident = await database.Incidents.Include(item => item.Activities).SingleOrDefaultAsync(item => item.Id == id, cancellationToken);
     if (incident is null) return Results.NotFound();
@@ -127,11 +133,10 @@ app.MapPatch("/api/v1/incidents/{id:guid}/status", async (
         return Problem(StatusCodes.Status409Conflict, "Transición inválida", $"No se puede pasar de {incident.Status} a {request.Status}.");
     var now = DateTime.UtcNow;
     incident.Status = request.Status;
-    incident.Activities.Add(new IncidentActivity { Id = Guid.NewGuid(), Status = request.Status, Note = request.Note?.Trim(), ActorId = actorId, OccurredAtUtc = now });
-    database.Outbox.Add(OutboxMessageFactory.Create("IncidentStatusChanged",
-        new { incidentId = incident.Id, status = incident.Status, note = request.Note }, incident.Id.ToString()));
-    await database.SaveChangesAsync(cancellationToken);
-    return Results.Ok(ToResponse(incident));
+    database.IncidentActivities.Add(new IncidentActivity { Id = Guid.NewGuid(), IncidentId = incident.Id, Status = request.Status, Note = request.Note?.Trim(), ActorId = actorId, OccurredAtUtc = now });
+    database.Outbox.Add(OutboxMessageFactory.Create(DomainEvents.IncidentStatusChanged,
+        new IncidentStatusChangedV1(incident.Id, incident.Status.ToString(), request.Note), incident.Id.ToString()));
+    return await SaveTransition(database, incident, cancellationToken);
 }).RequireAuthorization(incidentPolicy);
 
 app.MapPost("/api/v1/incidents/{id:guid}/resolve", async (
@@ -153,14 +158,26 @@ app.MapPost("/api/v1/incidents/{id:guid}/resolve", async (
     incident.ResolvedAtUtc = now;
     incident.ResolvedBy = actorId;
     incident.ResolutionNote = request.ResolutionNote.Trim();
-    incident.Activities.Add(new IncidentActivity { Id = Guid.NewGuid(), Status = IncidentStatus.Resolved, Note = incident.ResolutionNote, ActorId = actorId, OccurredAtUtc = now });
-    database.Outbox.Add(OutboxMessageFactory.Create("IncidentResolved",
-        new { incidentId = incident.Id, status = incident.Status, resolutionNote = incident.ResolutionNote }, incident.Id.ToString()));
-    await database.SaveChangesAsync(cancellationToken);
-    return Results.Ok(ToResponse(incident));
+    database.IncidentActivities.Add(new IncidentActivity { Id = Guid.NewGuid(), IncidentId = incident.Id, Status = IncidentStatus.Resolved, Note = incident.ResolutionNote, ActorId = actorId, OccurredAtUtc = now });
+    database.Outbox.Add(OutboxMessageFactory.Create(DomainEvents.IncidentResolved,
+        new IncidentResolvedV1(incident.Id, incident.Status.ToString(), incident.ResolutionNote), incident.Id.ToString()));
+    return await SaveTransition(database, incident, cancellationToken);
 }).RequireAuthorization(incidentPolicy);
 
 app.Run();
+
+static async Task<IResult> SaveTransition(IncidentDbContext database, IncidentRecord incident, CancellationToken cancellationToken)
+{
+    try
+    {
+        await database.SaveChangesAsync(cancellationToken);
+        return Results.Ok(ToResponse(incident));
+    }
+    catch (DbUpdateConcurrencyException)
+    {
+        return Problem(StatusCodes.Status409Conflict, "Transición inválida", "La incidencia cambió mientras se actualizaba; consulta su estado actual.");
+    }
+}
 
 static bool TryActor(HttpContext context, out Guid actorId) =>
     Guid.TryParse(context.User.FindFirstValue("sub"), out actorId);

@@ -69,20 +69,20 @@ namespace Drovik.Fleet.Api.Persistence.Migrations
                         new
                         {
                             Id = new Guid("10000000-0000-0000-0000-000000000002"),
-                            AddressLabel = "Corredor industrial Itagüí",
+                            AddressLabel = "Zona industrial Puente Aranda",
                             IsActive = true,
-                            Latitude = 6.1719m,
-                            Longitude = -75.6114m,
-                            Name = "Medellín · Itagüí"
+                            Latitude = 4.6186m,
+                            Longitude = -74.1166m,
+                            Name = "Bogotá · Puente Aranda"
                         },
                         new
                         {
                             Id = new Guid("10000000-0000-0000-0000-000000000003"),
-                            AddressLabel = "Parque industrial Yumbo",
+                            AddressLabel = "Zona industrial Álamos",
                             IsActive = true,
-                            Latitude = 3.4894m,
-                            Longitude = -76.5197m,
-                            Name = "Cali · Yumbo"
+                            Latitude = 4.6970m,
+                            Longitude = -74.1170m,
+                            Name = "Bogotá · Álamos"
                         });
                 });
 
@@ -118,7 +118,8 @@ namespace Drovik.Fleet.Api.Persistence.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("FullName");
+                    b.HasIndex("FullName")
+                        .IsUnique();
 
                     b.ToTable("Drivers");
 
@@ -176,6 +177,7 @@ namespace Drovik.Fleet.Api.Persistence.Migrations
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<string>("Status")
+                        .IsConcurrencyToken()
                         .IsRequired()
                         .HasMaxLength(20)
                         .HasColumnType("nvarchar(20)");
