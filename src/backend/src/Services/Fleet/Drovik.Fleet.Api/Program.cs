@@ -1,3 +1,4 @@
+using Drovik.Observability;
 using System.ComponentModel.DataAnnotations;
 using System.Security.Cryptography;
 using System.Text.Json.Serialization;
@@ -15,6 +16,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 
 var builder = WebApplication.CreateBuilder(args);
+builder.AddDrovikObservability("fleet");
 builder.Services.ConfigureHttpJsonOptions(options => options.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 var connectionString = builder.Configuration.GetConnectionString("FleetDatabase")
     ?? throw new InvalidOperationException("ConnectionStrings:FleetDatabase must be configured through local secrets.");
@@ -50,6 +52,7 @@ builder.Services.AddAuthorization();
 builder.Services.AddHealthChecks();
 
 var app = builder.Build();
+app.UseDrovikRequestLogging();
 app.UseAuthentication();
 app.UseAuthorization();
 
@@ -112,6 +115,7 @@ app.MapPost("/api/v1/vehicles", async (CreateVehicleRequest request, FleetDbCont
         DistributionCenterId = request.DistributionCenterId, Status = VehicleStatus.Available, UpdatedAtUtc = DateTime.UtcNow
     };
     database.Vehicles.Add(vehicle);
+    database.Outbox.Add(OutboxMessageFactory.Create(DomainEvents.VehicleDetailsChanged, new VehicleDetailsChangedV1(vehicle.Id), vehicle.Id.ToString()));
     await database.SaveChangesAsync(cancellationToken);
     await database.Entry(vehicle).Reference(item => item.DistributionCenter).LoadAsync(cancellationToken);
     return Results.Created($"/api/v1/vehicles/{vehicle.Id}", ToVehicleResponse(vehicle));
@@ -132,6 +136,7 @@ app.MapPut("/api/v1/vehicles/{id:guid}", async (Guid id, UpdateVehicleRequest re
     vehicle.CurrentOdometer = request.CurrentOdometer;
     vehicle.DistributionCenterId = request.DistributionCenterId;
     vehicle.UpdatedAtUtc = DateTime.UtcNow;
+    database.Outbox.Add(OutboxMessageFactory.Create(DomainEvents.VehicleDetailsChanged, new VehicleDetailsChangedV1(vehicle.Id), vehicle.Id.ToString()));
     await database.SaveChangesAsync(cancellationToken);
     await database.Entry(vehicle).Reference(item => item.DistributionCenter).LoadAsync(cancellationToken);
     return Results.Ok(ToVehicleResponse(vehicle));
@@ -203,6 +208,7 @@ app.MapPost("/api/v1/drivers", async (CreateDriverRequest request, FleetDbContex
         LicenseExpiresOn = request.LicenseExpiresOn, Availability = DriverAvailability.Available, UpdatedAtUtc = DateTime.UtcNow
     };
     database.Drivers.Add(driver);
+    database.Outbox.Add(OutboxMessageFactory.Create(DomainEvents.DriverDetailsChanged, new DriverDetailsChangedV1(driver.Id), driver.Id.ToString()));
     await database.SaveChangesAsync(cancellationToken);
     return Results.Created($"/api/v1/drivers/{driver.Id}", ToDriverResponse(driver));
 }).AddEndpointFilter(TranslateConcurrencyFailure).RequireAuthorization(fleetPolicy);
@@ -219,6 +225,7 @@ app.MapPut("/api/v1/drivers/{id:guid}", async (Guid id, UpdateDriverRequest requ
     driver.LicenseCategory = request.LicenseCategory.Trim().ToUpperInvariant();
     driver.LicenseExpiresOn = request.LicenseExpiresOn;
     driver.UpdatedAtUtc = DateTime.UtcNow;
+    database.Outbox.Add(OutboxMessageFactory.Create(DomainEvents.DriverDetailsChanged, new DriverDetailsChangedV1(driver.Id), driver.Id.ToString()));
     await database.SaveChangesAsync(cancellationToken);
     return Results.Ok(ToDriverResponse(driver));
 }).AddEndpointFilter(TranslateConcurrencyFailure).RequireAuthorization(fleetPolicy);

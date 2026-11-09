@@ -26,6 +26,11 @@
 | Fontsource Barlow / Barlow Semi Condensed | 5.3.0 / 5.3.0 |
 | Leaflet / @types/leaflet | 1.9.4 / 1.9.22 |
 | @microsoft/signalr | 10.0.11 |
+| Serilog.AspNetCore | 10.0.0 |
+| OpenTelemetry Extensions.Hosting / Exporter OTLP | 1.20.1 / 1.20.1 |
+| OpenTelemetry Instrumentation AspNetCore / Http | 1.20.2 / 1.20.2 |
+| @playwright/test | 1.65.0 |
+| Panel opcional Aspire Dashboard (contenedor) | 13.6.4 |
 | SQL Server container | 2022-CU23-ubuntu-22.04 |
 | RabbitMQ container | 4.4.0-management |
 

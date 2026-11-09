@@ -1,6 +1,8 @@
+using Drovik.Observability;
 using Yarp.ReverseProxy;
 
 var builder = WebApplication.CreateBuilder(args);
+builder.AddDrovikObservability("gateway");
 var allowedOrigins = (builder.Configuration["Security:AllowedOrigins"] ?? "http://localhost:4200")
     .Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
 builder.Services.AddCors(options => options.AddPolicy("frontend", policy =>
@@ -12,6 +14,7 @@ builder.Services
     .LoadFromConfig(builder.Configuration.GetSection("ReverseProxy"));
 
 var app = builder.Build();
+app.UseDrovikRequestLogging();
 app.UseCors("frontend");
 app.MapHealthChecks("/health/live");
 app.MapHealthChecks("/health/ready");

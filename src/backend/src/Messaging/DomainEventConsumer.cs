@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
@@ -56,6 +57,15 @@ public abstract class DomainEventConsumer<TContext>(
 
     public async Task<ConsumeOutcome> ProcessAsync(ReadOnlyMemory<byte> body, bool redelivered, CancellationToken cancellationToken)
     {
+        var outcome = await ConsumeOnceAsync(body, redelivered, cancellationToken);
+        MessagingTelemetry.Consumed.Add(1, new KeyValuePair<string, object?>("consumer", ConsumerName), new KeyValuePair<string, object?>("outcome", outcome.ToString()));
+        if (outcome == ConsumeOutcome.DeadLetter)
+            logger.LogError("Un evento pasó a la cola {DeadLetterQueue} y requiere revisión.", DeadLetterQueueName);
+        return outcome;
+    }
+
+    private async Task<ConsumeOutcome> ConsumeOnceAsync(ReadOnlyMemory<byte> body, bool redelivered, CancellationToken cancellationToken)
+    {
         EventEnvelope envelope;
         try
         {
@@ -66,6 +76,12 @@ public abstract class DomainEventConsumer<TContext>(
             logger.LogError(ex, "El consumidor {Consumer} recibió un envelope inválido.", ConsumerName);
             return ConsumeOutcome.DeadLetter;
         }
+
+        // Continues the trace of the request that caused the event, across the broker and the outbox.
+        using var activity = MessagingTelemetry.Source.StartActivity($"{envelope.EventType} process", ActivityKind.Consumer, envelope.TraceParent);
+        activity?.SetTag("messaging.system", "rabbitmq");
+        activity?.SetTag("messaging.destination.name", QueueName);
+        activity?.SetTag("messaging.message.id", envelope.EventId.ToString());
 
         for (var attempt = 0; ; attempt++)
         {
@@ -78,6 +94,7 @@ public abstract class DomainEventConsumer<TContext>(
             {
                 logger.LogError(ex, "El evento {EventType} {EventId} no se puede aplicar (correlación {CorrelationId}).",
                     envelope.EventType, envelope.EventId, envelope.CorrelationId);
+                activity?.SetStatus(ActivityStatusCode.Error, ex.Message);
                 return ConsumeOutcome.DeadLetter;
             }
             catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)

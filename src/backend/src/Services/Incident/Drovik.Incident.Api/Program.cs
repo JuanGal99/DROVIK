@@ -1,3 +1,4 @@
+using Drovik.Observability;
 using System.Security.Cryptography;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
@@ -11,6 +12,7 @@ using Drovik.Messaging;
 using Drovik.Incident.Api.Messaging;
 
 var builder = WebApplication.CreateBuilder(args);
+builder.AddDrovikObservability("incident");
 builder.Services.ConfigureHttpJsonOptions(options => options.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 var connectionString = builder.Configuration.GetConnectionString("IncidentDatabase")
     ?? throw new InvalidOperationException("ConnectionStrings:IncidentDatabase must be configured through local secrets.");
@@ -41,6 +43,7 @@ builder.Services.AddAuthorization();
 builder.Services.AddHealthChecks();
 
 var app = builder.Build();
+app.UseDrovikRequestLogging();
 app.UseAuthentication();
 app.UseAuthorization();
 

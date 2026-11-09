@@ -61,9 +61,6 @@
  <rect x="1150" y="735" width="265" height="92" rx="16" fill="#eaf2ff" stroke="#8db5f4" stroke-width="1.5"/>
  <text x="1282" y="773" text-anchor="middle" font-size="19" font-weight="700" fill="#1746a2">SignalR</text>
  <text x="1282" y="799" text-anchor="middle" font-size="13" fill="#476b9a">Live browser updates</text>
- <rect x="85" y="735" width="245" height="92" rx="16" fill="#e8f7f5" stroke="#79c9bd" stroke-width="1.5"/>
- <text x="207" y="773" text-anchor="middle" font-size="19" font-weight="700" fill="#12665e">Redis (optional)</text>
- <text x="207" y="799" text-anchor="middle" font-size="13" fill="#397e77">Cache / ephemeral state</text>
 </g>
 <g stroke="#d0a64a" stroke-width="2" fill="none" stroke-dasharray="7 6">
  <path d="M467 636V685H500V732M742 636V732M1017 636V685H1000V732M1292 636V685H1090V732"/>

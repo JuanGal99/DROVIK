@@ -1,3 +1,4 @@
+using Drovik.Observability;
 using System.Security.Claims;
 using System.ComponentModel.DataAnnotations;
 using System.Security.Cryptography;
@@ -17,6 +18,7 @@ using System.Threading.RateLimiting;
 var bootstrapMode = args.Contains("--bootstrap-admin", StringComparer.Ordinal);
 var recoverMode = args.Contains("--recover-password", StringComparer.Ordinal);
 var builder = WebApplication.CreateBuilder(args);
+builder.AddDrovikObservability("identity");
 builder.Services.AddDbContext<IdentityDbContext>(options => options.UseSqlServer(
     builder.Configuration.GetConnectionString("IdentityDatabase")
         ?? throw new InvalidOperationException("ConnectionStrings:IdentityDatabase must be configured through local secrets.")));
@@ -55,6 +57,7 @@ builder.Services.AddRateLimiter(options => options.AddPolicy("login", context =>
 builder.Services.AddHealthChecks();
 
 var app = builder.Build();
+app.UseDrovikRequestLogging();
 app.MapOpenApi("/openapi/v1.json");
 app.UseForwardedHeaders();
 app.UseRateLimiter();

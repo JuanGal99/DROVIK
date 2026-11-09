@@ -144,6 +144,34 @@ public sealed class DomainApiTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Editing_a_vehicle_or_driver_announces_it_so_open_screens_can_refresh()
+    {
+        Assert.Equal(0, await CountFleetOutbox(DomainEvents.VehicleDetailsChanged));
+        using var vehicle = await _fleetClient.PutAsJsonAsync($"/api/v1/vehicles/{TruckId}", new
+        {
+            plate = "TRK-018", model = "Hino 500", type = "Camión", capacityKg = 8000, currentOdometer = 128430,
+            distributionCenterId = PuenteArandaCenter,
+        });
+        Assert.Equal(HttpStatusCode.OK, vehicle.StatusCode);
+        Assert.Equal(1, await CountFleetOutbox(DomainEvents.VehicleDetailsChanged));
+
+        using var created = await _fleetClient.PostAsJsonAsync("/api/v1/vehicles", new
+        {
+            plate = "NEW-777", model = "Hino 300", type = "Furgón", capacityKg = 2000, currentOdometer = 10,
+            distributionCenterId = PuenteArandaCenter,
+        });
+        Assert.Equal(HttpStatusCode.Created, created.StatusCode);
+        Assert.Equal(2, await CountFleetOutbox(DomainEvents.VehicleDetailsChanged));
+
+        using var driver = await _fleetClient.PostAsJsonAsync("/api/v1/drivers", new
+        {
+            fullName = "Conductora Nueva", licenseCategory = "C2", licenseExpiresOn = "2030-01-01",
+        });
+        Assert.Equal(HttpStatusCode.Created, driver.StatusCode);
+        Assert.Equal(1, await CountFleetOutbox(DomainEvents.DriverDetailsChanged));
+    }
+
+    [Fact]
     public async Task Fleet_update_returns_the_new_distribution_center()
     {
         using var response = await _fleetClient.PutAsJsonAsync($"/api/v1/vehicles/{TruckId}", new

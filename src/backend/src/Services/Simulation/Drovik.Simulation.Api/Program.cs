@@ -1,3 +1,4 @@
+using Drovik.Observability;
 using System.Security.Cryptography;
 using System.Text.Json.Serialization;
 using Drovik.Messaging;
@@ -10,6 +11,7 @@ using Microsoft.IdentityModel.Tokens;
 const string HubPath = "/hubs/operations";
 
 var builder = WebApplication.CreateBuilder(args);
+builder.AddDrovikObservability("simulation");
 builder.Services.ConfigureHttpJsonOptions(options => options.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 var connectionString = builder.Configuration.GetConnectionString("SimulationDatabase")
     ?? throw new InvalidOperationException("ConnectionStrings:SimulationDatabase must be configured through local secrets.");
@@ -63,6 +65,7 @@ builder.Services.AddAuthorization();
 builder.Services.AddHealthChecks();
 
 var app = builder.Build();
+app.UseDrovikRequestLogging();
 app.UseAuthentication();
 app.UseAuthorization();
 
