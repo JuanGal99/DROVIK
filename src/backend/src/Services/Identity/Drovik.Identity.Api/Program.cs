@@ -15,6 +15,7 @@ using Microsoft.IdentityModel.Tokens;
 using System.Threading.RateLimiting;
 
 var bootstrapMode = args.Contains("--bootstrap-admin", StringComparer.Ordinal);
+var recoverMode = args.Contains("--recover-password", StringComparer.Ordinal);
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddDbContext<IdentityDbContext>(options => options.UseSqlServer(
     builder.Configuration.GetConnectionString("IdentityDatabase")
@@ -71,6 +72,11 @@ if (app.Environment.IsDevelopment() || bootstrapMode)
     foreach (var roleName in new[] { "Administrator", "Operator" })
         if (!await roles.RoleExistsAsync(roleName))
             await roles.CreateAsync(new IdentityRole<Guid>(roleName));
+}
+if (recoverMode)
+{
+    Environment.ExitCode = await RecoverPassword.RunAsync(app.Services, app.Configuration);
+    return;
 }
 if (bootstrapMode)
 {
@@ -192,6 +198,24 @@ app.MapGet("/api/v1/auth/me", async (ClaimsPrincipal principal, UserManager<Appl
     return Results.Ok(new AuthUserDto(user.Id, user.Email ?? "", roles.ToArray()));
 }).RequireAuthorization();
 
+const string PasswordPolicy = "La contraseña debe tener al menos 12 caracteres, con mayúscula, minúscula, número y símbolo.";
+
+app.MapPost("/api/v1/auth/change-password", async (ChangePasswordRequest request, ClaimsPrincipal principal, UserManager<ApplicationUser> users,
+    IdentityDbContext database, CancellationToken cancellationToken) =>
+{
+    if (string.IsNullOrWhiteSpace(request.CurrentPassword) || string.IsNullOrWhiteSpace(request.NewPassword))
+        return Problem(StatusCodes.Status400BadRequest, "Solicitud inválida", "La contraseña actual y la nueva son obligatorias.");
+    var id = principal.FindFirstValue("sub");
+    var user = id is null ? null : await users.FindByIdAsync(id);
+    if (user is null) return Results.Unauthorized();
+    var result = await users.ChangePasswordAsync(user, request.CurrentPassword, request.NewPassword);
+    if (!result.Succeeded)
+        return Problem(StatusCodes.Status400BadRequest, "No se pudo cambiar la contraseña",
+            result.Errors.Any(error => error.Code == nameof(IdentityErrorDescriber.PasswordMismatch)) ? "La contraseña actual no es correcta." : PasswordPolicy);
+    await UserAccounts.RevokeSessionsAsync(database, user.Id, cancellationToken);
+    return Results.NoContent();
+}).RequireAuthorization().RequireRateLimiting("login");
+
 app.MapPost("/api/v1/users", async (CreateUserRequest request, UserManager<ApplicationUser> users, IdentityDbContext database, CancellationToken cancellationToken) =>
 {
     var role = request.Role?.Trim();
@@ -216,7 +240,7 @@ app.MapGet("/api/v1/users", async (UserManager<ApplicationUser> users, Cancellat
 {
     var all = await users.Users.AsNoTracking().OrderBy(item => item.Email).Take(200).ToListAsync(cancellationToken);
     var response = new List<ManagedUserDto>();
-    foreach (var user in all) response.Add(new ManagedUserDto(user.Id, user.Email!, [.. await users.GetRolesAsync(user)], IsActive(user)));
+    foreach (var user in all) response.Add(new ManagedUserDto(user.Id, user.Email!, [.. await users.GetRolesAsync(user)], UserAccounts.IsActive(user)));
     return Results.Ok(response);
 }).RequireAuthorization(policy => policy.RequireRole("Administrator"));
 
@@ -231,16 +255,47 @@ app.MapPatch("/api/v1/users/{id:guid}/status", async (Guid id, ChangeUserStatusR
         await users.SetLockoutEnabledAsync(user, true);
         await users.SetLockoutEndDateAsync(user, DateTimeOffset.MaxValue);
         // A deactivated account must not be able to renew its session.
-        var now = DateTime.UtcNow;
-        await database.RefreshTokens.Where(item => item.UserId == id && item.RevokedAtUtc == null)
-            .ExecuteUpdateAsync(setters => setters.SetProperty(item => item.RevokedAtUtc, now), cancellationToken);
+        await UserAccounts.RevokeSessionsAsync(database, id, cancellationToken);
     }
     else
     {
         await users.SetLockoutEndDateAsync(user, null);
         await users.ResetAccessFailedCountAsync(user);
     }
-    return Results.Ok(new ManagedUserDto(user.Id, user.Email!, [.. await users.GetRolesAsync(user)], IsActive(user)));
+    return Results.Ok(new ManagedUserDto(user.Id, user.Email!, [.. await users.GetRolesAsync(user)], UserAccounts.IsActive(user)));
+}).RequireAuthorization(policy => policy.RequireRole("Administrator"));
+
+// There is no email service, so a forgotten password is replaced by an administrator.
+app.MapPost("/api/v1/users/{id:guid}/password", async (Guid id, ResetPasswordRequest request, ClaimsPrincipal principal, UserManager<ApplicationUser> users,
+    IdentityDbContext database, CancellationToken cancellationToken) =>
+{
+    if (principal.FindFirst("sub")?.Value == id.ToString()) return Problem(StatusCodes.Status409Conflict, "Conflicto", "Cambia tu propia contraseña con la opción de tu perfil.");
+    if (string.IsNullOrWhiteSpace(request.NewPassword)) return Problem(StatusCodes.Status400BadRequest, "Solicitud inválida", PasswordPolicy);
+    var user = await users.FindByIdAsync(id.ToString());
+    if (user is null) return Results.NotFound();
+    var result = await UserAccounts.ReplacePasswordAsync(users, database, user, request.NewPassword, cancellationToken);
+    return result.Succeeded ? Results.NoContent() : Problem(StatusCodes.Status400BadRequest, "Solicitud inválida", PasswordPolicy);
+}).RequireAuthorization(policy => policy.RequireRole("Administrator"));
+
+// Refreshing a session reads the roles again, so the change reaches an open session within one access token's lifetime.
+app.MapPatch("/api/v1/users/{id:guid}/role", async (Guid id, ChangeUserRoleRequest request, ClaimsPrincipal principal, UserManager<ApplicationUser> users,
+    IdentityDbContext database, CancellationToken cancellationToken) =>
+{
+    var role = request.Role?.Trim();
+    if (role is not ("Administrator" or "Operator")) return Problem(StatusCodes.Status400BadRequest, "Solicitud inválida", "El rol no es válido.");
+    // Refusing one's own change also means the system can never lose its last administrator this way.
+    if (principal.FindFirst("sub")?.Value == id.ToString()) return Problem(StatusCodes.Status409Conflict, "Conflicto", "No puedes cambiar tu propio rol.");
+    var user = await users.FindByIdAsync(id.ToString());
+    if (user is null) return Results.NotFound();
+    var current = await users.GetRolesAsync(user);
+    if (current.Count != 1 || current[0] != role)
+    {
+        await using var transaction = await database.Database.BeginTransactionAsync(cancellationToken);
+        if (!(await users.RemoveFromRolesAsync(user, current)).Succeeded || !(await users.AddToRoleAsync(user, role)).Succeeded)
+            return Problem(StatusCodes.Status409Conflict, "Conflicto", "No se pudo cambiar el rol.");
+        await transaction.CommitAsync(cancellationToken);
+    }
+    return Results.Ok(new ManagedUserDto(user.Id, user.Email!, [role], UserAccounts.IsActive(user)));
 }).RequireAuthorization(policy => policy.RequireRole("Administrator"));
 
 app.MapGet("/health/live", () => Results.Ok(new { status = "Healthy" }));
@@ -271,8 +326,6 @@ static void ConfigureJwtBearer(JwtBearerOptions options, IConfiguration configur
     };
 }
 
-// Failed sign-ins lock an account for minutes; only an administrator's deactivation lasts for years.
-static bool IsActive(ApplicationUser user) => user.LockoutEnd is null || user.LockoutEnd < DateTimeOffset.UtcNow.AddYears(1);
 static bool IsAllowedOrigin(HttpContext context, string[] origins) =>
     context.Request.Headers.Origin.Any(origin => origins.Contains(origin, StringComparer.Ordinal));
 

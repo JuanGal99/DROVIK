@@ -40,6 +40,7 @@ Fleet posee las tablas `Vehicles`, `Drivers` y `DistributionCenters` en `DrovikF
 | Método | Ruta | Estado |
 |---|---|---|
 | GET | `/api/v1/vehicles` | Implementado: búsqueda, estado/tipo, paginación |
+| GET | `/api/v1/vehicles/summary` | Implementado: totales por estado de toda la flota |
 | GET | `/api/v1/vehicles/{id}` | Implementado |
 | POST | `/api/v1/vehicles` | Implementado: validación, placa única y centro activo |
 | PUT | `/api/v1/vehicles/{id}` | Implementado |
@@ -66,6 +67,7 @@ La interfaz permite consultar el detalle actualizado y editar destino, coordenad
 | Método | Ruta | Estado |
 |---|---|---|
 | GET | `/api/v1/shipments` | Implementado: búsqueda, estado, prioridad y paginación |
+| GET | `/api/v1/shipments/summary` | Implementado: totales por estado de todos los envíos |
 | GET | `/api/v1/shipments/{id}` | Implementado |
 | GET | `/api/v1/customers` | Implementado: búsqueda, estado y paginación; solo lectura |
 | GET | `/api/v1/customers/{id}` | Implementado |
@@ -110,6 +112,9 @@ La navegación lateral puede plegarse en escritorio para ampliar el área de tra
 - **Incident:** persistencia, actividad, listado, detalle, creación, transiciones y resolución implementados con pruebas HTTP automatizadas; publica eventos mediante Outbox. Faltan consumidores de negocio y la creación idempotente de incidencias por referencia externa.
 - **RabbitMQ:** topología de ADR 0003, dispatchers Outbox y consumidores idempotentes en Fleet, Shipment e Incident implementados. Cada consumidor tiene su propia DLQ, y el reproceso está en `12-deployment-and-operations.md`. Faltan los efectos de negocio de Incident, que llegan con los escenarios de simulación. Los eventos anteriores a la corrección del dispatcher que ya agotaron sus intentos permanecen en `Outbox` sin publicarse; sus efectos ya se aplicaron.
 - **SignalR:** hub de Operación en vivo en Simulation, expuesto por YARP y consumido por Angular.
+- **Actualización en vivo:** Resumen, Envíos, Flota, Conductores, Incidencias y el contador del menú vuelven a leer sus datos cuando llega el aviso `changed` del hub. El navegador mantiene una sola conexión por sesión.
+- **Paginación:** Envíos y Flota piden cada página, búsqueda y filtro al servidor; sus totales salen de `/summary`. Los selectores y las búsquedas de placa o conductor recorren todas las páginas. Resumen e Incidencias siguen usando los 100 envíos más recientes para el mapa, la actividad y nombrar el envío de una incidencia.
+- **Cuentas:** cambio de contraseña propia, restablecimiento por administrador, cambio de rol y recuperación desde el host.
 - **Leaflet/mapa:** integrado en Operación en vivo con teselas de OpenStreetMap; si no cargan, las capas siguen funcionando y se avisa.
 - **CORS:** Gateway e Identity permiten explícitamente `http://localhost:4200` con credenciales y headers CSRF. El 2026-11-08 se verificó manualmente el flujo en navegador (ver "Pruebas ejecutadas"); sigue sin existir una prueba de navegador automatizada en el repositorio.
 - **Sesión frontend:** el interceptor mantiene el access token solo en memoria, envía `withCredentials` para las cookies y reconstruye el encabezado `Bearer` con el token vigente después de una renovación; no usa `localStorage` ni `sessionStorage`.
@@ -137,6 +142,8 @@ Automatizadas: 100/100 pruebas backend y 43/43 pruebas Angular; builds correctos
 Automatizadas: 96/96 pruebas backend y 43/43 pruebas Angular; builds correctos.
 
 Manuales contra la pila real: con bases y vhost temporales ya eliminados, inicio, pausa, reanudación, avance en tiempo real por SignalR a través del Gateway, entrega automática al llegar y liberación del vehículo por eventos; mapa y globo de inicio de sesión revisados con capturas.
+
+Manuales contra la pila real, 2026-11-09, con bases y vhost temporales ya eliminados: 105 envíos paginados en 18 páginas con totales correctos desde el servidor; una asignación y una avería actualizaron Envíos, Flota, Resumen, Incidencias y el contador del menú sin recargar la página; cambio y restablecimiento de contraseña y cambio de rol verificados por la API a través del Gateway.
 
 ### Menú y acceso desde la red local (2026-11-09)
 

@@ -62,6 +62,8 @@ En macOS, Linux o Git Bash:
 
 La primera vez tarda varios minutos porque compila las imágenes. Al terminar muestra la dirección, [http://localhost:4200](http://localhost:4200), y el correo y la contraseña del administrador. Las contraseñas y claves se generan solas en el archivo local `.env`, que no se sube al repositorio.
 
+Si olvidas una contraseña, un administrador la restablece en Administración. Si no queda ninguno con acceso, sigue [Recuperar el acceso](docs/12-deployment-and-operations.md#recuperar-el-acceso).
+
 Para detener la aplicación:
 
 ```bash

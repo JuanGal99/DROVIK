@@ -4,6 +4,7 @@ import { catchError, forkJoin, finalize, map, Observable, tap, throwError } from
 import { environment } from '../../../environments/environment';
 import { newIdempotencyKey } from '../id/idempotency-key';
 import { Driver, DriversDataService } from './drivers-data.service';
+import { NO_SUMMARY, PagedResponse, StatusSummary } from './paged';
 import { FleetDataService, Vehicle } from './fleet-data.service';
 
 export type ShipmentStatus = 'Pending' | 'Assigned' | 'InTransit' | 'Delayed' | 'Delivered' | 'Cancelled';
@@ -39,7 +40,7 @@ export interface Shipment {
 
 export interface ShipmentDraft extends Pick<Shipment, 'customerId' | 'weightKg' | 'priority'> { originCustomerId: string; }
 export type ShipmentEdit = ShipmentDraft;
-interface PagedResponse<T> { items: T[]; totalCount: number; page: number; pageSize: number; }
+export interface ShipmentPageQuery { page: number; pageSize: number; search: string; status: string; }
 interface ShipmentResponse extends Omit<Shipment, 'createdAt' | 'statusHistory'> {
   createdAtUtc: string;
   updatedAtUtc: string;
@@ -56,7 +57,11 @@ export class ShipmentsDataService {
   readonly error = signal<string | null>(null);
   readonly actionError = signal<string | null>(null);
   readonly shipments = signal<Shipment[]>([]);
+  readonly pageItems = signal<Shipment[]>([]);
+  readonly totalCount = signal(0);
+  readonly summary = signal<StatusSummary>(NO_SUMMARY);
 
+  /** The most recent shipments, for the overview and for naming the shipment an incident refers to. */
   loadShipments(): Observable<Shipment[]> {
     this.loading.set(true);
     this.error.set(null);
@@ -71,6 +76,33 @@ export class ShipmentsDataService {
       catchError((error) => this.handleError(error, 'No se pudo cargar los envíos desde el Gateway.')),
       finalize(() => this.loading.set(false)),
     );
+  }
+
+  /** One page of the table. A background reload leaves what is on screen alone if it fails. */
+  loadPage(query: ShipmentPageQuery, background = false): Observable<unknown> {
+    if (!background) { this.loading.set(this.pageItems().length === 0); this.error.set(null); }
+    let params = new HttpParams().set('page', query.page).set('pageSize', query.pageSize);
+    if (query.search.trim()) params = params.set('search', query.search.trim());
+    if (query.status !== 'Todos') params = params.set('status', query.status);
+    return forkJoin({
+      response: this.http.get<PagedResponse<ShipmentResponse>>(`${environment.gatewayUrl}/api/v1/shipments`, { params }),
+      summary: this.http.get<StatusSummary>(`${environment.gatewayUrl}/api/v1/shipments/summary`),
+      vehicles: this.fleet.loadVehicles(),
+      drivers: this.drivers.loadDrivers(),
+    }).pipe(
+      tap(({ response, summary }) => {
+        this.pageItems.set(response.items.map((item) => this.mapShipment(item)));
+        this.totalCount.set(response.totalCount);
+        this.summary.set(summary);
+        this.error.set(null);
+      }),
+      catchError((error) => background ? throwError(() => error) : this.handleError(error, 'No se pudo cargar los envíos desde el Gateway.')),
+      finalize(() => { if (!background) this.loading.set(false); }),
+    );
+  }
+
+  loadSummary(): Observable<StatusSummary> {
+    return this.http.get<StatusSummary>(`${environment.gatewayUrl}/api/v1/shipments/summary`).pipe(tap((summary) => this.summary.set(summary)));
   }
 
   vehicle(id?: string): Vehicle | undefined { return id ? this.fleet.vehicles().find((vehicle) => vehicle.id === id) : undefined; }

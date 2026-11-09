@@ -1,5 +1,8 @@
 import { CommonModule } from '@angular/common';
 import { Component, computed, inject } from '@angular/core';
+import { tap } from 'rxjs';
+import { createReloader } from '../../core/data/paged';
+import { OperationsHubService } from '../../core/realtime/operations-hub.service';
 import { RouterLink } from '@angular/router';
 import { OverviewDataService } from '../../core/data/overview-data.service';
 import { ShipmentStatus } from '../../core/data/shipments-data.service';
@@ -25,9 +28,14 @@ export class Overview {
   readonly today = new Intl.DateTimeFormat('es-CO', { weekday: 'long', day: 'numeric', month: 'long' }).format(new Date());
   readonly hasStages = computed(() => this.data.stages().some((stage) => stage.count > 0));
 
+  private readonly reloader = createReloader(
+    (background) => this.data.load(background).pipe(tap({ error: () => { if (!background) this.data.failed.set(true); } })),
+    { changes: inject(OperationsHubService).changes('shipments', 'fleet', 'incidents') },
+  );
+
   constructor() { this.load(); }
 
-  load(): void { this.data.load().subscribe({ error: () => this.data.failed.set(true) }); }
+  load(): void { this.reloader.now(); }
   stageLabel(status: ShipmentStatus): string { return STATUS_LABELS[status]; }
   eventLabel(status: ShipmentStatus): string { return EVENT_LABELS[status]; }
 }

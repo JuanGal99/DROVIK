@@ -69,6 +69,16 @@ La generación temporal requiere permisos de escritura en `%TEMP%`; eliminar el 
 
 ## 12.5 Inicio, apagado y persistencia
 
+### Recuperar el acceso
+
+No hay servicio de correo. Quien olvida su contraseña pide a un administrador que la restablezca en Administración. Si nadie con ese rol puede entrar, con la aplicación en marcha y desde la raíz del repositorio:
+
+```bash
+docker compose --profile app exec -e DROVIK_RECOVER_EMAIL='correo@de.la.cuenta' -e DROVIK_RECOVER_PASSWORD='nueva contraseña' identity dotnet Drovik.Identity.Api.dll --recover-password
+```
+
+La contraseña debe cumplir la política. El comando cierra las sesiones de la cuenta y la reactiva si estaba desactivada.
+
 El flujo principal usa Docker Compose solo para SQL Server y RabbitMQ; backend directo desde IDE/CLI y frontend Angular CLI. Los puertos HTTP de desarrollo son Gateway 5200, Identity 5201, Fleet 5202, Shipment 5203, Simulation 5204 e Incident 5205. YARP enruta prefijos API a los servicios; las funciones de dominio se implementan por fase.
 
 1. Clonar el repo y copiar `.env.example` a `.env`; establecer contraseñas locales fuertes para SQL Server y RabbitMQ.

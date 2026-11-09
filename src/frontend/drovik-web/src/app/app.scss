@@ -36,7 +36,7 @@
 .sidebar-collapsed .sidebar-header { flex-direction: column; height: auto; gap: 8px; }
 .sidebar-collapsed .brand { padding: 0; }
 .sidebar-collapsed .nav-item { justify-content: center; padding: 0; }
-.sidebar-collapsed .profile-row { justify-content: center; }
+.sidebar-collapsed .profile-row { flex-direction: column; justify-content: center; }
 
 .mobile-scrim { display: none; }
 .auth-loading { display: grid; min-height: 100vh; place-items: center; color: var(--text-secondary); }

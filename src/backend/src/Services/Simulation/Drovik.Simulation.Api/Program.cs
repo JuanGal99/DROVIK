@@ -24,6 +24,8 @@ builder.Services.AddSingleton<IRouteProvider, DeliveryNetworkRouteProvider>();
 builder.Services.AddScoped<ShipmentFeed>();
 builder.Services.AddSingleton<SimulationEngine>();
 builder.Services.AddHostedService(services => services.GetRequiredService<SimulationEngine>());
+builder.Services.AddSingleton<DataChangeRelay>();
+builder.Services.AddHostedService(services => services.GetRequiredService<DataChangeRelay>());
 builder.Services.AddHttpClient("shipment", client =>
 {
     client.BaseAddress = new Uri(builder.Configuration["Shipment:BaseUrl"] ?? "http://localhost:5203");

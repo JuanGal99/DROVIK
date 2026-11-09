@@ -1,3 +1,5 @@
+import { createReloader } from '../../core/data/paged';
+import { OperationsHubService } from '../../core/realtime/operations-hub.service';
 import { CommonModule } from '@angular/common';
 import { Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
@@ -44,36 +46,28 @@ export class ShipmentsPage {
   readonly statuses: ShipmentStatus[] = ['Pending', 'Assigned', 'InTransit', 'Delayed', 'Delivered', 'Cancelled'];
   readonly availableVehicles = computed(() => this.data.availableVehicles().filter((vehicle) => vehicle.capacityKg >= (this.selected()?.weightKg ?? 0)));
   readonly availableDrivers = computed(() => this.data.availableDrivers());
-  readonly filtered = computed(() => {
-    const term = this.query().trim().toLocaleLowerCase('es');
-    return this.data.shipments().filter((shipment) => {
-      const customer = `${shipment.customerName} ${shipment.originName ?? ''}`;
-      const vehicle = this.data.vehicle(shipment.vehicleId)?.plate ?? '';
-      return (this.statusFilter() === 'Todos' || shipment.status === this.statusFilter()) &&
-        (!term || `${shipment.trackingCode} ${customer} ${shipment.destination} ${vehicle}`.toLocaleLowerCase('es').includes(term));
-    });
-  });
-  readonly pageCount = computed(() => Math.max(1, Math.ceil(this.filtered().length / this.pageSize)));
-  readonly pageItems = computed(() => this.filtered().slice((this.page() - 1) * this.pageSize, this.page() * this.pageSize));
-  readonly inTransitCount = computed(() => this.data.shipments().filter((shipment) => ['InTransit', 'Delayed'].includes(shipment.status)).length);
-  readonly pendingCount = computed(() => this.data.shipments().filter((shipment) => shipment.status === 'Pending').length);
+  readonly pageItems = this.data.pageItems;
+  readonly pageCount = computed(() => Math.max(1, Math.ceil(this.data.totalCount() / this.pageSize)));
+  readonly inTransitCount = computed(() => this.countOf('InTransit') + this.countOf('Delayed'));
+  readonly pendingCount = computed(() => this.countOf('Pending'));
+  private readonly reloader = createReloader(
+    (background) => this.data.loadPage({ page: this.page(), pageSize: this.pageSize, search: this.query(), status: this.statusFilter() }, background),
+    { changes: inject(OperationsHubService).changes('shipments', 'fleet'), loaded: () => this.afterLoad() },
+  );
 
-  constructor() {
-    this.data.loadShipments().subscribe({
-      next: () => this.data.loading.set(false),
-      error: () => { this.data.loading.set(false); },
-    });
-  }
+  constructor() { this.reloader.now(); }
+
+  retry(): void { this.reloader.now(); }
 
   statusLabel(status: ShipmentStatus): string { return STATUS_LABELS[status]; }
   statusClass(status: ShipmentStatus): string { return STATUS_CLASSES[status]; }
   priorityLabel(priority: ShipmentPriority): string { return PRIORITY_LABELS[priority]; }
   vehiclePlate(id?: string): string { return this.data.vehicle(id)?.plate ?? '—'; }
   driverName(id?: string): string { return this.data.driver(id)?.fullName ?? '—'; }
-  updateFilter(): void { this.page.set(1); }
+  updateFilter(): void { this.page.set(1); this.reloader.afterTyping(); }
   historySource(source: string): string { return HISTORY_SOURCES[source] ?? source; }
   closeOverlays(): void { this.editorOpen.set(false); this.editOpen.set(false); this.assignmentOpen.set(false); this.selected.set(null); }
-  changePage(delta: number): void { this.page.set(Math.min(this.pageCount(), Math.max(1, this.page() + delta))); }
+  changePage(delta: number): void { this.page.set(Math.min(this.pageCount(), Math.max(1, this.page() + delta))); this.reloader.now(); }
   select(shipment: Shipment): void {
     this.selected.set(shipment);
     this.formError.set('');
@@ -111,7 +105,7 @@ export class ShipmentsPage {
     if (!shipment) return;
     if (!this.routeIsValid(this.editDraft())) return;
     this.data.updateShipment(shipment.id, this.editDraft()).subscribe({
-      next: (updated) => { this.editOpen.set(false); this.selected.set(updated); },
+      next: (updated) => { this.editOpen.set(false); this.selected.set(updated); this.reloader.now(); },
       error: () => this.formError.set(this.data.actionError() ?? 'No se pudo guardar el envío.'),
     });
   }
@@ -120,7 +114,7 @@ export class ShipmentsPage {
     const draft = this.draft();
     if (!this.routeIsValid(draft)) return;
     this.data.createDraft(draft).subscribe({
-      next: () => this.editorOpen.set(false),
+      next: () => { this.editorOpen.set(false); this.reloader.now(); },
       error: () => this.formError.set(this.data.actionError() ?? 'No se pudo crear el envío.'),
     });
   }
@@ -137,7 +131,7 @@ export class ShipmentsPage {
     const shipment = this.selected();
     if (!shipment || !this.selectedVehicleId() || !this.selectedDriverId()) { this.formError.set('Selecciona un vehículo y un conductor.'); return; }
     this.data.assign(shipment.id, this.selectedVehicleId(), this.selectedDriverId()).subscribe({
-      next: (updated) => { this.assignmentOpen.set(false); this.selected.set(updated); },
+      next: (updated) => { this.assignmentOpen.set(false); this.selected.set(updated); this.reloader.now(); },
       error: () => this.formError.set(this.data.actionError() ?? 'No se pudo realizar la reserva.'),
     });
   }
@@ -146,7 +140,7 @@ export class ShipmentsPage {
     const shipment = this.selected();
     if (!shipment) return;
     this.data.transition(shipment.id, status, status === 'Delayed' ? 'Retraso operativo.' : undefined).subscribe({
-      next: (updated) => { this.selected.set(updated); this.formError.set(''); },
+      next: (updated) => { this.selected.set(updated); this.formError.set(''); this.reloader.now(); },
       error: () => this.formError.set(this.data.actionError() ?? 'No se pudo actualizar el estado.'),
     });
   }
@@ -174,6 +168,16 @@ export class ShipmentsPage {
       return false;
     }
     return true;
+  }
+
+  private countOf(status: ShipmentStatus): number { return this.data.summary().byStatus[status] ?? 0; }
+
+  /** Records can disappear while the screen is open, leaving it past the last page or showing an outdated detail. */
+  private afterLoad(): void {
+    if (this.page() > this.pageCount()) { this.page.set(this.pageCount()); this.reloader.now(); return; }
+    const open = this.selected();
+    const current = open && this.data.pageItems().find((item) => item.id === open.id);
+    if (current) this.selected.set(current);
   }
 
   private loadCatalog(): void { this.customers.loadCustomers().subscribe({ error: () => undefined }); }

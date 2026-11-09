@@ -9,6 +9,8 @@ label { margin: 14px 0 6px; color: var(--text-secondary); font-size: var(--type-
 input { width: 100%; min-height: 42px; padding: 0 12px; border: 1px solid var(--line-strong); border-radius: 2px; background: var(--surface-app); color: var(--text-primary); }
 input:focus { border-color: var(--accent); }
 .form-error { margin: 14px 0 0; color: var(--danger); font-size: var(--type-small); }
+.form-notice { margin: 14px 0 0; color: var(--success); font-size: var(--type-small); }
+.login-help { margin: 14px 0 0; color: var(--text-muted); font-size: var(--type-small); }
 .login-button { min-height: 44px; margin-top: 24px; border: 1px solid var(--accent-strong); border-radius: 2px; background: var(--accent-strong); color: #fff; font-weight: 600; cursor: pointer; }
 .login-button:hover:not(:disabled) { background: var(--accent-hover); }
 .login-button:disabled { cursor: not-allowed; opacity: .5; }

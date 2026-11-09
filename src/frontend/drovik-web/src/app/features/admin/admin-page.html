@@ -5,6 +5,7 @@
 
   <div class="section-title"><h2>Usuarios</h2><button class="primary-action" type="button" (click)="openCreate()"><i class="pi pi-plus" aria-hidden="true"></i> Crear usuario</button></div>
   @if (rowError()) { <p class="form-error" role="alert">{{ rowError() }}</p> }
+  @if (rowNotice()) { <p class="done" role="status">{{ rowNotice() }}</p> }
   <section class="table-panel" aria-label="Usuarios">
     @if (data.loading()) {
       <div class="state-message"><i class="pi pi-spin pi-spinner" aria-hidden="true"></i> Cargando usuarios…</div>
@@ -17,9 +18,9 @@
           @for (user of data.users(); track user.id) {
             <tr>
               <td><strong>{{ user.email }}</strong>@if (isSelf(user)) { <small>Tu cuenta</small> }</td>
-              <td>{{ roleLabels(user) }}</td>
+              <td>@if (isSelf(user)) { {{ roleLabels(user) }} } @else { <label class="filter-field role-field"><select [attr.aria-label]="'Rol de ' + user.email" [ngModel]="user.roles[0]" (ngModelChange)="changeRole(user, $event)"><option value="Operator">Operador</option><option value="Administrator">Administrador</option></select></label> }</td>
               <td><span class="availability-badge" [class.inactive]="!user.isActive"><i></i>{{ user.isActive ? 'Activo' : 'Inactivo' }}</span></td>
-              <td class="row-end"><button class="secondary-action" type="button" [disabled]="isSelf(user)" (click)="toggle(user)">{{ user.isActive ? 'Desactivar' : 'Reactivar' }}</button></td>
+              <td class="row-end"><button class="secondary-action" type="button" [disabled]="isSelf(user)" (click)="openReset(user)">Restablecer contraseña</button> <button class="secondary-action" type="button" [disabled]="isSelf(user)" (click)="toggle(user)">{{ user.isActive ? 'Desactivar' : 'Reactivar' }}</button></td>
             </tr>
           }
         </tbody>
@@ -52,6 +53,18 @@
       }
     </div>
   </section>
+
+  @if (resetTarget(); as target) {
+    <div class="modal-backdrop" (click)="resetTarget.set(null)"></div>
+    <section class="ops-modal" role="dialog" aria-modal="true" aria-labelledby="reset-title">
+      <header><h2 id="reset-title">Restablecer contraseña</h2><button class="close-button" type="button" aria-label="Cerrar formulario" (click)="resetTarget.set(null)"><i class="pi pi-times"></i></button></header>
+      <form #resetForm="ngForm" (ngSubmit)="resetPassword()">
+        <label>Nueva contraseña para {{ target.email }}<input name="newPassword" type="password" required minlength="12" autocomplete="new-password" [ngModel]="newPassword()" (ngModelChange)="newPassword.set($event)"><small>Al menos 12 caracteres, con mayúscula, minúscula, número y símbolo. Compártela con la persona por un medio seguro.</small></label>
+        @if (formError()) { <p class="form-error" role="alert">{{ formError() }}</p> }
+        <footer><button class="secondary-action" type="button" (click)="resetTarget.set(null)">Cancelar</button><button class="primary-action" type="submit" [disabled]="resetForm.invalid">Restablecer contraseña</button></footer>
+      </form>
+    </section>
+  }
 
   @if (editorOpen()) {
     <div class="modal-backdrop" (click)="editorOpen.set(false)"></div>

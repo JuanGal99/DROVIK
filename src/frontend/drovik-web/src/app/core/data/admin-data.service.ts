@@ -30,6 +30,16 @@ export class AdminDataService {
     );
   }
 
+  setRole(id: string, role: UserRole): Observable<ManagedUser> {
+    return this.http.patch<ManagedUser>(`${this.endpoint}/${id}/role`, { role }).pipe(
+      tap((updated) => this.users.update((items) => items.map((item) => item.id === id ? updated : item))),
+    );
+  }
+
+  resetPassword(id: string, newPassword: string): Observable<void> {
+    return this.http.post<void>(`${this.endpoint}/${id}/password`, { newPassword });
+  }
+
   setActive(id: string, isActive: boolean): Observable<ManagedUser> {
     return this.http.patch<ManagedUser>(`${this.endpoint}/${id}/status`, { isActive }).pipe(
       tap((updated) => this.users.update((items) => items.map((item) => item.id === id ? updated : item))),

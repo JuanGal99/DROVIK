@@ -18,6 +18,7 @@
     <div class="sidebar-bottom">
       <div class="profile-row">
         <span class="profile-copy" [hidden]="sidebarCollapsed()"><strong>{{ auth.user()?.email }}</strong><small>{{ roles() }}</small></span>
+        <button class="logout-button" type="button" aria-label="Cambiar contraseña" title="Cambiar contraseña" (click)="passwordDialogOpen.set(true)"><i class="pi pi-key" aria-hidden="true"></i></button>
         <button class="logout-button" type="button" aria-label="Cerrar sesión" title="Cerrar sesión" (click)="logout()"><i class="pi pi-sign-out" aria-hidden="true"></i></button>
       </div>
     </div>
@@ -30,6 +31,7 @@
     </header>
     <main class="page-content"><router-outlet /></main>
   </div>
+  @if (passwordDialogOpen()) { <app-change-password-dialog (closed)="passwordDialogOpen.set(false)" /> }
 </div>
 } @else if (!auth.ready()) {
 <main class="auth-loading" aria-live="polite">Abriendo DROVIK…</main>

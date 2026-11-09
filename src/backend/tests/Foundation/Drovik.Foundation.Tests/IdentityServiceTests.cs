@@ -244,6 +244,152 @@ public sealed class IdentityServiceTests : IAsyncLifetime
         Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
     }
 
+    [Fact]
+    public async Task User_changes_their_password_and_every_session_ends()
+    {
+        await CreateUser("operator@example.test", "Operator");
+        using var login = await Login("operator@example.test");
+        var refresh = CookieValue(login, "drovik.refresh");
+        var token = (await login.Content.ReadFromJsonAsync<AuthResponse>())!.AccessToken;
+        using var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        using var wrong = await client.PostAsJsonAsync("/api/v1/auth/change-password", new { currentPassword = "Not-The-Pass-2026", newPassword = "Brand-New-Pass-2026" });
+        Assert.Equal(HttpStatusCode.BadRequest, wrong.StatusCode);
+        Assert.Contains("actual", await wrong.Content.ReadAsStringAsync(), StringComparison.Ordinal);
+        using var weak = await client.PostAsJsonAsync("/api/v1/auth/change-password", new { currentPassword = "Strong-Pass-2026", newPassword = "short" });
+        Assert.Equal(HttpStatusCode.BadRequest, weak.StatusCode);
+
+        using var changed = await client.PostAsJsonAsync("/api/v1/auth/change-password", new { currentPassword = "Strong-Pass-2026", newPassword = "Brand-New-Pass-2026" });
+        Assert.Equal(HttpStatusCode.NoContent, changed.StatusCode);
+
+        using var renewed = await SendCsrfRequest(HttpMethod.Post, "/api/v1/auth/refresh", await GetCsrf(), refresh);
+        Assert.Equal(HttpStatusCode.Unauthorized, renewed.StatusCode);
+        using var oldPassword = await Login("operator@example.test");
+        Assert.Equal(HttpStatusCode.Unauthorized, oldPassword.StatusCode);
+        using var newPassword = await Login("operator@example.test", "Brand-New-Pass-2026");
+        Assert.Equal(HttpStatusCode.OK, newPassword.StatusCode);
+    }
+
+    [Fact]
+    public async Task Change_password_requires_a_session()
+    {
+        using var response = await _factory.CreateClient().PostAsJsonAsync("/api/v1/auth/change-password", new { currentPassword = "Strong-Pass-2026", newPassword = "Brand-New-Pass-2026" });
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Administrator_replaces_a_forgotten_password()
+    {
+        var target = await CreateUser("operator@example.test", "Operator");
+        await CreateUser("admin@example.test", "Administrator");
+        using var client = await ClientFor("admin@example.test");
+
+        using var weak = await client.PostAsJsonAsync($"/api/v1/users/{target.Id}/password", new { newPassword = "short" });
+        Assert.Equal(HttpStatusCode.BadRequest, weak.StatusCode);
+        Assert.False(string.IsNullOrEmpty(await LoginAndGetToken("operator@example.test")));
+
+        using var reset = await client.PostAsJsonAsync($"/api/v1/users/{target.Id}/password", new { newPassword = "Brand-New-Pass-2026" });
+        Assert.Equal(HttpStatusCode.NoContent, reset.StatusCode);
+        using var oldPassword = await Login("operator@example.test");
+        Assert.Equal(HttpStatusCode.Unauthorized, oldPassword.StatusCode);
+        using var newPassword = await Login("operator@example.test", "Brand-New-Pass-2026");
+        Assert.Equal(HttpStatusCode.OK, newPassword.StatusCode);
+    }
+
+    [Fact]
+    public async Task Replacing_a_password_keeps_a_deactivated_account_deactivated()
+    {
+        var target = await CreateUser("operator@example.test", "Operator");
+        await CreateUser("admin@example.test", "Administrator");
+        using var client = await ClientFor("admin@example.test");
+        using (await client.PatchAsJsonAsync($"/api/v1/users/{target.Id}/status", new { isActive = false })) { }
+
+        using (await client.PostAsJsonAsync($"/api/v1/users/{target.Id}/password", new { newPassword = "Brand-New-Pass-2026" })) { }
+
+        using var login = await Login("operator@example.test", "Brand-New-Pass-2026");
+        Assert.Equal(HttpStatusCode.Unauthorized, login.StatusCode);
+    }
+
+    [Fact]
+    public async Task Only_administrators_replace_passwords_and_never_their_own()
+    {
+        var admin = await CreateUser("admin@example.test", "Administrator");
+        var target = await CreateUser("operator@example.test", "Operator");
+        using var administrator = await ClientFor("admin@example.test");
+        using var operatorClient = await ClientFor("operator@example.test");
+
+        using var self = await administrator.PostAsJsonAsync($"/api/v1/users/{admin.Id}/password", new { newPassword = "Brand-New-Pass-2026" });
+        using var forbidden = await operatorClient.PostAsJsonAsync($"/api/v1/users/{target.Id}/password", new { newPassword = "Brand-New-Pass-2026" });
+
+        Assert.Equal(HttpStatusCode.Conflict, self.StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, forbidden.StatusCode);
+    }
+
+    [Fact]
+    public async Task Administrator_changes_the_role_of_another_user()
+    {
+        var target = await CreateUser("operator@example.test", "Operator");
+        await CreateUser("admin@example.test", "Administrator");
+        using var client = await ClientFor("admin@example.test");
+
+        using var invalid = await client.PatchAsJsonAsync($"/api/v1/users/{target.Id}/role", new { role = "Owner" });
+        Assert.Equal(HttpStatusCode.BadRequest, invalid.StatusCode);
+        using var changed = await client.PatchAsJsonAsync($"/api/v1/users/{target.Id}/role", new { role = "Administrator" });
+        Assert.Equal(HttpStatusCode.OK, changed.StatusCode);
+        Assert.Equal("Administrator", (await changed.Content.ReadFromJsonAsync<ManagedUserDto>())!.Roles.Single());
+
+        using var login = await Login("operator@example.test");
+        Assert.Equal("Administrator", (await login.Content.ReadFromJsonAsync<AuthResponse>())!.User.Roles.Single());
+    }
+
+    [Fact]
+    public async Task Administrator_cannot_change_their_own_role_and_operators_cannot_change_any()
+    {
+        var admin = await CreateUser("admin@example.test", "Administrator");
+        var target = await CreateUser("operator@example.test", "Operator");
+        using var administrator = await ClientFor("admin@example.test");
+        using var operatorClient = await ClientFor("operator@example.test");
+
+        using var self = await administrator.PatchAsJsonAsync($"/api/v1/users/{admin.Id}/role", new { role = "Operator" });
+        using var forbidden = await operatorClient.PatchAsJsonAsync($"/api/v1/users/{target.Id}/role", new { role = "Administrator" });
+
+        Assert.Equal(HttpStatusCode.Conflict, self.StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, forbidden.StatusCode);
+    }
+
+    [Fact]
+    public async Task Recovery_from_the_host_replaces_a_password_and_lifts_deactivation()
+    {
+        var target = await CreateUser("admin@example.test", "Administrator");
+        await using (var scope = _factory.Services.CreateAsyncScope())
+        {
+            var users = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+            var user = (await users.FindByIdAsync(target.Id.ToString()))!;
+            await users.SetLockoutEnabledAsync(user, true);
+            await users.SetLockoutEndDateAsync(user, DateTimeOffset.MaxValue);
+        }
+        static IConfiguration Settings(string email, string password) => new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["DROVIK_RECOVER_EMAIL"] = email, ["DROVIK_RECOVER_PASSWORD"] = password
+        }).Build();
+
+        Assert.Equal(3, await RecoverPassword.RunAsync(_factory.Services, Settings("missing@example.test", "Brand-New-Pass-2026")));
+        Assert.Equal(4, await RecoverPassword.RunAsync(_factory.Services, Settings("admin@example.test", "short")));
+        Assert.Equal(0, await RecoverPassword.RunAsync(_factory.Services, Settings("admin@example.test", "Brand-New-Pass-2026")));
+
+        using var login = await Login("admin@example.test", "Brand-New-Pass-2026");
+        Assert.Equal(HttpStatusCode.OK, login.StatusCode);
+    }
+
+    private async Task<HttpClient> ClientFor(string email)
+    {
+        var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", await LoginAndGetToken(email));
+        return client;
+    }
+
     private async Task<ApplicationUser> CreateUser(string email, string role)
     {
         await using var scope = _factory.Services.CreateAsyncScope();

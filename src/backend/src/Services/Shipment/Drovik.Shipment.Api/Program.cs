@@ -71,7 +71,8 @@ app.MapGet("/api/v1/shipments", async (
     if (!string.IsNullOrWhiteSpace(search))
     {
         var term = search.Trim();
-        query = query.Where(item => item.TrackingCode.Contains(term) || item.Customer.Name.Contains(term) || item.Destination.Contains(term));
+        query = query.Where(item => item.TrackingCode.Contains(term) || item.Customer.Name.Contains(term) || item.Destination.Contains(term)
+            || item.OriginCustomer!.Name.Contains(term));
     }
     if (status.HasValue) query = query.Where(item => item.Status == status.Value);
     if (priority.HasValue) query = query.Where(item => item.Priority == priority.Value);
@@ -80,6 +81,14 @@ app.MapGet("/api/v1/shipments", async (
         .OrderByDescending(item => item.CreatedAtUtc).ThenBy(item => item.Id).Skip((page - 1) * pageSize).Take(pageSize)
         .ToListAsync(cancellationToken);
     return Results.Ok(new PagedResponse<ShipmentResponse>(entities.Select(ToResponse).ToList(), totalCount, page, pageSize));
+}).RequireAuthorization(shipmentPolicy);
+
+// The screens page through the records, so their totals have to come from the whole table.
+app.MapGet("/api/v1/shipments/summary", async (ShipmentDbContext database, CancellationToken cancellationToken) =>
+{
+    var counts = await database.Shipments.AsNoTracking().GroupBy(item => item.Status)
+        .Select(group => new { Status = group.Key, Count = group.Count() }).ToListAsync(cancellationToken);
+    return Results.Ok(new StatusSummaryResponse(counts.Sum(item => item.Count), counts.ToDictionary(item => item.Status.ToString(), item => item.Count)));
 }).RequireAuthorization(shipmentPolicy);
 
 app.MapGet("/api/v1/shipments/{id:guid}", async (Guid id, ShipmentDbContext database, CancellationToken cancellationToken) =>

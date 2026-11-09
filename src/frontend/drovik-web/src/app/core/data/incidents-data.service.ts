@@ -43,9 +43,8 @@ export class IncidentsDataService {
 
   constructor(private readonly http: HttpClient) {}
 
-  load(filters: { status?: IncidentStatus | ''; severity?: IncidentSeverity | ''; page?: number } = {}): Observable<Incident[]> {
-    this.loading.set(true);
-    this.error.set(null);
+  load(filters: { status?: IncidentStatus | ''; severity?: IncidentSeverity | ''; page?: number } = {}, background = false): Observable<Incident[]> {
+    if (!background) { this.loading.set(true); this.error.set(null); }
     let params = new HttpParams().set('page', filters.page ?? 1).set('pageSize', 100);
     if (filters.status) params = params.set('status', filters.status);
     if (filters.severity) params = params.set('severity', filters.severity);
@@ -56,8 +55,8 @@ export class IncidentsDataService {
         if (!filters.status && !filters.severity) this.openCount.set(response.items.filter((item) => this.isOpen(item)).length);
       }),
       map((response) => response.items),
-      catchError((error) => this.handleError(error, 'No se pudieron cargar las incidencias.')),
-      finalize(() => this.loading.set(false)),
+      catchError((error) => background ? throwError(() => error) : this.handleError(error, 'No se pudieron cargar las incidencias.')),
+      finalize(() => { if (!background) this.loading.set(false); }),
     );
   }
 
