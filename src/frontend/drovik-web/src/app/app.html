@@ -7,7 +7,7 @@
       <button class="sidebar-toggle" type="button" (click)="toggleSidebar()" [attr.aria-expanded]="!sidebarCollapsed()" [attr.aria-label]="sidebarCollapsed() ? 'Mostrar menú lateral' : 'Ocultar menú lateral'" [attr.title]="sidebarCollapsed() ? 'Mostrar menú lateral' : 'Ocultar menú lateral'"><i class="pi" [class.pi-angle-double-right]="sidebarCollapsed()" [class.pi-angle-double-left]="!sidebarCollapsed()" aria-hidden="true"></i></button>
     </div>
     <nav class="primary-nav">
-      @for (item of navigation; track item.route) {
+      @for (item of visibleNavigation(); track item.route) {
         <a class="nav-item" [routerLink]="item.route" routerLinkActive="active" [attr.title]="sidebarCollapsed() ? item.label : null" (click)="closeMenu()">
           <i [class]="item.icon" aria-hidden="true"></i>
           <span class="nav-label" [hidden]="sidebarCollapsed()">{{ item.label }}</span>

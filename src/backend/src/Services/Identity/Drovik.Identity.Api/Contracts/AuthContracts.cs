@@ -5,4 +5,6 @@ public sealed record CreateUserRequest(string Email, string Password, string Rol
 public sealed record AuthUserDto(Guid Id, string Email, IReadOnlyList<string> Roles);
 public sealed record AuthResponse(string AccessToken, string TokenType, DateTime ExpiresAtUtc, AuthUserDto User);
 public sealed record CsrfResponse(string Token);
+public sealed record ManagedUserDto(Guid Id, string Email, IReadOnlyList<string> Roles, bool IsActive);
+public sealed record ChangeUserStatusRequest(bool IsActive);
 public sealed record ApiProblem(string Type, string Title, int Status, string Detail);

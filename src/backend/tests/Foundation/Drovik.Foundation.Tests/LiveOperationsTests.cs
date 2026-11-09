@@ -222,6 +222,91 @@ public sealed class LiveOperationsTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Congestion_slows_the_vehicle_and_is_announced_once()
+    {
+        _shipments.Add(ShipmentId);
+        var run = await StartAndGetId();
+
+        using var applied = await Scenario(run, "Congestion");
+        using var repeated = await Scenario(run, "Congestion");
+
+        Assert.Equal(HttpStatusCode.OK, applied.StatusCode);
+        Assert.Equal(HttpStatusCode.Conflict, repeated.StatusCode);
+        Assert.Equal(1, await CountEvents(DomainEvents.RouteDelayDetected));
+        _clock.Advance(TimeSpan.FromSeconds(2));
+        await Engine.TickAsync(CancellationToken.None);
+        Assert.Equal(LiveState.BaseSpeedMetersPerSecond * 30, (await Vehicle()).ProgressMeters, 3);
+    }
+
+    [Fact]
+    public async Task Breakdown_stops_the_vehicle_until_it_is_repaired()
+    {
+        _shipments.Add(ShipmentId);
+        var run = await StartAndGetId();
+        using (await Scenario(run, "Breakdown")) { }
+
+        _clock.Advance(TimeSpan.FromSeconds(3));
+        await Engine.TickAsync(CancellationToken.None);
+        Assert.Equal(0, (await Vehicle()).ProgressMeters);
+        Assert.Equal(1, await CountEvents(DomainEvents.VehicleBreakdownDetected));
+
+        using (await Scenario(run, "Repair")) { }
+        _clock.Advance(TimeSpan.FromSeconds(1));
+        await Engine.TickAsync(CancellationToken.None);
+        Assert.True((await Vehicle()).ProgressMeters > 0);
+    }
+
+    [Fact]
+    public async Task Detour_replaces_the_rest_of_the_route_with_a_longer_street_path()
+    {
+        _shipments.Add(ShipmentId);
+        var run = await StartAndGetId();
+        _clock.Advance(TimeSpan.FromSeconds(3));
+        await Engine.TickAsync(CancellationToken.None);
+        var before = await Vehicle();
+
+        using var detour = await Scenario(run, "Detour");
+        using var again = await Scenario(run, "Detour");
+
+        Assert.Equal(HttpStatusCode.OK, detour.StatusCode);
+        Assert.Equal(HttpStatusCode.Conflict, again.StatusCode);
+        var after = await Vehicle();
+        Assert.Equal(before.ProgressMeters, after.ProgressMeters, 3);
+        Assert.True(after.DistanceMeters > before.DistanceMeters);
+        Assert.Equal(1, await CountEvents(DomainEvents.RouteDeviationDetected));
+        var route = LiveState.DeserializeRoute(after.RouteJson);
+        Assert.Equal(Mercado.Latitude, route[^1].Latitude, 4);
+    }
+
+    [Fact]
+    public async Task Scenario_requires_a_vehicle_on_the_road()
+    {
+        _shipments.Add(ShipmentId);
+        var run = await StartAndGetId();
+
+        using var response = await _client.PostAsJsonAsync($"/api/v1/simulations/{run}/scenarios", new { shipmentId = Guid.NewGuid(), scenario = "Breakdown" });
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Reset_is_only_for_administrators_and_clears_the_run()
+    {
+        _shipments.Add(ShipmentId);
+        using (await Start()) { }
+        using var denied = await _client.PostAsync("/api/v1/simulations/demo-reset", null);
+        Assert.Equal(HttpStatusCode.Forbidden, denied.StatusCode);
+
+        using var admin = _factory.CreateClient();
+        admin.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", Token("Administrator"));
+        using var reset = await admin.PostAsync("/api/v1/simulations/demo-reset", null);
+
+        Assert.Equal(HttpStatusCode.NoContent, reset.StatusCode);
+        await using var scope = _factory.Services.CreateAsyncScope();
+        Assert.Equal(0, await scope.ServiceProvider.GetRequiredService<SimulationDbContext>().Runs.CountAsync());
+    }
+
+    [Fact]
     public async Task Cancelled_run_stops_being_live()
     {
         _shipments.Add(ShipmentId);
@@ -231,6 +316,15 @@ public sealed class LiveOperationsTests : IAsyncLifetime
 
         using var live = await _client.GetAsync("/api/v1/simulations/live");
         Assert.Equal(JsonValueKind.Null, (await live.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("run").ValueKind);
+    }
+
+    private Task<HttpResponseMessage> Scenario(Guid run, string scenario) =>
+        _client.PostAsJsonAsync($"/api/v1/simulations/{run}/scenarios", new { shipmentId = ShipmentId, scenario });
+
+    private async Task<int> CountEvents(string eventType)
+    {
+        await using var scope = _factory.Services.CreateAsyncScope();
+        return await scope.ServiceProvider.GetRequiredService<SimulationDbContext>().Outbox.CountAsync(item => item.EventType == eventType);
     }
 
     private Task<HttpResponseMessage> Start(int multiplier = 30) =>

@@ -1,0 +1,69 @@
+<section class="ops-page admin" aria-labelledby="admin-title">
+  <div class="page-heading">
+    <div><h1 id="admin-title">Administración</h1><p>Cuentas de acceso y datos de la operación.</p></div>
+  </div>
+
+  <div class="section-title"><h2>Usuarios</h2><button class="primary-action" type="button" (click)="openCreate()"><i class="pi pi-plus" aria-hidden="true"></i> Crear usuario</button></div>
+  @if (rowError()) { <p class="form-error" role="alert">{{ rowError() }}</p> }
+  <section class="table-panel" aria-label="Usuarios">
+    @if (data.loading()) {
+      <div class="state-message"><i class="pi pi-spin pi-spinner" aria-hidden="true"></i> Cargando usuarios…</div>
+    } @else if (data.error()) {
+      <div class="state-message error-state" role="alert"><i class="pi pi-exclamation-triangle" aria-hidden="true"></i>{{ data.error() }}<button type="button" (click)="data.load()">Reintentar</button></div>
+    } @else {
+      <div class="table-scroll"><table>
+        <thead><tr><th>Correo</th><th>Rol</th><th>Estado</th><th><span class="sr-only">Acciones</span></th></tr></thead>
+        <tbody class="read-only">
+          @for (user of data.users(); track user.id) {
+            <tr>
+              <td><strong>{{ user.email }}</strong>@if (isSelf(user)) { <small>Tu cuenta</small> }</td>
+              <td>{{ roleLabels(user) }}</td>
+              <td><span class="availability-badge" [class.inactive]="!user.isActive"><i></i>{{ user.isActive ? 'Activo' : 'Inactivo' }}</span></td>
+              <td class="row-end"><button class="secondary-action" type="button" [disabled]="isSelf(user)" (click)="toggle(user)">{{ user.isActive ? 'Desactivar' : 'Reactivar' }}</button></td>
+            </tr>
+          }
+        </tbody>
+      </table></div>
+    }
+  </section>
+
+  <div class="section-title data-title"><h2>Reiniciar datos</h2></div>
+  <section class="table-panel seeds" aria-label="Reiniciar datos">
+    <fieldset [disabled]="seed.running()">
+      <legend class="sr-only">Datos iniciales</legend>
+      @for (option of presets; track option.id) {
+        <label class="seed-option" [class.selected]="presetId() === option.id">
+          <input type="radio" name="preset" [value]="option.id" [ngModel]="presetId()" (ngModelChange)="presetId.set($event); confirming.set(false)">
+          <span><strong>{{ option.name }}</strong><small>{{ option.description }}</small></span>
+        </label>
+      }
+    </fieldset>
+    <div class="seed-actions">
+      @if (seed.running()) {
+        <p role="status"><i class="pi pi-spin pi-spinner" aria-hidden="true"></i> {{ seed.progress() }}</p>
+      } @else if (confirming()) {
+        <p class="warning">Se borrarán todos los envíos, incidencias y operaciones actuales. No se puede deshacer.</p>
+        <button class="secondary-action" type="button" (click)="confirming.set(false)">Cancelar</button>
+        <button class="primary-action danger-confirm" type="button" (click)="restart()">Borrar y cargar</button>
+      } @else {
+        @if (seed.finished()) { <p class="done" role="status">{{ seed.finished() }} <a routerLink="/operations">Abrir Operación en vivo</a></p> }
+        @if (seed.error()) { <p class="form-error" role="alert">{{ seed.error() }}</p> }
+        <button class="primary-action" type="button" (click)="confirming.set(true)">Reiniciar con {{ preset().name }}</button>
+      }
+    </div>
+  </section>
+
+  @if (editorOpen()) {
+    <div class="modal-backdrop" (click)="editorOpen.set(false)"></div>
+    <section class="ops-modal" role="dialog" aria-modal="true" aria-labelledby="user-form-title">
+      <header><h2 id="user-form-title">Crear usuario</h2><button class="close-button" type="button" aria-label="Cerrar formulario" (click)="editorOpen.set(false)"><i class="pi pi-times"></i></button></header>
+      <form #userForm="ngForm" (ngSubmit)="create()">
+        <label>Correo electrónico<input name="email" type="email" required email autocomplete="off" [ngModel]="draft().email" (ngModelChange)="setDraft('email', $event)"></label>
+        <label>Contraseña<input name="password" type="password" required minlength="12" autocomplete="new-password" [ngModel]="draft().password" (ngModelChange)="setDraft('password', $event)"><small>Al menos 12 caracteres, con mayúscula, minúscula, número y símbolo.</small></label>
+        <label>Rol<select name="role" required [ngModel]="draft().role" (ngModelChange)="setDraft('role', $event)"><option value="Operator">Operador</option><option value="Administrator">Administrador</option></select></label>
+        @if (formError()) { <p class="form-error" role="alert">{{ formError() }}</p> }
+        <footer><button class="secondary-action" type="button" (click)="editorOpen.set(false)">Cancelar</button><button class="primary-action" type="submit" [disabled]="userForm.invalid">Crear usuario</button></footer>
+      </form>
+    </section>
+  }
+</section>

@@ -14,7 +14,7 @@ Simulation Service es autoridad del estado simulado; Angular solo representa el 
 6. Aplicar escenarios, registrar eventos y cambios de estado.
 7. Persistir pausa, progreso, finalización y eventos necesarios para recuperación.
 
-Controles: Start, Pause, Resume, Cancel. Escenarios: Normal, Congestion, Breakdown, Detour.
+Controles: Start, Pause, Resume, Cancel. Escenarios por vehículo: Congestion (mitad de velocidad, envío retrasado e incidencia media), Breakdown (detiene el vehículo hasta Repair, envío retrasado e incidencia crítica) y Detour (ruta más larga por calles, sin perder el avance, e incidencia baja).
 
 ## 7.3 Frecuencia y transporte
 

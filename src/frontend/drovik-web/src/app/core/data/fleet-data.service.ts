@@ -86,6 +86,13 @@ export class FleetDataService {
     );
   }
 
+  reactivateVehicle(id: string): Observable<Vehicle> {
+    return this.http.patch<VehicleResponse>(`${environment.gatewayUrl}/api/v1/vehicles/${id}/status`, { status: 'Available' }).pipe(
+      map((vehicle) => this.mapVehicle(vehicle)),
+      tap((updated) => this.vehicles.update((items) => items.map((item) => item.id === id ? updated : item))),
+    );
+  }
+
   deactivateVehicle(id: string): Observable<Vehicle> {
     return this.http.delete<VehicleResponse>(`${environment.gatewayUrl}/api/v1/vehicles/${id}`).pipe(
       map((vehicle) => this.mapVehicle(vehicle)),

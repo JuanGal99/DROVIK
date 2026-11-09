@@ -32,11 +32,22 @@
     } @else {
       <ol class="vehicles">
         @for (vehicle of live.vehicles(); track vehicle.shipmentId) {
-          <li [class.delayed]="vehicle.isDelayed && vehicle.status === 'Moving'" [class.arrived]="vehicle.status === 'Arrived'">
+          <li [class.delayed]="vehicle.isDelayed && vehicle.status === 'Moving'" [class.broken]="vehicle.isBrokenDown" [class.arrived]="vehicle.status === 'Arrived'">
             <div class="vehicle-head"><strong>{{ plate(vehicle) }}</strong><span>{{ arrival(vehicle) }}</span></div>
             <p>{{ vehicle.originName }} a {{ vehicle.destinationName }}</p>
             <div class="progress" role="progressbar" [attr.aria-valuenow]="vehicle.progressPercent" aria-valuemin="0" aria-valuemax="100" [attr.aria-label]="'Avance de ' + vehicle.trackingCode"><span [style.width.%]="vehicle.progressPercent"></span></div>
-            <small>{{ vehicle.trackingCode }}@if (vehicle.isDelayed && vehicle.status === 'Moving') { , con retraso }</small>
+            <small>{{ vehicle.trackingCode }}@if (vehicle.isDelayed && vehicle.status === 'Moving') { , con retraso }@if (vehicle.isDetoured) { , desviado }</small>
+            @if (vehicle.status === 'Moving' && live.isActive()) {
+              <div class="scenarios" role="group" [attr.aria-label]="'Eventos para ' + vehicle.trackingCode">
+                <button type="button" [disabled]="live.busy() || vehicle.isDelayed" (click)="live.applyScenario(vehicle.shipmentId, 'Congestion')">Congestión</button>
+                @if (vehicle.isBrokenDown) {
+                  <button type="button" class="repair" [disabled]="live.busy()" (click)="live.applyScenario(vehicle.shipmentId, 'Repair')">Reparar</button>
+                } @else {
+                  <button type="button" [disabled]="live.busy()" (click)="live.applyScenario(vehicle.shipmentId, 'Breakdown')">Avería</button>
+                }
+                <button type="button" [disabled]="live.busy() || vehicle.isDetoured || vehicle.isBrokenDown" (click)="live.applyScenario(vehicle.shipmentId, 'Detour')">Desvío</button>
+              </div>
+            }
           </li>
         } @empty {
           <li class="empty">

@@ -31,6 +31,15 @@ export class FleetPage {
   readonly draft = signal<VehicleDraft>(this.emptyDraft());
 
   closeOverlays(): void { this.editorOpen.set(false); this.selected.set(null); }
+
+  toggleActive(vehicle: Vehicle): void {
+    const call = vehicle.status === 'Inactive' ? this.data.reactivateVehicle(vehicle.id) : this.data.deactivateVehicle(vehicle.id);
+    this.formError.set('');
+    call.subscribe({
+      next: (updated) => this.selected.set(updated),
+      error: (error: { error?: { detail?: string } }) => this.formError.set(error.error?.detail ?? 'No se pudo cambiar el estado del vehículo.'),
+    });
+  }
   readonly filtered = computed(() => {
     const term = this.query().trim().toLocaleLowerCase('es');
     return this.data.vehicles().filter((vehicle) =>

@@ -15,15 +15,34 @@ public sealed class ShipmentEventConsumer(
     private readonly ILogger<ShipmentEventConsumer> log = logger;
 
     protected override string ConsumerName => "shipment";
-    protected override IReadOnlyCollection<string> Subscriptions { get; } = [DomainEvents.ReservationExpired, DomainEvents.ShipmentRouteCompleted];
+    protected override IReadOnlyCollection<string> Subscriptions { get; } = [DomainEvents.ReservationExpired, DomainEvents.ShipmentRouteCompleted, DomainEvents.RouteDelayDetected, DomainEvents.VehicleBreakdownDetected];
 
     protected override Task HandleAsync(EventEnvelope envelope, ShipmentDbContext database, CancellationToken cancellationToken) =>
         envelope.EventType switch
         {
             DomainEvents.ReservationExpired => UndoAssignmentAsync(envelope, database, cancellationToken),
             DomainEvents.ShipmentRouteCompleted => DeliverAsync(envelope, database, cancellationToken),
+            DomainEvents.RouteDelayDetected => DelayAsync(envelope, "RouteDelay", "Congestión en la ruta", database, cancellationToken),
+            DomainEvents.VehicleBreakdownDetected => DelayAsync(envelope, "Breakdown", "Vehículo averiado en la ruta", database, cancellationToken),
             _ => throw new PermanentEventException($"Shipment no procesa el evento {envelope.EventType}.")
         };
+
+    private static async Task DelayAsync(EventEnvelope envelope, string source, string note, ShipmentDbContext database, CancellationToken cancellationToken)
+    {
+        var data = envelope.ReadData<RouteScenarioDetectedV1>();
+        var shipment = await database.Shipments.SingleOrDefaultAsync(item => item.Id == data.ShipmentId, cancellationToken);
+        if (shipment is not { Status: ShipmentStatus.InTransit }) return;
+        var now = DateTime.UtcNow;
+        shipment.Status = ShipmentStatus.Delayed;
+        shipment.UpdatedAtUtc = now;
+        database.StatusHistory.Add(new ShipmentStatusHistory
+        {
+            Id = Guid.NewGuid(), ShipmentId = shipment.Id, Status = ShipmentStatus.Delayed,
+            ActorId = "system", Source = source, Note = note, OccurredAtUtc = now
+        });
+        database.Outbox.Add(OutboxMessageFactory.Create(DomainEvents.ShipmentStatusChanged,
+            new ShipmentStatusChangedV1(shipment.Id, shipment.Status.ToString(), note, shipment.VehicleId, shipment.ReservationId), shipment.Id.ToString()));
+    }
 
     private static async Task DeliverAsync(EventEnvelope envelope, ShipmentDbContext database, CancellationToken cancellationToken)
     {

@@ -1,3 +1,4 @@
+using System.Text.Json;
 using System.IdentityModel.Tokens.Jwt;
 using System.Net;
 using System.Net.Http.Json;
@@ -206,6 +207,41 @@ public sealed class IdentityServiceTests : IAsyncLifetime
         var created = await userManager.FindByEmailAsync("first-admin@example.test");
         Assert.NotNull(created);
         Assert.Contains("Administrator", await userManager.GetRolesAsync(created));
+    }
+
+    [Fact]
+    public async Task Administrator_lists_deactivates_and_reactivates_users()
+    {
+        var target = await CreateUser("operator@example.test", "Operator");
+        await CreateUser("admin@example.test", "Administrator");
+        var token = await LoginAndGetToken("admin@example.test");
+        using var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        using var list = await client.GetAsync("/api/v1/users");
+        Assert.Equal(HttpStatusCode.OK, list.StatusCode);
+        Assert.Equal(2, (await list.Content.ReadFromJsonAsync<JsonElement>()).GetArrayLength());
+
+        using var off = await client.PatchAsJsonAsync($"/api/v1/users/{target.Id}/status", new { isActive = false });
+        Assert.False((await off.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("isActive").GetBoolean());
+        await Assert.ThrowsAnyAsync<Exception>(() => LoginAndGetToken("operator@example.test"));
+
+        using var on = await client.PatchAsJsonAsync($"/api/v1/users/{target.Id}/status", new { isActive = true });
+        Assert.True((await on.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("isActive").GetBoolean());
+        Assert.False(string.IsNullOrEmpty(await LoginAndGetToken("operator@example.test")));
+    }
+
+    [Fact]
+    public async Task Administrator_cannot_deactivate_their_own_account()
+    {
+        var admin = await CreateUser("admin@example.test", "Administrator");
+        var token = await LoginAndGetToken("admin@example.test");
+        using var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        using var response = await client.PatchAsJsonAsync($"/api/v1/users/{admin.Id}/status", new { isActive = false });
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
     }
 
     private async Task<ApplicationUser> CreateUser(string email, string role)

@@ -2,7 +2,7 @@
 
 ## 10.1 Datos
 
-Seed completamente sintético, coherente y reproducible. La demo opera en Bogotá con 3 bases de vehículos y una red fija de 8 puntos (ADR 0012), que dan 56 rutas por calle. Las migraciones siembran 15 vehículos y 18 conductores. `tools/seed-demo.mjs` crea por la API real 31 envíos en todos los estados y 6 incidencias; solo se usa sobre una instalación sin envíos y con la aplicación completa en marcha. `tools/reset-demo.sh --confirm` borra envíos, incidencias, reservas y operaciones para volver a cargarlos; conserva catálogos y cuentas. Usar valores ficticios, evitar datos personales reales.
+Seed completamente sintético, coherente y reproducible. La demo opera en Bogotá con 3 bases de vehículos y una red fija de 8 puntos (ADR 0012), que dan 56 rutas por calle. Las migraciones siembran 15 vehículos y 18 conductores. Desde Administración, un Administrator reinicia los datos con una de tres semillas: Operación corta (3 envíos en ruta), Hora pico (12 en ruta) u Operación completa (31 envíos en todos los estados y 6 incidencias). Los envíos se crean por la API real; catálogos y cuentas se conservan. Usar valores ficticios, evitar datos personales reales.
 
 ## 10.2 Escenarios
 
@@ -20,4 +20,4 @@ Los flujos principales funcionan sin GPS, tráfico en vivo, OSRM ni servicios cl
 
 ## 10.4 Reset
 
-El reset solo se habilita a Administrator o mediante operación local controlada. Debe ser idempotente, auditable y no anónimo. En desarrollo, documentar si reinicia las cinco bases de manera coordinada y detener consumidores/simulaciones antes del reset.
+El reset solo está disponible para Administrator, es idempotente y cada servicio registra quién lo ejecutó. Simulation, Shipment, Incident y Fleet borran cada uno sus propios datos mediante `POST .../demo-reset`; Identity no se toca.

@@ -3,7 +3,7 @@ import * as L from 'leaflet';
 import { Customer } from '../../core/data/customers-data.service';
 import { LiveVehicle } from '../../core/data/live-operations.service';
 
-interface VehicleLayer { marker: L.Marker; line: L.Polyline; }
+interface VehicleLayer { marker: L.Marker; line: L.Polyline; route?: LiveVehicle['route']; }
 
 @Component({
   selector: 'app-live-map',
@@ -73,9 +73,14 @@ export class LiveMap implements OnDestroy {
     }
     for (const vehicle of vehicles) {
       const arrived = vehicle.status === 'Arrived';
-      const color = arrived ? '#6bcb9a' : vehicle.isDelayed ? '#e7b163' : '#6cb1ec';
+      const color = arrived ? '#6bcb9a' : vehicle.isBrokenDown ? '#ee8d7b' : vehicle.isDelayed ? '#e7b163' : '#6cb1ec';
       const layer = this.vehicleLayers.get(vehicle.shipmentId) ?? this.addVehicle(map, vehicle);
       layer.marker.setLatLng([vehicle.latitude, vehicle.longitude]);
+      if (vehicle.route && vehicle.route !== layer.route) {
+        layer.line.setLatLngs(vehicle.route);
+        layer.route = vehicle.route;
+      }
+      layer.marker.getElement()?.classList.toggle('is-broken', vehicle.isBrokenDown && !arrived);
       layer.line.setStyle({ color, opacity: arrived ? 0.25 : 0.75 });
       layer.marker.getElement()?.classList.toggle('is-delayed', vehicle.isDelayed && !arrived);
       layer.marker.getElement()?.classList.toggle('is-arrived', arrived);
@@ -84,6 +89,7 @@ export class LiveMap implements OnDestroy {
 
   private addVehicle(map: L.Map, vehicle: LiveVehicle): VehicleLayer {
     const layer: VehicleLayer = {
+      route: vehicle.route,
       line: L.polyline(vehicle.route ?? [], { weight: 3 }).addTo(map),
       marker: L.marker([vehicle.latitude, vehicle.longitude], {
         icon: L.divIcon({ className: 'map-vehicle', html: '<i class="pi pi-truck"></i>', iconSize: [28, 28] }),

@@ -243,6 +243,18 @@ app.MapDelete("/api/v1/drivers/{id:guid}", async (Guid id, FleetDbContext databa
     return Results.Ok(ToDriverResponse(driver));
 }).RequireAuthorization(fleetPolicy);
 
+app.MapPost("/api/v1/vehicles/demo-reset", async (FleetDbContext database, System.Security.Claims.ClaimsPrincipal principal, ILogger<FleetDbContext> logger, CancellationToken cancellationToken) =>
+{
+    await database.Reservations.ExecuteDeleteAsync(cancellationToken);
+    await database.Vehicles.Where(item => item.Status == VehicleStatus.Assigned || item.Status == VehicleStatus.InTransit)
+        .ExecuteUpdateAsync(setters => setters.SetProperty(item => item.Status, VehicleStatus.Available), cancellationToken);
+    await database.Drivers.Where(item => item.Availability == DriverAvailability.Assigned)
+        .ExecuteUpdateAsync(setters => setters.SetProperty(item => item.Availability, DriverAvailability.Available).SetProperty(item => item.AssignedVehicleId, (Guid?)null), cancellationToken);
+    await database.Outbox.Where(item => item.PublishedAtUtc == null).ExecuteDeleteAsync(cancellationToken);
+    logger.LogWarning("Reservas y disponibilidad reiniciadas por {Actor}.", principal.FindFirst("sub")?.Value);
+    return Results.NoContent();
+}).RequireAuthorization(new AuthorizeAttribute { Roles = "Administrator" });
+
 app.MapGet("/api/v1/centers", async (FleetDbContext database, CancellationToken cancellationToken) =>
     Results.Ok((await database.DistributionCenters.AsNoTracking().Where(item => item.IsActive).OrderBy(item => item.Name)
         .ToListAsync(cancellationToken)).Select(ToCenterResponse))).RequireAuthorization(fleetPolicy);

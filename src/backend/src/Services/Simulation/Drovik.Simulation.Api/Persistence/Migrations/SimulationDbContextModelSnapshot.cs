@@ -81,7 +81,13 @@ namespace Drovik.Simulation.Api.Persistence.Migrations
                     b.Property<double>("DistanceMeters")
                         .HasColumnType("float");
 
+                    b.Property<bool>("IsBrokenDown")
+                        .HasColumnType("bit");
+
                     b.Property<bool>("IsDelayed")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsDetoured")
                         .HasColumnType("bit");
 
                     b.Property<double>("Latitude")

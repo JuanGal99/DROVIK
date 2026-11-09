@@ -6,59 +6,71 @@
   <img src="assets/branding/drovik-banner.svg" alt="DROVIK — Logistics Intelligence Platform" width="100%">
 </p>
 
-DROVIK es una plataforma demostrativa de gestión logística para centralizar operaciones de flota, envíos, recorridos e incidencias. Busca ayudar a comprender el estado operativo de una empresa de distribución mediante una consola unificada, un mapa y escenarios reproducibles.
+DROVIK es una consola de operaciones logísticas: gestiona flota, conductores y envíos entre 8 puntos de Bogotá, muestra los vehículos moviéndose por calles reales en un mapa en vivo y convierte lo que ocurre en la ruta en incidencias que se pueden atender.
 
-Es un proyecto de portafolio con ejecución local. El repositorio público contiene el código fuente y la documentación para clonar y ejecutar el sistema en un equipo propio. No se requiere ni contempla desplegar la aplicación completa públicamente.
+Es un proyecto de portafolio pensado para ejecutarse en local. Empresa, datos, posiciones y eventos son ficticios: no hay GPS ni tráfico real, aunque la consola se presenta como una operación real.
 
-> **Demostración sintética:** DROVIK no se conecta a GPS ni representa tráfico vial real. Las posiciones, eventos y datos operativos son ficticios, aunque la consola se presenta como una operación real.
+## Qué hace
 
-## Características previstas
-
-- Gestión de vehículos, conductores y centros de distribución.
-- Creación, asignación y seguimiento de envíos entre una red cerrada de 8 puntos en Bogotá.
-- Mapa operativo y simulaciones autoritativas en backend.
-- Registro, seguimiento y resolución de incidencias.
-- Actualizaciones seleccionadas en tiempo real mediante SignalR.
-- Roles Administrator y Operator.
-
-Estas capacidades describen el alcance del producto, no funcionalidades ya implementadas.
+- **Resumen:** esquema de la red con los envíos en curso, envíos por estado, flota disponible, incidencias abiertas y actividad reciente.
+- **Operación en vivo:** mapa con OpenStreetMap, vehículos que avanzan en tiempo real por calles reales, velocidad configurable y controles para iniciar, pausar, reanudar y detener.
+- **Escenarios:** por cada vehículo se puede provocar congestión, avería o desvío. Cada uno cambia el recorrido, retrasa el envío cuando corresponde y abre su incidencia.
+- **Envíos:** creación entre puntos de la red, reserva de vehículo y conductor, seguimiento de estados e historial. Al llegar a destino se entregan solos y liberan sus recursos.
+- **Flota y conductores:** alta, edición, desactivación y reactivación, con validación de capacidad y disponibilidad.
+- **Incidencias:** registro, atención, resolución e historial.
+- **Administración:** gestión de usuarios y reinicio de datos con semillas, solo para administradores.
 
 ## Arquitectura
 
 ![DROVIK System Architecture](assets/architecture/architecture-overview.svg)
 
-El diagrama conceptual representa cinco servicios con propiedad independiente de datos: Identity, Fleet, Shipment, Simulation e Incident. YARP es el punto de entrada del frontend; RabbitMQ distribuye eventos asíncronos y SignalR notifica al navegador. Cada servicio conserva sus migraciones y no consulta tablas de otros servicios.
+Cinco microservicios con base de datos propia (Identity, Fleet, Shipment, Simulation e Incident) detrás de un Gateway YARP. Se comunican por HTTP cuando necesitan respuesta inmediata y por RabbitMQ con Outbox, consumidores idempotentes y colas de error cuando no. La simulación es autoritativa en el servidor y SignalR entrega las posiciones al navegador.
 
-Fuente editable: [assets/architecture/architecture-overview.mmd](assets/architecture/architecture-overview.mmd). La arquitectura detallada está en [docs/03-architecture.md](docs/03-architecture.md).
+La arquitectura detallada está en [docs/03-architecture.md](docs/03-architecture.md).
 
 ## Tecnologías
 
-Angular runtime/compiler 21.2.26 y CLI/build 21.2.29, TypeScript 5.9.3 y PrimeNG 21.1.10; ASP.NET Core sobre .NET 10.0.403; EF Core 10.0.14; SQL Server 2022 CU23; YARP; RabbitMQ 4.4.0; SignalR; Docker Compose v2; xUnit; OpenTelemetry y Serilog; Leaflet y OpenStreetMap. Node.js 24.11.1 y npm 11.6.2. Angular 21 se seleccionó porque la versión Node disponible cumple su matriz de soporte; no se usan versiones preliminares. OSRM es opcional y hay geometrías locales de respaldo. Redis no forma parte de la primera versión. Ver [ADR 0007](docs/adr/0007-technical-versions.md).
-
-## Capturas
-
-Las capturas se añadirán cuando exista una implementación que mostrar. No hay imágenes de interfaz disponibles todavía. Se prevé incluir capturas reales y, opcionalmente, un video corto de demostración local.
+Angular 21, TypeScript, Leaflet y SignalR en el frontend; ASP.NET Core sobre .NET 10, Entity Framework Core, SQL Server 2022, RabbitMQ 4.4 y YARP en el backend; Docker Compose para la infraestructura y xUnit y Vitest para las pruebas. Las versiones exactas están en [ADR 0007](docs/adr/0007-technical-versions.md).
 
 ## Ejecución local
 
-La Fase 1 de fundación técnica está completada. SQL Server y RabbitMQ se validan en Docker Compose y cada servicio conserva sus migraciones. Identity, Fleet, Shipment e Incident tienen flujos reales parciales; Simulation continúa como shell.
+Requisitos: Git, Docker Desktop con Compose v2, .NET SDK 10.0.403 y Node.js 24.11.1 con npm 11.6.2.
 
-1. Instalar Git, Docker Desktop con Compose v2, .NET SDK 10.0.403 y Node.js 24.11.1/npm 11.6.2.
-2. Clonar este repositorio y crear `.env` copiando `.env.example`; sustituir todos los placeholders por secretos locales. `.env` está excluido de Git.
-3. En Windows, si PowerShell no reconoce `docker`, añadir al `PATH` de la sesión la carpeta CLI de Docker Desktop con `$env:PATH="$env:LOCALAPPDATA\Programs\DockerDesktop\resources\bin;$env:PATH"`. Iniciar SQL Server y RabbitMQ con `docker compose up -d`; comprobar que ambos aparecen `healthy` con `docker compose ps`.
-4. Desde `src/backend`, ejecutar `dotnet tool restore`, `dotnet restore --locked-mode`, `dotnet build` y `dotnet test`.
-5. Desde `src/frontend/drovik-web`, ejecutar `npm ci`, `npm run build` y `npm test -- --watch=false`.
-6. Configurar las connection strings de cada API y claves JWT locales según [guía de ejecución](docs/12-deployment-and-operations.md). La clave privada solo se guarda en User Secrets de Identity; los servicios validadores reciben la clave pública.
-7. Inicializar el primer administrador una sola vez mediante el comando explícito documentado en la guía local. No hay endpoint público de bootstrap ni credenciales predeterminadas.
-8. Ejecutar las APIs en los puertos 5201–5205, Gateway en 5200 y Angular con `npm start` en 4200. Abrir `http://localhost:4200`; el login usa el Gateway y requiere un administrador creado mediante el bootstrap local.
+1. Clonar el repositorio, copiar `.env.example` a `.env` y sustituir los valores por contraseñas locales.
+2. Iniciar la infraestructura con `docker compose up -d` y esperar a que `docker compose ps` muestre ambos servicios como `healthy`.
+3. Configurar las cadenas de conexión y las claves JWT con User Secrets, y añadir las variables `RabbitMq__*`, siguiendo [la guía de ejecución](docs/12-deployment-and-operations.md).
+4. Crear el primer administrador una sola vez con el comando `--bootstrap-admin` descrito en la guía. No hay credenciales predeterminadas.
+5. Iniciar las APIs en los puertos 5201 a 5205 y el Gateway en el 5200, con `ASPNETCORE_ENVIRONMENT=Development`. Cada servicio aplica sus migraciones al arrancar.
+6. Desde `src/frontend/drovik-web`, ejecutar `npm ci` y `npm start`.
+7. Abrir [http://localhost:4200](http://localhost:4200).
 
-La migración nueva de Identity crea tablas de cuentas, roles y hashes de refresh token; Fleet, Shipment e Incident tienen migraciones de negocio aplicables por separado y Simulation continúa con su shell fundacional. La guía detallada de secretos locales, puertos, JWT y bootstrap está en [docs/12-deployment-and-operations.md](docs/12-deployment-and-operations.md).
+Para abrir la aplicación desde otro dispositivo de la misma red, usar `npm run start:lan` como se explica en la guía.
 
-El backend podrá ofrecer también ejecución íntegra mediante contenedores como modalidad alternativa si se documenta y prueba. Redis, OSRM y servicios cloud no son necesarios para los flujos principales. Guía detallada: [docs/12-deployment-and-operations.md](docs/12-deployment-and-operations.md).
+## Cómo probar una operación
+
+1. Entrar con una cuenta de administrador e ir a **Administración**.
+2. En **Reiniciar datos**, elegir una semilla y confirmar:
+   - **Operación corta:** 3 envíos en ruta, ideal para probar los escenarios.
+   - **Hora pico:** 12 envíos en ruta al mismo tiempo.
+   - **Operación completa:** 31 envíos en todos los estados y 6 incidencias.
+3. Ir a **Operación en vivo** y pulsar **Iniciar operación**.
+4. Usar **Congestión**, **Avería** o **Desvío** en cualquier vehículo y revisar el resultado en **Envíos** e **Incidencias**.
+
+Reiniciar borra los envíos, incidencias y operaciones actuales. Los puntos de la red, la flota y las cuentas se conservan.
+
+## Pruebas
+
+```bash
+cd src/backend && dotnet test
+```
+
+```bash
+cd src/frontend/drovik-web && npm test -- --watch=false
+```
 
 ## Estado del proyecto
 
-**Fase 1 — Fundación técnica completada. Fases 2–4 integradas parcialmente y Fase 7 iniciada.** YARP enruta los prefijos de API e Identity tiene login/roles/sesiones. Fleet persiste vehículos, conductores, centros y reservas; Shipment gestiona Clientes y permite crear, listar, consultar, editar, asignar y cambiar estados; Incident permite registrar, filtrar, atender y resolver incidencias mediante Gateway. Fleet, Shipment e Incident ya publican eventos mediante Outbox; Simulation, mapa, realtime y consumidores de negocio siguen pendientes. Ver el [estado actual de implementación](docs/current-implementation-status.md).
+Los módulos descritos arriba están implementados e integrados. Quedan pendientes el arranque con un solo comando, la integración continua, los logs y trazas con Serilog y OpenTelemetry, y las pruebas automatizadas de navegador. El detalle está en el [estado de implementación](docs/current-implementation-status.md) y en el [roadmap](docs/13-roadmap.md).
 
 ## Documentación
 
@@ -71,7 +83,7 @@ El backend podrá ofrecer también ejecución íntegra mediante contenedores com
 - [Motor de simulación](docs/07-simulation-engine.md)
 - [Seguridad](docs/08-security-and-permissions.md)
 - [APIs y eventos](docs/09-api-and-events.md)
-- [Entorno demo](docs/10-demo-environment.md)
+- [Entorno de datos](docs/10-demo-environment.md)
 - [Pruebas](docs/11-testing-strategy.md)
 - [Ejecución y operaciones](docs/12-deployment-and-operations.md)
 - [Roadmap](docs/13-roadmap.md)

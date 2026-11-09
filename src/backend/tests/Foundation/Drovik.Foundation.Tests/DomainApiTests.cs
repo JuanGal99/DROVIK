@@ -9,6 +9,7 @@ using Drovik.Fleet.Api.Application;
 using Drovik.Fleet.Api.Domain;
 using Drovik.Fleet.Api.Messaging;
 using Drovik.Fleet.Api.Persistence;
+using Drovik.Incident.Api.Messaging;
 using Drovik.Incident.Api.Persistence;
 using Drovik.Messaging;
 using Drovik.Shipment.Api.Messaging;
@@ -388,6 +389,68 @@ public sealed class DomainApiTests : IAsyncLifetime
         Assert.Equal("Available", await VehicleStatusOf(TruckId));
     }
 
+    [Theory]
+    [InlineData(DomainEvents.RouteDelayDetected, "RouteDelay")]
+    [InlineData(DomainEvents.VehicleBreakdownDetected, "Breakdown")]
+    public async Task Road_problem_marks_the_shipment_as_delayed(string eventType, string source)
+    {
+        var id = await CreateShipment();
+        using (await Assign(id, $"road-{source}")) { }
+        using (await ChangeStatus(id, "InTransit")) { }
+
+        await _shipment.Services.GetRequiredService<ShipmentEventConsumer>().ProcessAsync(RoadEvent(eventType, id), redelivered: false, CancellationToken.None);
+
+        using var current = await _shipmentClient.GetAsync($"/api/v1/shipments/{id}");
+        var shipment = await ReadJson(current);
+        Assert.Equal("Delayed", shipment.GetProperty("status").GetString());
+        Assert.Equal(source, shipment.GetProperty("statusHistory")[0].GetProperty("source").GetString());
+    }
+
+    [Theory]
+    [InlineData(DomainEvents.VehicleBreakdownDetected, "MechanicalFailure", "Critical")]
+    [InlineData(DomainEvents.RouteDelayDetected, "Delay", "Medium")]
+    [InlineData(DomainEvents.RouteDeviationDetected, "Other", "Low")]
+    public async Task Road_event_opens_one_incident_even_if_delivered_twice(string eventType, string type, string severity)
+    {
+        var body = RoadEvent(eventType, Guid.NewGuid());
+        var consumer = _incident.Services.GetRequiredService<IncidentEventConsumer>();
+
+        Assert.Equal(ConsumeOutcome.Ack, await consumer.ProcessAsync(body, redelivered: false, CancellationToken.None));
+        Assert.Equal(ConsumeOutcome.Ack, await consumer.ProcessAsync(body, redelivered: true, CancellationToken.None));
+
+        using var list = await _incidentClient.GetAsync("/api/v1/incidents");
+        var incident = Assert.Single((await ReadJson(list)).GetProperty("items").EnumerateArray());
+        Assert.Equal(type, incident.GetProperty("type").GetString());
+        Assert.Equal(severity, incident.GetProperty("severity").GetString());
+        Assert.Contains("SH-ROAD", incident.GetProperty("description").GetString());
+    }
+
+    [Fact]
+    public async Task Reset_endpoints_are_only_for_administrators_and_free_the_fleet()
+    {
+        var id = await CreateShipment();
+        using (await Assign(id, "reset-key")) { }
+        await CreateIncident();
+        using var denied = await _shipmentClient.PostAsync("/api/v1/shipments/demo-reset", null);
+        Assert.Equal(HttpStatusCode.Forbidden, denied.StatusCode);
+
+        foreach (var (factoryClient, path) in new[] { (_shipment.CreateClient(), "/api/v1/shipments/demo-reset"), (_incident.CreateClient(), "/api/v1/incidents/demo-reset"), (_fleet.CreateClient(), "/api/v1/vehicles/demo-reset") })
+        {
+            using (factoryClient)
+            {
+                factoryClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", CreateToken("Administrator"));
+                using var reset = await factoryClient.PostAsync(path, null);
+                Assert.Equal(HttpStatusCode.NoContent, reset.StatusCode);
+            }
+        }
+
+        using var shipments = await _shipmentClient.GetAsync("/api/v1/shipments");
+        Assert.Equal(0, (await ReadJson(shipments)).GetProperty("totalCount").GetInt32());
+        using var incidents = await _incidentClient.GetAsync("/api/v1/incidents");
+        Assert.Equal(0, (await ReadJson(incidents)).GetProperty("totalCount").GetInt32());
+        Assert.Equal("Available", await VehicleStatusOf(TruckId));
+    }
+
     [Fact]
     public async Task Finished_route_does_not_deliver_a_shipment_that_never_left()
     {
@@ -631,6 +694,9 @@ public sealed class DomainApiTests : IAsyncLifetime
         foreach (var message in events)
             Assert.Equal(ConsumeOutcome.Ack, await consumer.ProcessAsync(EventEnvelopeSerializer.Serialize(message), redelivered: false, CancellationToken.None));
     }
+
+    private static byte[] RoadEvent(string eventType, Guid shipmentId) => EventEnvelopeSerializer.Serialize(
+        OutboxMessageFactory.Create(eventType, new RouteScenarioDetectedV1(shipmentId, Guid.NewGuid(), TruckId, "SH-ROAD")));
 
     private async Task DeliverFleetExpiriesToShipment()
     {
