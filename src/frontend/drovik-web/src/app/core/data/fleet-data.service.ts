@@ -38,7 +38,6 @@ interface VehicleResponse extends Omit<Vehicle, 'center' | 'lastUpdated'> {
 
 @Injectable({ providedIn: 'root' })
 export class FleetDataService {
-  readonly synthetic = false;
   readonly loading = signal(false);
   readonly saving = signal(false);
   readonly error = signal<string | null>(null);

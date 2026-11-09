@@ -20,7 +20,6 @@ interface PagedResponse<T> { items: T[]; totalCount: number; page: number; pageS
 
 @Injectable({ providedIn: 'root' })
 export class DriversDataService {
-  readonly synthetic = false;
   readonly loading = signal(false);
   readonly saving = signal(false);
   readonly error = signal<string | null>(null);

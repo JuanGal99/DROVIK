@@ -94,13 +94,12 @@ RabbitMQ conecta Fleet, Shipment e Incident con Outbox transaccional, dispatcher
 - `/fleet`: vehículos persistidos en Fleet/SQL Server; alta, edición con selector de base, filtros y estados de carga/error. La desactivación existe en la API; la interfaz todavía no la expone.
 - `/drivers`: conductores persistidos en Fleet/SQL Server; alta, edición, filtros y estados de carga/error. La desactivación existe en la API; la interfaz todavía no la expone.
 - `/shipments`: listado, detalle, creación, edición, asignación, historial y transiciones persistidos mediante Gateway. El formulario elige origen y destino de la red de puntos.
-- `/customers`: catálogo de solo lectura persistido en Shipment mediante Gateway, con estados de carga, error y vacío.
-- `/operations`, `/simulation` y `/settings`: placeholders visuales.
+- `/customers` (Puntos de la red): catálogo de solo lectura persistido en Shipment mediante Gateway, con estados de carga, error y vacío.
+- `/operations` (Operación en vivo, que reúne mapa y simulación): aún sin construir, y lo indica. `/simulation` redirige allí.
 - `/incidents`: integrado realmente con Incident mediante Gateway; vehículo y envío se eligen de listas y se muestran por placa y código.
 
 La navegación lateral puede plegarse en escritorio para ampliar el área de trabajo y se mantiene expandible en pantallas pequeñas. La interfaz visible usa español; los nombres técnicos de servicios y rutas se conservan en el código y en las etiquetas técnicas necesarias.
 
-Estas pantallas no llaman todavía al Gateway porque sus endpoints propietarios no existen.
 
 ## Backend pendiente
 
@@ -115,6 +114,12 @@ Estas pantallas no llaman todavía al Gateway porque sus endpoints propietarios 
 - **Sesión frontend:** el interceptor mantiene el access token solo en memoria, envía `withCredentials` para las cookies y reconstruye el encabezado `Bearer` con el token vigente después de una renovación; no usa `localStorage` ni `sessionStorage`.
 
 ## Pruebas ejecutadas
+
+### Menú y acceso desde la red local (2026-11-09)
+
+Angular ya no contiene datos simulados: toda pantalla construida consulta las API. Los datos de negocio de la demo son el seed de cada servicio. Desde otro dispositivo Angular llama a su propio origen y `npm run start:lan` reenvía al Gateway; las claves de idempotencia funcionan fuera de contextos seguros.
+
+Automatizadas: `npm run build` correcto y 37/37 pruebas Angular; 79/79 pruebas backend. Manual con datos temporales: por la IP local, Angular y el reenvío a Gateway responden y el Gateway no queda expuesto. No verificado: un dispositivo físico en la red.
 
 ### Rediseño de la interfaz (2026-11-09)
 

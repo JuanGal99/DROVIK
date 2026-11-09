@@ -28,9 +28,8 @@ export class App {
     { label: 'Envíos', route: '/shipments', icon: 'pi pi-box' },
     { label: 'Flota', route: '/fleet', icon: 'pi pi-truck' },
     { label: 'Conductores', route: '/drivers', icon: 'pi pi-id-card' },
-    { label: 'Clientes', route: '/customers', icon: 'pi pi-users' },
+    { label: 'Puntos de la red', route: '/customers', icon: 'pi pi-map-marker' },
     { label: 'Incidencias', route: '/incidents', icon: 'pi pi-exclamation-circle' },
-    { label: 'Simulación', route: '/simulation', icon: 'pi pi-play-circle', soon: true },
   ];
   private readonly router = inject(Router);
   // Zoneless change detection does not re-read a getter after navigating, so the title has to be a signal.

@@ -97,6 +97,13 @@ try {
 
 Apagar las APIs y Angular desde sus terminales; luego ejecutar `docker compose down` en la raíz. Los volúmenes `sqlserver-data` y `rabbitmq-data` conservan los datos entre reinicios. Para borrar las bases y el estado del broker y volver a empezar, ejecutar `docker compose down -v` (destructivo) y `docker compose up -d`; al volver a iniciar los cinco servicios en Development, las cinco bases lógicas se recrean por migración. No hay aún datos sintéticos ni procedimiento de reset de seed; se añadirá cuando exista un seed funcional.
 
+### Abrir la aplicación desde otro dispositivo de la red local
+
+1. Obtener la IPv4 del equipo con `ipconfig`, por ejemplo `192.168.0.102`.
+2. Iniciar Identity con `Security__AllowedOrigins=http://localhost:4200,http://<ip>:4200`. Gateway y demás servicios siguen en `localhost`.
+3. Desde `src/frontend/drovik-web`, ejecutar `npm run start:lan`. Angular escucha en todas las interfaces y reenvía `/api` al Gateway.
+4. Abrir `http://<ip>:4200` desde un dispositivo conectado a la misma red. En Windows, el firewall debe permitir la entrada a Node.js. La sesión viaja sin HTTPS, así que solo debe hacerse en una red de confianza.
+
 ## 12.6 Observabilidad y CI
 
 Serilog estructurado, OpenTelemetry, correlación HTTP/eventos y health checks de dependencias. No registrar secretos. GitHub Actions restaura, compila, prueba y construye imágenes; CI no despliega una demo pública. Documentar recuperación de DLQ, backup local opcional y reinicio de simulaciones.
