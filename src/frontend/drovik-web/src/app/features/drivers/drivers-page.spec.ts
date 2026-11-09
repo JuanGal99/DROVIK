@@ -19,6 +19,8 @@ describe('DriversPage', () => {
 
   function load(): void {
     http.expectOne((request) => request.url.endsWith('/api/v1/drivers')).flush({ items: [driver], totalCount: 1, page: 1, pageSize: 100 });
+    http.expectOne((request) => request.url.endsWith('/api/v1/vehicles')).flush({ items: [], totalCount: 0, page: 1, pageSize: 100 });
+    http.expectOne((request) => request.url.endsWith('/api/v1/centers')).flush([]);
   }
 
   it('filters persisted profiles by availability', () => {

@@ -2,12 +2,15 @@ using System.ComponentModel.DataAnnotations;
 using System.Security.Cryptography;
 using System.Text.Json.Serialization;
 using System.Data;
+using Drovik.Fleet.Api.Application;
 using Drovik.Fleet.Api.Contracts;
 using Drovik.Fleet.Api.Domain;
+using Drovik.Fleet.Api.Messaging;
 using Drovik.Fleet.Api.Persistence;
 using Drovik.Messaging;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 
@@ -18,8 +21,13 @@ var connectionString = builder.Configuration.GetConnectionString("FleetDatabase"
 
 builder.Services.AddDbContext<FleetDbContext>(options => options.UseSqlServer(connectionString));
 builder.Services.Configure<RabbitMqOptions>(builder.Configuration.GetSection("RabbitMq"));
-builder.Services.AddSingleton<RabbitMqPublisher>();
+builder.Services.AddSingleton<IEventPublisher, RabbitMqPublisher>();
 builder.Services.AddHostedService<OutboxDispatcher<FleetDbContext>>();
+builder.Services.AddSingleton<FleetEventConsumer>();
+builder.Services.AddHostedService(services => services.GetRequiredService<FleetEventConsumer>());
+builder.Services.AddSingleton<ReservationExpiryWorker>();
+builder.Services.AddHostedService(services => services.GetRequiredService<ReservationExpiryWorker>());
+var reservationTtl = TimeSpan.FromMinutes(Math.Max(1, builder.Configuration.GetValue("Fleet:ReservationTtlMinutes", 10)));
 var issuer = builder.Configuration["Jwt:Issuer"] ?? "DROVIK.Identity";
 var audience = builder.Configuration["Jwt:Audience"] ?? "DROVIK.Services";
 var publicKeyText = builder.Configuration["Jwt:PublicKeySpkiBase64"]
@@ -99,7 +107,7 @@ app.MapPost("/api/v1/vehicles", async (CreateVehicleRequest request, FleetDbCont
     await database.SaveChangesAsync(cancellationToken);
     await database.Entry(vehicle).Reference(item => item.DistributionCenter).LoadAsync(cancellationToken);
     return Results.Created($"/api/v1/vehicles/{vehicle.Id}", ToVehicleResponse(vehicle));
-}).RequireAuthorization(fleetPolicy);
+}).AddEndpointFilter(TranslateConcurrencyFailure).RequireAuthorization(fleetPolicy);
 
 app.MapPut("/api/v1/vehicles/{id:guid}", async (Guid id, UpdateVehicleRequest request, FleetDbContext database, CancellationToken cancellationToken) =>
 {
@@ -119,16 +127,18 @@ app.MapPut("/api/v1/vehicles/{id:guid}", async (Guid id, UpdateVehicleRequest re
     await database.SaveChangesAsync(cancellationToken);
     await database.Entry(vehicle).Reference(item => item.DistributionCenter).LoadAsync(cancellationToken);
     return Results.Ok(ToVehicleResponse(vehicle));
-}).RequireAuthorization(fleetPolicy);
+}).AddEndpointFilter(TranslateConcurrencyFailure).RequireAuthorization(fleetPolicy);
 
 app.MapPatch("/api/v1/vehicles/{id:guid}/status", async (Guid id, ChangeVehicleStatusRequest request, FleetDbContext database, CancellationToken cancellationToken) =>
 {
     var vehicle = await database.Vehicles.Include(item => item.DistributionCenter).SingleOrDefaultAsync(item => item.Id == id, cancellationToken);
     if (vehicle is null) return Results.NotFound();
+    if (await ReservationLifecycle.HasActiveReservationAsync(database, id, null, null, cancellationToken))
+        return Conflict("El vehículo tiene una reserva activa; libera el envío antes de cambiar su estado.");
     vehicle.Status = request.Status;
     vehicle.UpdatedAtUtc = DateTime.UtcNow;
-    database.Outbox.Add(OutboxMessageFactory.Create("VehicleAvailabilityChanged",
-        new { vehicleId = vehicle.Id, status = vehicle.Status, occurredAtUtc = vehicle.UpdatedAtUtc }));
+    database.Outbox.Add(OutboxMessageFactory.Create(DomainEvents.VehicleAvailabilityChanged,
+        new VehicleAvailabilityChangedV1(vehicle.Id, vehicle.Status.ToString())));
     await database.SaveChangesAsync(cancellationToken);
     return Results.Ok(ToVehicleResponse(vehicle));
 }).RequireAuthorization(fleetPolicy);
@@ -137,10 +147,12 @@ app.MapDelete("/api/v1/vehicles/{id:guid}", async (Guid id, FleetDbContext datab
 {
     var vehicle = await database.Vehicles.Include(item => item.DistributionCenter).SingleOrDefaultAsync(item => item.Id == id, cancellationToken);
     if (vehicle is null) return Results.NotFound();
+    if (await ReservationLifecycle.HasActiveReservationAsync(database, id, null, null, cancellationToken))
+        return Conflict("El vehículo tiene una reserva activa; libera el envío antes de desactivarlo.");
     vehicle.Status = VehicleStatus.Inactive;
     vehicle.UpdatedAtUtc = DateTime.UtcNow;
-    database.Outbox.Add(OutboxMessageFactory.Create("VehicleAvailabilityChanged",
-        new { vehicleId = vehicle.Id, status = vehicle.Status, occurredAtUtc = vehicle.UpdatedAtUtc }));
+    database.Outbox.Add(OutboxMessageFactory.Create(DomainEvents.VehicleAvailabilityChanged,
+        new VehicleAvailabilityChangedV1(vehicle.Id, vehicle.Status.ToString())));
     await database.SaveChangesAsync(cancellationToken);
     return Results.Ok(ToVehicleResponse(vehicle));
 }).RequireAuthorization(fleetPolicy);
@@ -176,7 +188,7 @@ app.MapPost("/api/v1/drivers", async (CreateDriverRequest request, FleetDbContex
     var validation = ValidateDriver(request.FullName, request.LicenseCategory, request.LicenseExpiresOn);
     if (validation is not null) return validation;
     if (await database.Drivers.AnyAsync(item => item.FullName == request.FullName.Trim(), cancellationToken))
-        return Conflict("A driver with this name already exists.");
+        return Conflict("Ya existe un conductor con este nombre.");
     var driver = new Driver
     {
         Id = Guid.NewGuid(), FullName = request.FullName.Trim(), LicenseCategory = request.LicenseCategory.Trim().ToUpperInvariant(),
@@ -185,7 +197,7 @@ app.MapPost("/api/v1/drivers", async (CreateDriverRequest request, FleetDbContex
     database.Drivers.Add(driver);
     await database.SaveChangesAsync(cancellationToken);
     return Results.Created($"/api/v1/drivers/{driver.Id}", ToDriverResponse(driver));
-}).RequireAuthorization(fleetPolicy);
+}).AddEndpointFilter(TranslateConcurrencyFailure).RequireAuthorization(fleetPolicy);
 
 app.MapPut("/api/v1/drivers/{id:guid}", async (Guid id, UpdateDriverRequest request, FleetDbContext database, CancellationToken cancellationToken) =>
 {
@@ -194,23 +206,25 @@ app.MapPut("/api/v1/drivers/{id:guid}", async (Guid id, UpdateDriverRequest requ
     var driver = await database.Drivers.SingleOrDefaultAsync(item => item.Id == id, cancellationToken);
     if (driver is null) return Results.NotFound();
     if (await database.Drivers.AnyAsync(item => item.Id != id && item.FullName == request.FullName.Trim(), cancellationToken))
-        return Conflict("A driver with this name already exists.");
+        return Conflict("Ya existe un conductor con este nombre.");
     driver.FullName = request.FullName.Trim();
     driver.LicenseCategory = request.LicenseCategory.Trim().ToUpperInvariant();
     driver.LicenseExpiresOn = request.LicenseExpiresOn;
     driver.UpdatedAtUtc = DateTime.UtcNow;
     await database.SaveChangesAsync(cancellationToken);
     return Results.Ok(ToDriverResponse(driver));
-}).RequireAuthorization(fleetPolicy);
+}).AddEndpointFilter(TranslateConcurrencyFailure).RequireAuthorization(fleetPolicy);
 
 app.MapPatch("/api/v1/drivers/{id:guid}/availability", async (Guid id, ChangeDriverAvailabilityRequest request, FleetDbContext database, CancellationToken cancellationToken) =>
 {
     var driver = await database.Drivers.SingleOrDefaultAsync(item => item.Id == id, cancellationToken);
     if (driver is null) return Results.NotFound();
+    if (await ReservationLifecycle.HasActiveReservationAsync(database, null, id, null, cancellationToken))
+        return Conflict("El conductor tiene una reserva activa; libera el envío antes de cambiar su disponibilidad.");
     driver.Availability = request.Availability;
     driver.UpdatedAtUtc = DateTime.UtcNow;
-    database.Outbox.Add(OutboxMessageFactory.Create("DriverAvailabilityChanged",
-        new { driverId = driver.Id, availability = driver.Availability, occurredAtUtc = driver.UpdatedAtUtc }));
+    database.Outbox.Add(OutboxMessageFactory.Create(DomainEvents.DriverAvailabilityChanged,
+        new DriverAvailabilityChangedV1(driver.Id, driver.Availability.ToString())));
     await database.SaveChangesAsync(cancellationToken);
     return Results.Ok(ToDriverResponse(driver));
 }).RequireAuthorization(fleetPolicy);
@@ -219,10 +233,12 @@ app.MapDelete("/api/v1/drivers/{id:guid}", async (Guid id, FleetDbContext databa
 {
     var driver = await database.Drivers.SingleOrDefaultAsync(item => item.Id == id, cancellationToken);
     if (driver is null) return Results.NotFound();
+    if (await ReservationLifecycle.HasActiveReservationAsync(database, null, id, null, cancellationToken))
+        return Conflict("El conductor tiene una reserva activa; libera el envío antes de desactivarlo.");
     driver.Availability = DriverAvailability.Inactive;
     driver.UpdatedAtUtc = DateTime.UtcNow;
-    database.Outbox.Add(OutboxMessageFactory.Create("DriverAvailabilityChanged",
-        new { driverId = driver.Id, availability = driver.Availability, occurredAtUtc = driver.UpdatedAtUtc }));
+    database.Outbox.Add(OutboxMessageFactory.Create(DomainEvents.DriverAvailabilityChanged,
+        new DriverAvailabilityChangedV1(driver.Id, driver.Availability.ToString())));
     await database.SaveChangesAsync(cancellationToken);
     return Results.Ok(ToDriverResponse(driver));
 }).RequireAuthorization(fleetPolicy);
@@ -242,9 +258,11 @@ app.MapPost("/api/v1/reservations", async (ReserveResourcesRequest request, Flee
     if (existing is not null)
     {
         await transaction.CommitAsync(cancellationToken);
-        return existing.ShipmentId == request.ShipmentId && existing.VehicleId == request.VehicleId && existing.DriverId == request.DriverId
-            ? Results.Ok(ToReservationResponse(existing))
-            : Conflict("The idempotency key is already associated with another reservation.");
+        if (existing.ShipmentId != request.ShipmentId || existing.VehicleId != request.VehicleId || existing.DriverId != request.DriverId)
+            return Conflict("La clave de idempotencia ya pertenece a otra reserva.");
+        return ReservationLifecycle.IsTerminal(existing) || (existing.Status == ReservationStatus.Reserved && existing.ExpiresAtUtc <= DateTime.UtcNow)
+            ? Conflict("La reserva de esta clave ya no está vigente; solicita una nueva.")
+            : Results.Ok(ToReservationResponse(existing));
     }
 
     var now = DateTime.UtcNow;
@@ -252,38 +270,34 @@ app.MapPost("/api/v1/reservations", async (ReserveResourcesRequest request, Flee
         .Where(item => item.Status == ReservationStatus.Reserved && item.ExpiresAtUtc <= now &&
             (item.VehicleId == request.VehicleId || item.DriverId == request.DriverId))
         .ToListAsync(cancellationToken);
-    foreach (var expired in expiredReservations) expired.Status = ReservationStatus.Released;
+    foreach (var expired in expiredReservations) await ReservationLifecycle.ExpireAsync(database, expired, cancellationToken);
 
     var vehicle = await database.Vehicles.SingleOrDefaultAsync(item => item.Id == request.VehicleId, cancellationToken);
     var driver = await database.Drivers.SingleOrDefaultAsync(item => item.Id == request.DriverId, cancellationToken);
     if (vehicle is null || driver is null) return Results.NotFound();
-    var activeVehicleReservation = await database.Reservations.AnyAsync(item =>
-        item.VehicleId == request.VehicleId &&
-        (item.Status == ReservationStatus.Confirmed ||
-         (item.Status == ReservationStatus.Reserved && item.ExpiresAtUtc > now)), cancellationToken);
-    var activeDriverReservation = await database.Reservations.AnyAsync(item =>
-        item.DriverId == request.DriverId &&
-        (item.Status == ReservationStatus.Confirmed ||
-         (item.Status == ReservationStatus.Reserved && item.ExpiresAtUtc > now)), cancellationToken);
-    if (!activeVehicleReservation && vehicle.Status == VehicleStatus.Assigned)
+    var activeVehicleReservation = await ReservationLifecycle.HasActiveReservationAsync(database, request.VehicleId, null, null, cancellationToken);
+    var activeDriverReservation = await ReservationLifecycle.HasActiveReservationAsync(database, null, request.DriverId, null, cancellationToken);
+    if (activeVehicleReservation || activeDriverReservation)
+        return Conflict("El vehículo o el conductor ya tienen una reserva activa.");
+    if (vehicle.Status == VehicleStatus.Assigned)
     {
         vehicle.Status = VehicleStatus.Available;
     }
-    if (!activeDriverReservation && driver.Availability == DriverAvailability.Assigned)
+    if (driver.Availability == DriverAvailability.Assigned)
     {
         driver.Availability = DriverAvailability.Available;
         driver.AssignedVehicleId = null;
     }
     if (vehicle.Status != VehicleStatus.Available || driver.Availability != DriverAvailability.Available)
-        return Conflict("The vehicle or driver is not available.");
+        return Conflict("El vehículo o el conductor no están disponibles.");
     if (vehicle.CapacityKg < request.WeightKg)
-        return Conflict("The vehicle capacity is insufficient for this shipment.");
+        return Conflict("La capacidad del vehículo es insuficiente para este envío.");
 
     var reservation = new FleetReservation
     {
         Id = Guid.NewGuid(), IdempotencyKey = idempotencyKey, ShipmentId = request.ShipmentId,
         VehicleId = vehicle.Id, DriverId = driver.Id, Status = ReservationStatus.Reserved,
-        CreatedAtUtc = now, ExpiresAtUtc = now.AddMinutes(10)
+        CreatedAtUtc = now, ExpiresAtUtc = now.Add(reservationTtl)
     };
     vehicle.Status = VehicleStatus.Assigned;
     vehicle.UpdatedAtUtc = now;
@@ -291,62 +305,39 @@ app.MapPost("/api/v1/reservations", async (ReserveResourcesRequest request, Flee
     driver.AssignedVehicleId = vehicle.Id;
     driver.UpdatedAtUtc = now;
     database.Reservations.Add(reservation);
-    database.Outbox.Add(OutboxMessageFactory.Create("VehicleAvailabilityChanged",
-        new { vehicleId = vehicle.Id, status = vehicle.Status, shipmentId = reservation.ShipmentId }, reservation.ShipmentId.ToString()));
-    database.Outbox.Add(OutboxMessageFactory.Create("DriverAvailabilityChanged",
-        new { driverId = driver.Id, availability = driver.Availability, shipmentId = reservation.ShipmentId }, reservation.ShipmentId.ToString()));
+    database.Outbox.Add(OutboxMessageFactory.Create(DomainEvents.VehicleAvailabilityChanged,
+        new VehicleAvailabilityChangedV1(vehicle.Id, vehicle.Status.ToString(), reservation.ShipmentId), reservation.ShipmentId.ToString()));
+    database.Outbox.Add(OutboxMessageFactory.Create(DomainEvents.DriverAvailabilityChanged,
+        new DriverAvailabilityChangedV1(driver.Id, driver.Availability.ToString(), reservation.ShipmentId), reservation.ShipmentId.ToString()));
     await database.SaveChangesAsync(cancellationToken);
     await transaction.CommitAsync(cancellationToken);
     return Results.Created($"/api/v1/reservations/{reservation.Id}", ToReservationResponse(reservation));
-}).RequireAuthorization(fleetPolicy);
+}).AddEndpointFilter(TranslateConcurrencyFailure).RequireAuthorization(fleetPolicy);
 
 app.MapPost("/api/v1/reservations/{id:guid}/confirm", async (Guid id, FleetDbContext database, CancellationToken cancellationToken) =>
 {
     var reservation = await database.Reservations.SingleOrDefaultAsync(item => item.Id == id, cancellationToken);
     if (reservation is null) return Results.NotFound();
-    if (reservation.Status == ReservationStatus.Released) return Conflict("The reservation has already been released.");
-    if (reservation.Status == ReservationStatus.Reserved && reservation.ExpiresAtUtc <= DateTime.UtcNow)
-        return Conflict("The reservation has expired.");
+    if (reservation.Status == ReservationStatus.Released) return Conflict("La reserva ya fue liberada.");
+    if (reservation.Status == ReservationStatus.Expired || (reservation.Status == ReservationStatus.Reserved && reservation.ExpiresAtUtc <= DateTime.UtcNow))
+        return Conflict("La reserva expiró.");
     if (reservation.Status == ReservationStatus.Confirmed) return Results.Ok(ToReservationResponse(reservation));
     reservation.Status = ReservationStatus.Confirmed;
     await database.SaveChangesAsync(cancellationToken);
     return Results.Ok(ToReservationResponse(reservation));
-}).RequireAuthorization(fleetPolicy);
+}).AddEndpointFilter(TranslateConcurrencyFailure).RequireAuthorization(fleetPolicy);
 
 app.MapPost("/api/v1/reservations/{id:guid}/release", async (Guid id, FleetDbContext database, CancellationToken cancellationToken) =>
 {
     await using var transaction = await database.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken);
     var reservation = await database.Reservations.SingleOrDefaultAsync(item => item.Id == id, cancellationToken);
     if (reservation is null) return Results.NotFound();
-    if (reservation.Status == ReservationStatus.Released) return Results.Ok(ToReservationResponse(reservation));
-    var now = DateTime.UtcNow;
-    var activeOtherReservation = await database.Reservations.AnyAsync(item =>
-        item.Id != reservation.Id &&
-        (item.Status == ReservationStatus.Confirmed ||
-         (item.Status == ReservationStatus.Reserved && item.ExpiresAtUtc > now)) &&
-        (item.VehicleId == reservation.VehicleId || item.DriverId == reservation.DriverId), cancellationToken);
-    var vehicle = await database.Vehicles.SingleOrDefaultAsync(item => item.Id == reservation.VehicleId, cancellationToken);
-    var driver = await database.Drivers.SingleOrDefaultAsync(item => item.Id == reservation.DriverId, cancellationToken);
-    if (!activeOtherReservation && vehicle is not null)
-    {
-        vehicle.Status = VehicleStatus.Available;
-        vehicle.UpdatedAtUtc = DateTime.UtcNow;
-        database.Outbox.Add(OutboxMessageFactory.Create("VehicleAvailabilityChanged",
-            new { vehicleId = vehicle.Id, status = vehicle.Status, shipmentId = reservation.ShipmentId }, reservation.ShipmentId.ToString()));
-    }
-    if (!activeOtherReservation && driver is not null)
-    {
-        driver.Availability = DriverAvailability.Available;
-        driver.AssignedVehicleId = null;
-        driver.UpdatedAtUtc = DateTime.UtcNow;
-        database.Outbox.Add(OutboxMessageFactory.Create("DriverAvailabilityChanged",
-            new { driverId = driver.Id, availability = driver.Availability, shipmentId = reservation.ShipmentId }, reservation.ShipmentId.ToString()));
-    }
-    reservation.Status = ReservationStatus.Released;
+    if (ReservationLifecycle.IsTerminal(reservation)) return Results.Ok(ToReservationResponse(reservation));
+    await ReservationLifecycle.ReleaseAsync(database, reservation, cancellationToken);
     await database.SaveChangesAsync(cancellationToken);
     await transaction.CommitAsync(cancellationToken);
     return Results.Ok(ToReservationResponse(reservation));
-}).RequireAuthorization(fleetPolicy);
+}).AddEndpointFilter(TranslateConcurrencyFailure).RequireAuthorization(fleetPolicy);
 
 app.MapGet("/health/live", () => Results.Ok(new { status = "Healthy" }));
 app.MapGet("/health/ready", async (FleetDbContext database, CancellationToken cancellationToken) =>
@@ -364,26 +355,36 @@ static IResult? Validate<T>(T request) where T : class
     return Validator.TryValidateObject(request, context, errors, true)
         ? null
         : Results.ValidationProblem(errors.GroupBy(item => item.MemberNames.FirstOrDefault() ?? string.Empty)
-            .ToDictionary(item => item.Key, item => item.Select(error => error.ErrorMessage ?? "Invalid value.").ToArray()));
+                .ToDictionary(item => item.Key, item => item.Select(error => error.ErrorMessage ?? "Invalid value.").ToArray()),
+            title: "Datos inválidos", detail: "Revisa los campos enviados.");
 }
 static IResult? ValidateDriver(string fullName, string licenseCategory, DateOnly expiresOn) =>
     string.IsNullOrWhiteSpace(fullName) || fullName.Trim().Length < 3 || fullName.Trim().Length > 100
-        ? Problem(400, "Invalid driver", "Full name must contain between 3 and 100 characters.")
+        ? Problem(400, "Conductor inválido", "El nombre debe tener entre 3 y 100 caracteres.")
         : string.IsNullOrWhiteSpace(licenseCategory) || licenseCategory.Trim().Length > 12
-            ? Problem(400, "Invalid driver", "License category is required.")
+            ? Problem(400, "Conductor inválido", "La categoría de licencia es obligatoria.")
             : expiresOn <= DateOnly.FromDateTime(DateTime.UtcNow)
-                ? Problem(400, "Invalid driver", "License expiration must be in the future.")
+                ? Problem(400, "Conductor inválido", "La licencia debe vencer en una fecha futura.")
                 : null;
 static async Task<IResult?> ValidateVehicleReferences(FleetDbContext database, string plate, Guid centerId, Guid? ignoredId, CancellationToken cancellationToken)
 {
     var normalizedPlate = Normalize(plate);
     if (await database.Vehicles.AnyAsync(item => item.Plate == normalizedPlate && item.Id != ignoredId, cancellationToken))
-        return Conflict("A vehicle with this plate already exists.");
+        return Conflict("Ya existe un vehículo con esta placa.");
     if (!await database.DistributionCenters.AnyAsync(item => item.Id == centerId && item.IsActive, cancellationToken))
-        return Problem(400, "Invalid vehicle", "The distribution center does not exist or is inactive.");
+        return Problem(400, "Vehículo inválido", "El centro de distribución no existe o está inactivo.");
     return null;
 }
-static IResult Conflict(string detail) => Results.Problem(statusCode: 409, title: "Conflict", detail: detail);
+static IResult Conflict(string detail) => Results.Problem(statusCode: 409, title: "Conflicto", detail: detail);
+// Serializable reservations resolve races with deadlocks or unique-index violations: the loser is a conflict, not a 500.
+static async ValueTask<object?> TranslateConcurrencyFailure(EndpointFilterInvocationContext context, EndpointFilterDelegate next)
+{
+    try { return await next(context); }
+    catch (Exception ex) when (ex is DbUpdateException or SqlException { Number: 1205 })
+    {
+        return Conflict("Otra operación modificó estos recursos al mismo tiempo; inténtalo de nuevo.");
+    }
+}
 static IResult Problem(int status, string title, string detail) => Results.Problem(statusCode: status, title: title, detail: detail);
 static VehicleResponse ToVehicleResponse(Vehicle item) => new(item.Id, item.Plate, item.Model, item.Type, item.CapacityKg, item.Status,
     item.CurrentOdometer, item.DistributionCenterId, item.DistributionCenter.Name, item.UpdatedAtUtc);

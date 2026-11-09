@@ -20,8 +20,8 @@ public class GatewayProxyTests
     [InlineData("/api/v1/vehicles", "fleet")]
     [InlineData("/api/v1/drivers", "fleet")]
     [InlineData("/api/v1/centers", "fleet")]
-    [InlineData("/api/v1/reservations", "fleet")]
     [InlineData("/api/v1/shipments", "shipment")]
+    [InlineData("/api/v1/customers", "shipment")]
     [InlineData("/api/v1/simulations/run-1/start", "simulation")]
     [InlineData("/api/v1/incidents", "incident")]
     public async Task Proxy_forwards_request_to_owning_service(string requestPath, string clusterId)
@@ -44,13 +44,15 @@ public class GatewayProxyTests
         Assert.Equal(requestPath, echoedPath);
     }
 
-    [Fact]
-    public async Task Unmatched_api_path_is_not_forwarded()
+    [Theory]
+    [InlineData("/api/v1/unknown-resource")]
+    [InlineData("/api/v1/reservations")]
+    public async Task Paths_outside_the_browser_contract_are_not_forwarded(string path)
     {
         using var factory = new WebApplicationFactory<Drovik.Gateway.Api.GatewayAssemblyMarker>();
         using var client = factory.CreateClient();
 
-        using var response = await client.GetAsync("/api/v1/unknown-resource");
+        using var response = await client.GetAsync(path);
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }

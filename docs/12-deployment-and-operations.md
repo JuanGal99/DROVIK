@@ -28,7 +28,11 @@ Documentar nombres de variables sin publicar secretos:
 - OSRM base URL opcional; si falta o falla, usar geometrías de respaldo.
 - ASPNETCORE_ENVIRONMENT, logging y opciones de seed.
 
-Para activar la mensajería desde procesos ASP.NET Core, configurar mediante User Secrets o variables de entorno `RabbitMq__Host`, `RabbitMq__Port`, `RabbitMq__VirtualHost`, `RabbitMq__UserName` y `RabbitMq__Password`. El broker local expone AMQP solo en `127.0.0.1:5672`; no usar el puerto de administración desde los servicios. `RabbitMq__Exchange` puede mantenerse como `drovik.events.v1` y `RabbitMq__DeadLetterExchange` como `drovik.events.dlx.v1`. Si las credenciales no están configuradas, los servicios conservan los eventos en Outbox y registran el fallo sin perder la transacción local.
+Para activar la mensajería desde procesos ASP.NET Core, configurar mediante User Secrets o variables de entorno `RabbitMq__Host`, `RabbitMq__Port`, `RabbitMq__VirtualHost`, `RabbitMq__UserName` y `RabbitMq__Password`. El broker local expone AMQP solo en `127.0.0.1:5672`; no usar el puerto de administración desde los servicios. `RabbitMq__Exchange` y `RabbitMq__DeadLetterExchange` solo se configuran para cambiar los valores por defecto, `drovik.domain.events` y `drovik.domain.events.dlx`. Si las credenciales no están configuradas, los servicios conservan los eventos en Outbox y registran el fallo sin perder la transacción local; en ese modo la confirmación y liberación de reservas dependen solo de la llamada HTTP.
+
+Fleet admite `Fleet__ReservationTtlMinutes` (10 por defecto) y `Fleet__ReservationSweepSeconds` (30 por defecto).
+
+Para revisar y reprocesar mensajes fallidos, abrir `http://127.0.0.1:15672` y localizar la cola `<consumer>.domain-events.dlq`. *Get messages* permite inspeccionarlos y *Move messages* (plugin `rabbitmq_shovel_management`) devolverlos a `<consumer>.domain-events` una vez corregida la causa. Reprocesar es seguro porque los consumidores son idempotentes por `eventId`; un mensaje que no sea un envelope válido volverá a la DLQ.
 
 Mantener valores sensibles en archivo local ignorado o User Secrets de .NET. Proveer solo plantilla `.env.example` sin credenciales reales. No versionar contraseñas, certificados privados ni tokens. El proceso de arranque debe rechazar valores secretos inseguros fuera de Development.
 

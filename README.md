@@ -15,7 +15,7 @@ Es un proyecto de portafolio con ejecución local. El repositorio público conti
 ## Características previstas
 
 - Gestión de vehículos, conductores y centros de distribución.
-- Creación, asignación y seguimiento de envíos.
+- Creación, asignación y seguimiento de envíos entre una red cerrada de 8 puntos en Bogotá.
 - Mapa operativo y simulaciones autoritativas en backend.
 - Registro, seguimiento y resolución de incidencias.
 - Actualizaciones seleccionadas en tiempo real mediante SignalR.
@@ -58,7 +58,7 @@ El backend podrá ofrecer también ejecución íntegra mediante contenedores com
 
 ## Estado del proyecto
 
-**Fase 1 — Fundación técnica completada. Fases 2–4 integradas parcialmente y Fase 7 iniciada.** YARP enruta los prefijos de API e Identity tiene login/roles/sesiones. Fleet persiste vehículos, conductores, centros y reservas; Shipment permite crear, listar, consultar, editar, asignar y cambiar estados; Incident permite registrar, filtrar, atender y resolver incidencias mediante Gateway. Fleet, Shipment e Incident ya publican eventos mediante Outbox; Simulation, mapa, realtime y consumidores de negocio siguen pendientes. Ver el [estado actual de implementación](docs/current-implementation-status.md).
+**Fase 1 — Fundación técnica completada. Fases 2–4 integradas parcialmente y Fase 7 iniciada.** YARP enruta los prefijos de API e Identity tiene login/roles/sesiones. Fleet persiste vehículos, conductores, centros y reservas; Shipment gestiona Clientes y permite crear, listar, consultar, editar, asignar y cambiar estados; Incident permite registrar, filtrar, atender y resolver incidencias mediante Gateway. Fleet, Shipment e Incident ya publican eventos mediante Outbox; Simulation, mapa, realtime y consumidores de negocio siguen pendientes. Ver el [estado actual de implementación](docs/current-implementation-status.md).
 
 ## Documentación
 

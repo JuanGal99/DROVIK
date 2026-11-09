@@ -8,8 +8,13 @@ public sealed record ShipmentHistoryResponse(Guid Id, ShipmentStatus Status, str
 public sealed record ShipmentResponse(
     Guid Id,
     string TrackingCode,
-    string CustomerId,
-    Guid OriginCenterId,
+    Guid CustomerId,
+    string CustomerName,
+    Guid? OriginCustomerId,
+    string? OriginName,
+    string? Origin,
+    decimal? OriginLatitude,
+    decimal? OriginLongitude,
     string Destination,
     decimal DestinationLatitude,
     decimal DestinationLongitude,
@@ -26,23 +31,27 @@ public sealed record ShipmentResponse(
 public sealed record PagedResponse<T>(IReadOnlyList<T> Items, int TotalCount, int Page, int PageSize);
 
 public sealed record CreateShipmentRequest(
-    [property: Required, StringLength(100)] string CustomerId,
-    Guid OriginCenterId,
-    [property: Required, StringLength(200, MinimumLength = 3)] string Destination,
-    [property: Range(-90, 90)] decimal DestinationLatitude,
-    [property: Range(-180, 180)] decimal DestinationLongitude,
+    Guid OriginCustomerId,
+    Guid CustomerId,
     [property: Range(1, 100000)] int WeightKg,
     ShipmentPriority Priority);
 
 public sealed record UpdateShipmentRequest(
-    [property: Required, StringLength(200, MinimumLength = 3)] string Destination,
-    [property: Range(-90, 90)] decimal DestinationLatitude,
-    [property: Range(-180, 180)] decimal DestinationLongitude,
+    Guid OriginCustomerId,
+    Guid CustomerId,
     [property: Range(1, 100000)] int WeightKg,
     ShipmentPriority Priority);
 
 public sealed record AssignShipmentRequest(Guid VehicleId, Guid DriverId, [property: Required, StringLength(100, MinimumLength = 8)] string IdempotencyKey);
-public sealed record ChangeShipmentStatusRequest(ShipmentStatus Status, string? Note);
+public sealed record ChangeShipmentStatusRequest(ShipmentStatus Status, [property: StringLength(500)] string? Note);
+
+public sealed record CustomerResponse(
+    Guid Id,
+    string Name,
+    string AddressLabel,
+    decimal Latitude,
+    decimal Longitude,
+    bool IsActive);
 
 public sealed record FleetReservationRequest(Guid ShipmentId, Guid VehicleId, Guid DriverId, int WeightKg, string IdempotencyKey);
 public sealed record FleetReservationResponse(Guid ReservationId, Guid ShipmentId, Guid VehicleId, Guid DriverId, string Status, DateTime ExpiresAtUtc);

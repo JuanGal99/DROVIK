@@ -40,9 +40,8 @@ describe('ShipmentsDataService', () => {
   it('updates a pending shipment through the Gateway contract', () => {
     let result: string | undefined;
     service.updateShipment('shipment-1', {
-      destination: 'Carrera 7',
-      destinationLatitude: 4.7,
-      destinationLongitude: -74.06,
+      originCustomerId: 'customer-3',
+      customerId: 'customer-2',
       weightKg: 120,
       priority: 'High',
     }).subscribe((shipment) => result = shipment.destination);
@@ -51,7 +50,7 @@ describe('ShipmentsDataService', () => {
     expect(request.request.method).toBe('PUT');
     expect(request.request.body.priority).toBe('High');
     request.flush({
-      id: 'shipment-1', trackingCode: 'SH-001', customerId: 'cus-001', originCenterId: 'center-1',
+      id: 'shipment-1', trackingCode: 'SH-001', customerId: 'customer-1', customerName: 'Mercado Central', originCustomerId: 'customer-3', originName: 'Distribuidora Sabana',
       destination: 'Carrera 7', destinationLatitude: 4.7, destinationLongitude: -74.06,
       weightKg: 120, priority: 'High', status: 'Pending', createdAtUtc: '2026-11-07T00:00:00Z',
       updatedAtUtc: '2026-11-07T00:01:00Z', statusHistory: [],

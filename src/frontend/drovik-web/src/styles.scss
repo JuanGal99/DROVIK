@@ -1,17 +1,35 @@
+@use './styles/ops-page';
+@use '@fontsource/barlow/latin-400.css';
+@use '@fontsource/barlow/latin-500.css';
+@use '@fontsource/barlow/latin-600.css';
+@use '@fontsource/barlow-semi-condensed/latin-500.css' as semi-500;
+@use '@fontsource/barlow-semi-condensed/latin-600.css' as semi-600;
+
 :root {
   color-scheme: dark;
-  font-family: Inter, "Segoe UI", "Helvetica Neue", sans-serif;
+  // Barlow draws on highway signs and truck plates: the type this operation already reads on the road.
+  --font-body: Barlow, "Segoe UI", "Helvetica Neue", sans-serif;
+  --font-display: "Barlow Semi Condensed", Barlow, "Segoe UI", sans-serif;
+  font-family: var(--font-body);
   font-synthesis: none; text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale;
-  --surface-app: #111a22; --surface-sidebar: #131d26; --surface-panel: #17232d; --surface-raised: #1b2934;
-  --line-subtle: #293743; --line-strong: #384957; --text-primary: #e5ecf0; --text-secondary: #a2b0bb; --text-muted: #758592;
-  --accent: #58c2dc; --accent-strong: #2294b2; --success: #65c99b; --warning: #e8ad62; --danger: #e88b76;
+
+  --surface-app: #15191e; --surface-sidebar: #191e24; --surface-panel: #1d232a; --surface-raised: #252c35; --surface-overlay: #2e3641;
+  --line-subtle: #2d353f; --line-strong: #414c59;
+  --text-primary: #e9eef3; --text-secondary: #b1bcc8; --text-muted: #8c99a8;
+  --accent: #6cb1ec; --accent-strong: #2a6fb0; --accent-hover: #317fc8;
+  --success: #6bcb9a; --warning: #e7b163; --danger: #ee8d7b;
+
+  --type-small: 12px; --type-table: 13px; --type-body: 14px; --type-figure: 26px; --type-title: 30px;
   --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px; --space-5: 20px; --space-6: 24px; --space-8: 32px;
 }
 * { box-sizing: border-box; }
 html, body { min-width: 320px; min-height: 100%; margin: 0; }
-body { background: var(--surface-app); color: var(--text-primary); }
+body { background: var(--surface-app); color: var(--text-primary); font-size: var(--type-body); }
 button, input, textarea, select { font: inherit; }
 button { color: inherit; }
-::selection { background: #24627a; color: #fff; }
+::selection { background: #2a6fb0; color: #fff; }
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition-duration: .01ms !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; }
+}

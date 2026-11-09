@@ -86,6 +86,139 @@ namespace Drovik.Shipment.Api.Persistence.Migrations
                     b.ToTable("ProcessedEvents");
                 });
 
+            modelBuilder.Entity("Drovik.Shipment.Api.Domain.Customer", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("AddressLabel")
+                        .IsRequired()
+                        .HasMaxLength(160)
+                        .HasColumnType("nvarchar(160)");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<decimal>("Latitude")
+                        .HasPrecision(9, 6)
+                        .HasColumnType("decimal(9,6)");
+
+                    b.Property<decimal>("Longitude")
+                        .HasPrecision(9, 6)
+                        .HasColumnType("decimal(9,6)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("nvarchar(120)");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("IsActive");
+
+                    b.HasIndex("Name")
+                        .IsUnique();
+
+                    b.ToTable("Customers");
+
+                    b.HasData(
+                        new
+                        {
+                            Id = new Guid("40000000-0000-0000-0000-000000000001"),
+                            AddressLabel = "Chapinero",
+                            CreatedAtUtc = new DateTime(2026, 11, 8, 0, 0, 0, 0, DateTimeKind.Utc),
+                            IsActive = true,
+                            Latitude = 4.648600m,
+                            Longitude = -74.062800m,
+                            Name = "Mercado Central",
+                            UpdatedAtUtc = new DateTime(2026, 11, 8, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = new Guid("40000000-0000-0000-0000-000000000002"),
+                            AddressLabel = "Usaquén",
+                            CreatedAtUtc = new DateTime(2026, 11, 8, 0, 0, 0, 0, DateTimeKind.Utc),
+                            IsActive = true,
+                            Latitude = 4.720900m,
+                            Longitude = -74.030100m,
+                            Name = "Farmacia Norte",
+                            UpdatedAtUtc = new DateTime(2026, 11, 8, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = new Guid("40000000-0000-0000-0000-000000000003"),
+                            AddressLabel = "Engativá",
+                            CreatedAtUtc = new DateTime(2026, 11, 8, 0, 0, 0, 0, DateTimeKind.Utc),
+                            IsActive = true,
+                            Latitude = 4.705600m,
+                            Longitude = -74.112000m,
+                            Name = "Distribuidora Sabana",
+                            UpdatedAtUtc = new DateTime(2026, 11, 8, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = new Guid("40000000-0000-0000-0000-000000000004"),
+                            AddressLabel = "Kennedy",
+                            CreatedAtUtc = new DateTime(2026, 11, 8, 0, 0, 0, 0, DateTimeKind.Utc),
+                            IsActive = true,
+                            Latitude = 4.628000m,
+                            Longitude = -74.153000m,
+                            Name = "Alimentos del Valle",
+                            UpdatedAtUtc = new DateTime(2026, 11, 8, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = new Guid("40000000-0000-0000-0000-000000000005"),
+                            AddressLabel = "La Candelaria",
+                            CreatedAtUtc = new DateTime(2026, 11, 8, 0, 0, 0, 0, DateTimeKind.Utc),
+                            IsActive = true,
+                            Latitude = 4.598100m,
+                            Longitude = -74.075800m,
+                            Name = "Comercial Andina",
+                            UpdatedAtUtc = new DateTime(2026, 11, 8, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = new Guid("40000000-0000-0000-0000-000000000006"),
+                            AddressLabel = "Suba",
+                            CreatedAtUtc = new DateTime(2026, 11, 8, 0, 0, 0, 0, DateTimeKind.Utc),
+                            IsActive = true,
+                            Latitude = 4.741000m,
+                            Longitude = -74.084000m,
+                            Name = "Casa Verde",
+                            UpdatedAtUtc = new DateTime(2026, 11, 8, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = new Guid("40000000-0000-0000-0000-000000000007"),
+                            AddressLabel = "Teusaquillo",
+                            CreatedAtUtc = new DateTime(2026, 11, 8, 0, 0, 0, 0, DateTimeKind.Utc),
+                            IsActive = true,
+                            Latitude = 4.637000m,
+                            Longitude = -74.079000m,
+                            Name = "Ferretería del Pacífico",
+                            UpdatedAtUtc = new DateTime(2026, 11, 8, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = new Guid("40000000-0000-0000-0000-000000000008"),
+                            AddressLabel = "Tunjuelito",
+                            CreatedAtUtc = new DateTime(2026, 11, 8, 0, 0, 0, 0, DateTimeKind.Utc),
+                            IsActive = true,
+                            Latitude = 4.576000m,
+                            Longitude = -74.133000m,
+                            Name = "Suministros del Sur",
+                            UpdatedAtUtc = new DateTime(2026, 11, 8, 0, 0, 0, 0, DateTimeKind.Utc)
+                        });
+                });
+
             modelBuilder.Entity("Drovik.Shipment.Api.Domain.Shipment", b =>
                 {
                     b.Property<Guid>("Id")
@@ -95,10 +228,8 @@ namespace Drovik.Shipment.Api.Persistence.Migrations
                     b.Property<DateTime>("CreatedAtUtc")
                         .HasColumnType("datetime2");
 
-                    b.Property<string>("CustomerId")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
+                    b.Property<Guid>("CustomerId")
+                        .HasColumnType("uniqueidentifier");
 
                     b.Property<string>("Destination")
                         .IsRequired()
@@ -116,8 +247,23 @@ namespace Drovik.Shipment.Api.Persistence.Migrations
                     b.Property<Guid?>("DriverId")
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<Guid>("OriginCenterId")
+                    b.Property<Guid?>("LegacyOriginCenterId")
                         .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Origin")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<Guid?>("OriginCustomerId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<decimal?>("OriginLatitude")
+                        .HasPrecision(9, 6)
+                        .HasColumnType("decimal(9,6)");
+
+                    b.Property<decimal?>("OriginLongitude")
+                        .HasPrecision(9, 6)
+                        .HasColumnType("decimal(9,6)");
 
                     b.Property<string>("Priority")
                         .IsRequired()
@@ -128,6 +274,7 @@ namespace Drovik.Shipment.Api.Persistence.Migrations
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<string>("Status")
+                        .IsConcurrencyToken()
                         .IsRequired()
                         .HasMaxLength(20)
                         .HasColumnType("nvarchar(20)");
@@ -149,6 +296,8 @@ namespace Drovik.Shipment.Api.Persistence.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("CustomerId");
+
+                    b.HasIndex("OriginCustomerId");
 
                     b.HasIndex("Status");
 
@@ -194,6 +343,24 @@ namespace Drovik.Shipment.Api.Persistence.Migrations
                     b.HasIndex("ShipmentId");
 
                     b.ToTable("StatusHistory");
+                });
+
+            modelBuilder.Entity("Drovik.Shipment.Api.Domain.Shipment", b =>
+                {
+                    b.HasOne("Drovik.Shipment.Api.Domain.Customer", "Customer")
+                        .WithMany()
+                        .HasForeignKey("CustomerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Drovik.Shipment.Api.Domain.Customer", "OriginCustomer")
+                        .WithMany()
+                        .HasForeignKey("OriginCustomerId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("Customer");
+
+                    b.Navigation("OriginCustomer");
                 });
 
             modelBuilder.Entity("Drovik.Shipment.Api.Domain.ShipmentStatusHistory", b =>

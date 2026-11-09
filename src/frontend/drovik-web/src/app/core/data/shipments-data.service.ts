@@ -20,7 +20,9 @@ export interface Shipment {
   id: string;
   trackingCode: string;
   customerId: string;
-  originCenterId: string;
+  customerName: string;
+  originCustomerId?: string;
+  originName?: string;
   destination: string;
   destinationLatitude: number;
   destinationLongitude: number;
@@ -34,7 +36,8 @@ export interface Shipment {
   statusHistory: ShipmentStatusEntry[];
 }
 
-export type ShipmentDraft = Pick<Shipment, 'customerId' | 'destination' | 'weightKg' | 'priority'>;
+export interface ShipmentDraft extends Pick<Shipment, 'customerId' | 'weightKg' | 'priority'> { originCustomerId: string; }
+export type ShipmentEdit = ShipmentDraft;
 interface PagedResponse<T> { items: T[]; totalCount: number; page: number; pageSize: number; }
 interface ShipmentResponse extends Omit<Shipment, 'createdAt' | 'statusHistory'> {
   createdAtUtc: string;
@@ -51,6 +54,7 @@ export class ShipmentsDataService {
   readonly loading = signal(false);
   readonly saving = signal(false);
   readonly error = signal<string | null>(null);
+  readonly actionError = signal<string | null>(null);
   readonly shipments = signal<Shipment[]>([]);
 
   loadShipments(): Observable<Shipment[]> {
@@ -69,23 +73,19 @@ export class ShipmentsDataService {
     );
   }
 
-  customer(_id: string): undefined { return undefined; }
   vehicle(id?: string): Vehicle | undefined { return id ? this.fleet.vehicles().find((vehicle) => vehicle.id === id) : undefined; }
   driver(id?: string): Driver | undefined { return id ? this.drivers.drivers().find((driver) => driver.id === id) : undefined; }
   availableVehicles(): Vehicle[] { return this.fleet.vehicles().filter((vehicle) => vehicle.status === 'Available'); }
   availableDrivers(): Driver[] { return this.drivers.drivers().filter((driver) => driver.availability === 'Available'); }
 
   createDraft(draft: ShipmentDraft): Observable<Shipment> {
-    const center = this.fleet.centers()[0];
-    if (!center) return throwError(() => new Error('No hay un centro de distribución disponible.'));
     this.saving.set(true);
     return this.http.post<ShipmentResponse>(`${environment.gatewayUrl}/api/v1/shipments`, {
-      customerId: draft.customerId.trim(), originCenterId: center.id, destination: draft.destination.trim(),
-      destinationLatitude: 0, destinationLongitude: 0, weightKg: draft.weightKg, priority: draft.priority,
+      originCustomerId: draft.originCustomerId, customerId: draft.customerId, weightKg: draft.weightKg, priority: draft.priority,
     }).pipe(
       map((item) => this.mapShipment(item)),
       tap((shipment) => this.shipments.update((items) => [shipment, ...items])),
-      catchError((error) => this.handleError(error, 'No se pudo crear el envío.')),
+      catchError((error) => this.handleActionError(error, 'No se pudo crear el envío.')),
       finalize(() => this.saving.set(false)),
     );
   }
@@ -94,19 +94,16 @@ export class ShipmentsDataService {
     return this.http.get<ShipmentResponse>(`${environment.gatewayUrl}/api/v1/shipments/${id}`).pipe(
       map((item) => this.mapShipment(item)),
       tap((shipment) => this.shipments.update((items) => items.map((item) => item.id === shipment.id ? shipment : item))),
-      catchError((error) => this.handleError(error, 'No se pudo consultar el detalle del envío.')),
+      catchError((error) => this.handleActionError(error, 'No se pudo consultar el detalle del envío.')),
     );
   }
 
-  updateShipment(id: string, draft: Pick<Shipment, 'destination' | 'destinationLatitude' | 'destinationLongitude' | 'weightKg' | 'priority'>): Observable<Shipment> {
+  updateShipment(id: string, draft: ShipmentEdit): Observable<Shipment> {
     this.saving.set(true);
-    return this.http.put<ShipmentResponse>(`${environment.gatewayUrl}/api/v1/shipments/${id}`, {
-      destination: draft.destination.trim(), destinationLatitude: draft.destinationLatitude,
-      destinationLongitude: draft.destinationLongitude, weightKg: draft.weightKg, priority: draft.priority,
-    }).pipe(
+    return this.http.put<ShipmentResponse>(`${environment.gatewayUrl}/api/v1/shipments/${id}`, draft).pipe(
       map((item) => this.mapShipment(item)),
       tap((shipment) => this.shipments.update((items) => items.map((item) => item.id === shipment.id ? shipment : item))),
-      catchError((error) => this.handleError(error, 'No se pudo guardar el envío.')),
+      catchError((error) => this.handleActionError(error, 'No se pudo guardar el envío.')),
       finalize(() => this.saving.set(false)),
     );
   }
@@ -118,7 +115,7 @@ export class ShipmentsDataService {
     }).pipe(
       map((item) => this.mapShipment(item)),
       tap((shipment) => this.shipments.update((items) => items.map((item) => item.id === shipment.id ? shipment : item))),
-      catchError((error) => this.handleError(error, 'No se pudo asignar el vehículo y el conductor.')),
+      catchError((error) => this.handleActionError(error, 'No se pudo asignar el vehículo y el conductor.')),
       finalize(() => this.saving.set(false)),
     );
   }
@@ -128,14 +125,14 @@ export class ShipmentsDataService {
     return this.http.post<ShipmentResponse>(`${environment.gatewayUrl}/api/v1/shipments/${shipmentId}/status`, { status, note }).pipe(
       map((item) => this.mapShipment(item)),
       tap((shipment) => this.shipments.update((items) => items.map((item) => item.id === shipment.id ? shipment : item))),
-      catchError((error) => this.handleError(error, 'No se pudo actualizar el estado del envío.')),
+      catchError((error) => this.handleActionError(error, 'No se pudo actualizar el estado del envío.')),
       finalize(() => this.saving.set(false)),
     );
   }
 
   private mapShipment(item: ShipmentResponse): Shipment {
     return {
-      id: item.id, trackingCode: item.trackingCode, customerId: item.customerId, originCenterId: item.originCenterId,
+      id: item.id, trackingCode: item.trackingCode, customerId: item.customerId, customerName: item.customerName, originCustomerId: item.originCustomerId ?? undefined, originName: item.originName ?? undefined,
       destination: item.destination, destinationLatitude: item.destinationLatitude, destinationLongitude: item.destinationLongitude,
       weightKg: item.weightKg, priority: item.priority, status: item.status, vehicleId: item.vehicleId,
       driverId: item.driverId, reservationId: item.reservationId, createdAt: item.createdAtUtc,
@@ -143,6 +140,12 @@ export class ShipmentsDataService {
         status: entry.status, occurredAt: entry.occurredAtUtc, actor: entry.actorId, source: entry.source, note: entry.note,
       })),
     };
+  }
+
+  /** A rejected action is reported where it happened; the table behind it stays visible. */
+  private handleActionError(error: { error?: { detail?: string; title?: string } }, fallback: string): Observable<never> {
+    this.actionError.set(error.error?.detail ?? error.error?.title ?? fallback);
+    return throwError(() => error);
   }
 
   private handleError(error: { error?: { detail?: string; title?: string } }, fallback: string): Observable<never> {

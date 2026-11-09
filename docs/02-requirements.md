@@ -8,13 +8,13 @@
 - Autorización validada en backend; gestión de usuarios solo Administrator.
 
 ### Catálogos operativos
-- CRUD de vehículos, conductores y centros de distribución.
+- CRUD de vehículos y conductores; centros (bases de vehículos) y puntos de la red como catálogos fijos de Bogotá.
 - Estados de disponibilidad y mantenimiento; búsqueda, filtros, paginación y validaciones.
 
 ### Envíos
-- Crear, consultar, editar y cancelar envíos.
+- Crear, consultar, editar y cancelar envíos. Origen y destino se eligen de una red cerrada de 8 puntos en Bogotá; no se escriben a mano.
 - Asignar vehículo y conductor; consultar historial de estados.
-- Estados: Draft, Pending, Assigned, InTransit, Delayed, Delivered, Cancelled. Transiciones válidas y roles se describen en `06-domain-and-business-rules.md`.
+- Estados: Pending, Assigned, InTransit, Delayed, Delivered, Cancelled. Transiciones válidas y roles se describen en `06-domain-and-business-rules.md`.
 
 ### Mapa y simulación
 - Visualizar vehículos y envíos activos.

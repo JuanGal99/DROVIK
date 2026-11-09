@@ -56,7 +56,8 @@ public enum ReservationStatus
 {
     Reserved,
     Confirmed,
-    Released
+    Released,
+    Expired
 }
 
 public sealed class FleetReservation

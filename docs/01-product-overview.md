@@ -12,7 +12,7 @@ DROVIK es un proyecto de portafolio de ejecución local. Su repositorio público
 - **Operator:** consulta la operación diaria, gestiona envíos y asignaciones, ejecuta escenarios permitidos y atiende incidentes.
 - Los conductores son registros operativos, no cuentas de acceso.
 
-La demostración representa una sola empresa ficticia, con datos sintéticos reproducibles. No incluye GPS real, tráfico en vivo ni información personal real. La UI identifica claramente las posiciones y eventos simulados.
+La demostración representa una sola empresa ficticia que opera en Bogotá y mueve envíos entre una red cerrada de 8 puntos (ADR 0012), con datos sintéticos reproducibles. No incluye GPS real, tráfico en vivo ni información personal real. La UI identifica claramente las posiciones y eventos simulados.
 
 ## 1.3 Presentación del portafolio
 

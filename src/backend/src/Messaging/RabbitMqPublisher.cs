@@ -1,63 +1,76 @@
+using System.Net.Sockets;
 using System.Text;
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using RabbitMQ.Client;
+using RabbitMQ.Client.Exceptions;
 
 namespace Drovik.Messaging;
 
-public sealed class RabbitMqPublisher(IOptions<RabbitMqOptions> options, ILogger<RabbitMqPublisher> logger) : IDisposable
+public enum PublishOutcome
 {
+    Published,
+    /// <summary>The broker could not be reached or did not confirm; the message itself is fine.</summary>
+    BrokerUnavailable,
+    /// <summary>The message cannot be turned into an envelope and will never be publishable.</summary>
+    Rejected
+}
+
+public interface IEventPublisher
+{
+    PublishOutcome Publish(OutboxMessage message);
+}
+
+public sealed class RabbitMqPublisher(IOptions<RabbitMqOptions> options, ILogger<RabbitMqPublisher> logger) : IEventPublisher, IDisposable
+{
+    private static readonly TimeSpan ConfirmTimeout = TimeSpan.FromSeconds(5);
     private readonly RabbitMqOptions settings = options.Value;
     private IConnection? connection;
     private IModel? channel;
 
-    public bool TryPublish(OutboxMessage message)
+    public PublishOutcome Publish(OutboxMessage message)
     {
+        if (string.IsNullOrWhiteSpace(settings.UserName) || string.IsNullOrWhiteSpace(settings.Password))
+            return PublishOutcome.BrokerUnavailable;
+
+        byte[] body;
+        string routingKey;
         try
         {
-            EnsureChannel();
-            var envelope = new EventEnvelope(
-                message.Id, message.EventType, message.OccurredAtUtc, message.CorrelationId,
-                message.ContractVersion, JsonSerializer.Deserialize<JsonElement>(message.Payload));
-            var body = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(envelope));
-            var properties = channel!.CreateBasicProperties();
+            body = EventEnvelopeSerializer.Serialize(message);
+            routingKey = DomainEvents.RoutingKey(message.EventType, message.ContractVersion);
+        }
+        catch (Exception ex) when (ex is JsonException or ArgumentException)
+        {
+            logger.LogError(ex, "El evento {EventId} no cumple el contrato y no se puede publicar.", message.Id);
+            return PublishOutcome.Rejected;
+        }
+
+        try
+        {
+            var activeChannel = EnsureChannel();
+            var properties = activeChannel.CreateBasicProperties();
             properties.Persistent = true;
             properties.MessageId = message.Id.ToString();
             properties.Type = message.EventType;
             properties.ContentType = "application/json";
-            channel.BasicPublish(settings.Exchange, message.EventType, properties, body);
-            return true;
+            activeChannel.BasicPublish(settings.Exchange, routingKey, properties, body);
+            activeChannel.WaitForConfirmsOrDie(ConfirmTimeout);
+            return PublishOutcome.Published;
         }
-        catch (RabbitMQ.Client.Exceptions.BrokerUnreachableException ex)
+        catch (Exception ex) when (ex is RabbitMQClientException or IOException or SocketException or TimeoutException)
         {
-            logger.LogWarning(ex, "RabbitMQ no está disponible para publicar {EventId}.", message.Id);
+            logger.LogWarning("RabbitMQ no confirmó el evento {EventId}: {Reason}", message.Id, ex.Message);
             DisposeChannel();
-            return false;
-        }
-        catch (IOException ex)
-        {
-            logger.LogWarning(ex, "La conexión RabbitMQ falló al publicar {EventId}.", message.Id);
-            DisposeChannel();
-            return false;
-        }
-        catch (RabbitMQ.Client.Exceptions.AuthenticationFailureException ex)
-        {
-            logger.LogError(ex, "Las credenciales de RabbitMQ no son válidas; el evento {EventId} permanece en Outbox.", message.Id);
-            DisposeChannel();
-            return false;
-        }
-        catch (TimeoutException ex)
-        {
-            logger.LogWarning(ex, "RabbitMQ agotó el tiempo de conexión para el evento {EventId}.", message.Id);
-            DisposeChannel();
-            return false;
+            return PublishOutcome.BrokerUnavailable;
         }
     }
 
-    private void EnsureChannel()
+    private IModel EnsureChannel()
     {
-        if (channel is not null && channel.IsOpen) return;
+        if (channel is { IsOpen: true }) return channel;
+        DisposeChannel();
         var factory = new ConnectionFactory
         {
             HostName = settings.Host,
@@ -65,18 +78,28 @@ public sealed class RabbitMqPublisher(IOptions<RabbitMqOptions> options, ILogger
             VirtualHost = settings.VirtualHost,
             UserName = settings.UserName,
             Password = settings.Password,
-            AutomaticRecoveryEnabled = true
+            RequestedConnectionTimeout = TimeSpan.FromSeconds(5),
+            AutomaticRecoveryEnabled = false
         };
         connection = factory.CreateConnection();
         channel = connection.CreateModel();
         channel.ExchangeDeclare(settings.Exchange, ExchangeType.Topic, durable: true);
         channel.ExchangeDeclare(settings.DeadLetterExchange, ExchangeType.Topic, durable: true);
+        channel.ConfirmSelect();
+        return channel;
     }
 
     private void DisposeChannel()
     {
-        channel?.Dispose();
-        connection?.Dispose();
+        try
+        {
+            channel?.Dispose();
+            connection?.Dispose();
+        }
+        catch (Exception ex) when (ex is RabbitMQClientException or IOException or SocketException)
+        {
+            logger.LogDebug(ex, "La conexión RabbitMQ ya estaba cerrada.");
+        }
         channel = null;
         connection = null;
     }

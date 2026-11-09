@@ -4,7 +4,7 @@ using Drovik.Incident.Api.Domain;
 using Drovik.Messaging;
 namespace Drovik.Incident.Api.Persistence;
 
-public sealed class IncidentDbContext(DbContextOptions<IncidentDbContext> options) : DbContext(options), IOutboxDbContext
+public sealed class IncidentDbContext(DbContextOptions<IncidentDbContext> options) : DbContext(options), IOutboxDbContext, IInboxDbContext
 {
     public DbSet<IncidentRecord> Incidents => Set<IncidentRecord>();
     public DbSet<IncidentActivity> IncidentActivities => Set<IncidentActivity>();
@@ -21,7 +21,7 @@ public sealed class IncidentDbContext(DbContextOptions<IncidentDbContext> option
             entity.Property(item => item.ResolutionNote).HasMaxLength(1000);
             entity.Property(item => item.Type).HasConversion<string>().HasMaxLength(40);
             entity.Property(item => item.Severity).HasConversion<string>().HasMaxLength(20);
-            entity.Property(item => item.Status).HasConversion<string>().HasMaxLength(20);
+            entity.Property(item => item.Status).HasConversion<string>().HasMaxLength(20).IsConcurrencyToken();
             entity.HasIndex(item => new { item.Status, item.Severity, item.CreatedAtUtc });
             entity.HasIndex(item => item.VehicleId);
             entity.HasIndex(item => item.ShipmentId);

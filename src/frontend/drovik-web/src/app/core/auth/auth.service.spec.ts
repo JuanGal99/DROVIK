@@ -60,6 +60,38 @@ describe('AuthService', () => {
     expect(service.isAuthenticated).toBe(true);
   });
 
+  it('shares one refresh between concurrent callers so the rotated token is not reused', () => {
+    const results: string[] = [];
+    service.refresh().subscribe((user) => results.push(user.id));
+    service.refresh().subscribe((user) => results.push(user.id));
+
+    http.expectOne('http://localhost:5200/api/v1/auth/csrf').flush({ token: 'csrf-token' });
+    http.expectOne('http://localhost:5200/api/v1/auth/refresh').flush({
+      accessToken: 'refreshed-token',
+      tokenType: 'Bearer',
+      expiresAtUtc: '2026-11-07T01:00:00Z',
+      user: { id: 'user-1', email: 'admin@example.com', roles: ['Administrator'] },
+    });
+
+    expect(results).toEqual(['user-1', 'user-1']);
+  });
+
+  it('asks for a current CSRF token on every refresh because the cookie expires first', () => {
+    const session = {
+      accessToken: 'token', tokenType: 'Bearer', expiresAtUtc: '2026-11-07T01:00:00Z',
+      user: { id: 'user-1', email: 'admin@example.com', roles: ['Administrator'] },
+    };
+    service.refresh().subscribe();
+    http.expectOne('http://localhost:5200/api/v1/auth/csrf').flush({ token: 'first' });
+    http.expectOne('http://localhost:5200/api/v1/auth/refresh').flush(session);
+
+    service.refresh().subscribe();
+    http.expectOne('http://localhost:5200/api/v1/auth/csrf').flush({ token: 'second' });
+    const second = http.expectOne('http://localhost:5200/api/v1/auth/refresh');
+    expect(second.request.headers.get('X-CSRF-TOKEN')).toBe('second');
+    second.flush(session);
+  });
+
   it('requests a new CSRF token after the session is cleared', () => {
     service.login('operator@example.com', 'Password-1234!').subscribe();
     http.expectOne('http://localhost:5200/api/v1/auth/csrf').flush({ token: 'first-csrf-token' });

@@ -16,12 +16,31 @@ public enum ShipmentPriority
     High
 }
 
+public sealed class Customer
+{
+    public Guid Id { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public string AddressLabel { get; set; } = string.Empty;
+    public decimal Latitude { get; set; }
+    public decimal Longitude { get; set; }
+    public bool IsActive { get; set; }
+    public DateTime CreatedAtUtc { get; set; }
+    public DateTime UpdatedAtUtc { get; set; }
+}
+
 public sealed class Shipment
 {
     public Guid Id { get; set; }
     public string TrackingCode { get; set; } = string.Empty;
-    public string CustomerId { get; set; } = string.Empty;
-    public Guid OriginCenterId { get; set; }
+    public Guid CustomerId { get; set; }
+    public Customer Customer { get; set; } = null!;
+    public Guid? OriginCustomerId { get; set; }
+    public Customer? OriginCustomer { get; set; }
+    public string? Origin { get; set; }
+    public decimal? OriginLatitude { get; set; }
+    public decimal? OriginLongitude { get; set; }
+    /// <summary>Only set on shipments created before the origin came from the catalog (ADR 0012).</summary>
+    public Guid? LegacyOriginCenterId { get; set; }
     public string Destination { get; set; } = string.Empty;
     public decimal DestinationLatitude { get; set; }
     public decimal DestinationLongitude { get; set; }

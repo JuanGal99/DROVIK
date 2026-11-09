@@ -38,8 +38,7 @@ describe('App', () => {
     fixture.detectChanges();
     const compiled = fixture.nativeElement as HTMLElement;
     expect(compiled.textContent).toContain('Resumen');
-    expect(compiled.textContent).toContain('Escenario simulado');
-    expect(compiled.textContent).toContain('Datos de demostración');
+    expect(compiled.textContent).toContain('Empresa de demostración');
   });
 
   it('collapses the sidebar without removing navigation access', () => {
@@ -50,7 +49,7 @@ describe('App', () => {
     fixture.detectChanges();
     expect(app.sidebarCollapsed()).toBe(true);
     expect(fixture.nativeElement.querySelector('.sidebar-collapsed')).not.toBeNull();
-    expect(fixture.nativeElement.querySelector('.sidebar-expanded')).toBeNull();
+    expect(fixture.nativeElement.querySelector('.sidebar')).not.toBeNull();
     expect(fixture.nativeElement.querySelector('[title="Flota"]')).not.toBeNull();
     expect(fixture.nativeElement.querySelector('.nav-count')).toBeNull();
     expect(fixture.nativeElement.querySelector('.sidebar .sidebar-toggle')).not.toBeNull();
@@ -65,10 +64,9 @@ describe('App', () => {
 
     const sidebar = fixture.nativeElement.querySelector('.sidebar') as HTMLElement;
     expect(sidebar.querySelector('.brand-name')?.hasAttribute('hidden')).toBe(true);
-    expect(sidebar.querySelector('.workspace-copy')?.hasAttribute('hidden')).toBe(true);
     expect(sidebar.querySelector('.profile-copy')?.hasAttribute('hidden')).toBe(true);
     expect(sidebar.querySelector('.nav-item span')?.hasAttribute('hidden')).toBe(true);
-    expect(sidebar.querySelector('[title="Configuración"]')).not.toBeNull();
+    expect(sidebar.querySelector('[title="Resumen"]')).not.toBeNull();
     expect(sidebar.querySelector('[aria-label="Cerrar sesión"]')).not.toBeNull();
   });
 });

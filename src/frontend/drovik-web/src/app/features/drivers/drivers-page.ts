@@ -1,10 +1,9 @@
-import { CommonModule, registerLocaleData } from '@angular/common';
-import localeEs from '@angular/common/locales/es';
+import { CommonModule } from '@angular/common';
 import { Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { FleetDataService } from '../../core/data/fleet-data.service';
 import { Driver, DriverAvailability, DriverDraft, DriversDataService } from '../../core/data/drivers-data.service';
-
-registerLocaleData(localeEs, 'es');
+import '../../core/locale/es-locale';
 
 const AVAILABILITY_LABELS: Record<DriverAvailability, string> = { Available: 'Disponible', Assigned: 'Asignado', Inactive: 'Inactivo' };
 
@@ -14,9 +13,11 @@ const AVAILABILITY_LABELS: Record<DriverAvailability, string> = { Available: 'Di
   templateUrl: './drivers-page.html',
   styleUrl: './drivers-page.scss',
   standalone: true,
+  host: { '(document:keydown.escape)': 'closeOverlays()' },
 })
 export class DriversPage {
   readonly data = inject(DriversDataService);
+  private readonly fleet = inject(FleetDataService);
   readonly query = signal('');
   readonly availabilityFilter = signal('Todos');
   readonly page = signal(1);
@@ -43,7 +44,11 @@ export class DriversPage {
       next: () => this.data.loading.set(false),
       error: () => this.data.loading.set(false),
     });
+    this.fleet.loadVehicles().subscribe({ error: () => undefined });
   }
+
+  closeOverlays(): void { this.editorOpen.set(false); this.selected.set(null); }
+  vehiclePlate(id?: string): string { return id ? this.fleet.vehicles().find((vehicle) => vehicle.id === id)?.plate ?? 'No disponible' : 'Sin vehículo'; }
 
   availabilityLabel(availability: DriverAvailability): string { return AVAILABILITY_LABELS[availability]; }
   availabilityClass(availability: DriverAvailability): string { return availability.toLocaleLowerCase(); }
@@ -69,7 +74,7 @@ export class DriversPage {
   save(): void {
     const draft = { ...this.draft(), fullName: this.draft().fullName.trim(), licenseCategory: this.draft().licenseCategory.trim().toUpperCase() };
     if (this.data.drivers().some((driver) => driver.fullName.toLocaleLowerCase('es') === draft.fullName.toLocaleLowerCase('es') && driver.id !== this.editingId())) {
-      this.formError.set('Ya existe un perfil con ese nombre en los datos de demostración.');
+      this.formError.set('Ya existe un conductor con ese nombre.');
       return;
     }
     this.data.saveDriver(draft, this.editingId() ?? undefined).subscribe({

@@ -25,7 +25,26 @@ describe('IncidentsDataService', () => {
     expect(request.request.params.get('severity')).toBe('High');
     request.flush({ items: [incident], totalCount: 1, page: 1, pageSize: 100 });
     expect(service.incidents()).toHaveLength(1);
-    expect(service.openCount()).toBe(1);
+    expect(service.openCount()).toBe(0);
+  });
+
+  it('counts open incidents across statuses without being limited by the current view', () => {
+    const service = TestBed.inject(IncidentsDataService);
+    service.loadOpenCount().subscribe();
+    const requests = http.match((item) => item.url.endsWith('/api/v1/incidents'));
+    expect(requests.map((item) => item.request.params.get('status'))).toEqual(['Open', 'InProgress']);
+    requests[0].flush({ items: [], totalCount: 4, page: 1, pageSize: 1 });
+    requests[1].flush({ items: [], totalCount: 3, page: 1, pageSize: 1 });
+    expect(service.openCount()).toBe(7);
+  });
+
+  it('keeps the list visible when an action is rejected', () => {
+    const service = TestBed.inject(IncidentsDataService);
+    service.incidents.set([incident]);
+    service.resolve(incident.id, 'Nota').subscribe({ error: () => undefined });
+    http.expectOne((item) => item.url.endsWith('/resolve')).flush({ detail: 'Transición inválida' }, { status: 409, statusText: 'Conflict' });
+    expect(service.error()).toBeNull();
+    expect(service.actionError()).toBe('Transición inválida');
   });
 
   it('resolves an incident and updates the local state', () => {

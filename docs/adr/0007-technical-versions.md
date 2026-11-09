@@ -23,6 +23,7 @@
 | PrimeNG | 21.1.10 |
 | PrimeUIX Themes | 3.1.0 |
 | PrimeIcons | 8.0.2 |
+| Fontsource Barlow / Barlow Semi Condensed | 5.3.0 / 5.3.0 |
 | SQL Server container | 2022-CU23-ubuntu-22.04 |
 | RabbitMQ container | 4.4.0-management |
 
