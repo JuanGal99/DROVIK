@@ -369,6 +369,38 @@ public sealed class DomainApiTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Finished_route_delivers_the_shipment_once_and_frees_fleet()
+    {
+        var id = await CreateShipment();
+        using (await Assign(id, "route-done-key")) { }
+        using (await ChangeStatus(id, "InTransit")) { }
+        var body = EventEnvelopeSerializer.Serialize(OutboxMessageFactory.Create(DomainEvents.ShipmentRouteCompleted, new ShipmentRouteCompletedV1(id, Guid.NewGuid())));
+        var consumer = _shipment.Services.GetRequiredService<ShipmentEventConsumer>();
+
+        Assert.Equal(ConsumeOutcome.Ack, await consumer.ProcessAsync(body, redelivered: false, CancellationToken.None));
+        Assert.Equal(ConsumeOutcome.Ack, await consumer.ProcessAsync(body, redelivered: true, CancellationToken.None));
+
+        using var current = await _shipmentClient.GetAsync($"/api/v1/shipments/{id}");
+        var shipment = await ReadJson(current);
+        Assert.Equal("Delivered", shipment.GetProperty("status").GetString());
+        Assert.Equal("RouteCompleted", shipment.GetProperty("statusHistory")[0].GetProperty("source").GetString());
+        await DeliverShipmentEventsToFleet();
+        Assert.Equal("Available", await VehicleStatusOf(TruckId));
+    }
+
+    [Fact]
+    public async Task Finished_route_does_not_deliver_a_shipment_that_never_left()
+    {
+        var id = await CreateShipment();
+        var body = EventEnvelopeSerializer.Serialize(OutboxMessageFactory.Create(DomainEvents.ShipmentRouteCompleted, new ShipmentRouteCompletedV1(id, Guid.NewGuid())));
+
+        await _shipment.Services.GetRequiredService<ShipmentEventConsumer>().ProcessAsync(body, redelivered: false, CancellationToken.None);
+
+        using var current = await _shipmentClient.GetAsync($"/api/v1/shipments/{id}");
+        Assert.Equal("Pending", (await ReadJson(current)).GetProperty("status").GetString());
+    }
+
+    [Fact]
     public async Task Delivery_is_durable_when_fleet_is_down_and_the_event_frees_the_resources()
     {
         var id = await CreateShipment();

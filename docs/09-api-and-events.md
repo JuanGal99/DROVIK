@@ -73,6 +73,19 @@ Clientes es la red cerrada de puntos de Shipment (ADR 0012): 8 puntos en Bogotá
 | `GET /api/v1/customers?search=&isActive=&page=&pageSize=` | Query opcional | 200 paginado, ordenado por nombre. `CustomerResponse`: `id`, `name`, `addressLabel`, `latitude`, `longitude`, `isActive` |
 | `GET /api/v1/customers/{id}` | — | 200 o 404 |
 
+### Operación en vivo (Simulation) v1 — contrato implementado
+
+Rutas mediante YARP con `Administrator` u `Operator`. Solo puede haber una operación activa.
+
+| Método y ruta | Entrada | Éxito |
+|---|---|---|
+| `GET /api/v1/simulations/live` | — | 200 `{ run, vehicles }` con rutas; `run` es null si no hay operación activa |
+| `POST /api/v1/simulations` | `{ speedMultiplier }` (1 a 120) | 201; 409 si ya hay una activa o no hay envíos en ruta; 503 si Shipment no responde |
+| `POST /api/v1/simulations/{id}/pause`, `/resume`, `/cancel` | — | 200; 409 si el estado no lo admite |
+| `POST /api/v1/simulations/{id}/sync` | — | 200; incorpora o retira envíos que entraron o salieron de ruta |
+
+El hub `/hubs/operations` envía el mensaje `state` con cada avance, sin rutas. El JWT se acepta por `access_token` solo en esa ruta. Al terminar un recorrido, Simulation publica `ShipmentRouteCompleted` (`simulation.shipment-route-completed.v1`) y Shipment entrega el envío.
+
 ### Incident Service v1 — contrato implementado
 
 Las rutas de Incident se consumen mediante YARP y requieren los roles `Administrator` u `Operator`. Las referencias `vehicleId` y `shipmentId` son identificadores opacos; Incident no consulta las bases de Fleet o Shipment.
@@ -121,7 +134,8 @@ Consumidores indicados son los planificados; cada contrato concreta filtros y ef
 | ShipmentCreated | Shipment | Simulation (contexto de operación) |
 | ShipmentAssigned | Shipment | Fleet (confirma la reserva); Simulation; Incident (auditoría) |
 | ShipmentStatusChanged / Delivered / Cancelled | Shipment | Fleet (vehículo en ruta y liberación); Simulation; Incident (auditoría) y proyecciones de dashboard |
-| SimulationStarted / Paused / Completed | Simulation | Incident y realtime |
+| ShipmentRouteCompleted | Simulation | Shipment (entrega el envío) |
+| SimulationStarted / Paused / Completed | Simulation | Incident y realtime (no publicados todavía) |
 | VehicleBreakdownDetected / RouteDelayDetected / RouteDeviationDetected | Simulation | Incident; Shipment para los cambios de estado que correspondan |
 | VehiclePositionUpdated | Simulation | SignalR/realtime; no fan-out general por RabbitMQ |
 | IncidentCreated / IncidentStatusChanged / IncidentResolved | Incident | Realtime y proyecciones de dashboard |

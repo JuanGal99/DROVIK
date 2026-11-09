@@ -23,6 +23,7 @@ public class GatewayProxyTests
     [InlineData("/api/v1/shipments", "shipment")]
     [InlineData("/api/v1/customers", "shipment")]
     [InlineData("/api/v1/simulations/run-1/start", "simulation")]
+    [InlineData("/hubs/operations/negotiate", "simulation")]
     [InlineData("/api/v1/incidents", "incident")]
     public async Task Proxy_forwards_request_to_owning_service(string requestPath, string clusterId)
     {

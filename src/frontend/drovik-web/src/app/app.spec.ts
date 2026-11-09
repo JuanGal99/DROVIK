@@ -38,7 +38,7 @@ describe('App', () => {
     fixture.detectChanges();
     const compiled = fixture.nativeElement as HTMLElement;
     expect(compiled.textContent).toContain('Resumen');
-    expect(compiled.textContent).toContain('Empresa de demostración');
+    expect(compiled.textContent).toContain('Northline Logistics');
   });
 
   it('collapses the sidebar without removing navigation access', () => {

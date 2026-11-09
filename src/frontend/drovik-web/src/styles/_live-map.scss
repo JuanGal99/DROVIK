@@ -1,0 +1,18 @@
+// Leaflet builds these elements outside Angular's view encapsulation, so they are styled globally.
+.leaflet-container { background: var(--surface-app); font-family: var(--font-body); }
+.leaflet-tile-pane { filter: invert(1) hue-rotate(195deg) saturate(.45) brightness(.82) contrast(.9); }
+.leaflet-bar a { border-color: var(--line-strong); background: var(--surface-panel); color: var(--text-primary); }
+.leaflet-bar a:hover { background: var(--surface-raised); color: var(--text-primary); }
+.leaflet-control-attribution { background: rgb(21 25 30 / .78) !important; color: var(--text-secondary); }
+.leaflet-control-attribution a { color: var(--accent); }
+.leaflet-tooltip { border: 1px solid var(--line-strong); border-radius: 2px; background: var(--surface-panel); box-shadow: none; color: var(--text-primary); font-size: var(--type-small); }
+.leaflet-tooltip-top::before { border-top-color: var(--line-strong); }
+
+.leaflet-tooltip.map-label { padding: 1px 5px; border: 0; background: rgb(21 25 30 / .82); font-weight: 500; }
+.leaflet-tooltip.map-label::before { display: none; }
+
+.map-point { border: 2px solid var(--surface-app); background: var(--text-primary); }
+.map-vehicle { display: grid; place-items: center; border: 2px solid var(--surface-app); border-radius: 50%; background: var(--accent); color: var(--surface-app); font-size: 13px; transition: transform 1s linear; }
+.map-vehicle.is-delayed { background: var(--warning); }
+.map-vehicle.is-arrived { background: var(--success); }
+.leaflet-zoom-anim .map-vehicle { transition: none; }

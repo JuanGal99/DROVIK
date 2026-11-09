@@ -2,7 +2,7 @@
   <section class="login-panel" aria-labelledby="login-title">
     <div class="login-brand"><app-brand-mark /><strong>DROVIK</strong></div>
     <h1 id="login-title">Iniciar sesión</h1>
-    <p class="login-intro">Consola de operaciones de Northline Logistics, una empresa de demostración.</p>
+    <p class="login-intro">Consola de operaciones de Northline Logistics.</p>
     <form (ngSubmit)="submit()" #loginForm="ngForm">
       <label for="email">Correo electrónico</label>
       <input id="email" name="email" type="email" required autocomplete="username" [ngModel]="email()" (ngModelChange)="email.set($event)">
@@ -12,5 +12,5 @@
       <button class="login-button" type="submit" [disabled]="loginForm.invalid || auth.busy()">@if (auth.busy()) { Verificando… } @else { Iniciar sesión }</button>
     </form>
   </section>
-  <aside class="login-network" aria-hidden="true"><app-network-map [points]="network" [routes]="routes" /></aside>
+  <aside class="login-globe"><img src="login-globe.svg" alt=""></aside>
 </main>

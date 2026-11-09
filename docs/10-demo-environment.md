@@ -16,7 +16,7 @@ Seed completamente sintético, coherente y reproducible. La demo opera en Bogot�
 
 La demostración corre localmente desde el repositorio. Capturas se guardan/referencian cuando existan; el README no debe presentar placeholders como capturas reales. Un video corto es opcional. No se exige aplicación pública ni cuenta hospedada.
 
-Los flujos principales funcionan sin GPS, tráfico en vivo, OSRM ni servicios cloud. OSRM es opcional y las geometrías locales son respaldo para demo y pruebas. La interfaz declara visiblemente que las posiciones y eventos son simulados.
+Los flujos principales funcionan sin GPS, tráfico en vivo, OSRM ni servicios cloud. OSRM es opcional y las geometrías locales son respaldo para demo y pruebas.
 
 ## 10.4 Reset
 

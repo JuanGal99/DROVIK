@@ -12,7 +12,6 @@
           <i [class]="item.icon" aria-hidden="true"></i>
           <span class="nav-label" [hidden]="sidebarCollapsed()">{{ item.label }}</span>
           @if (item.route === '/incidents' && incidents.openCount()) { <span class="nav-count" [hidden]="sidebarCollapsed()">{{ incidents.openCount() }}</span> }
-          @if (item.soon) { <span class="nav-soon" [hidden]="sidebarCollapsed()">Pronto</span> }
         </a>
       }
     </nav>
@@ -28,7 +27,6 @@
       <button class="menu-trigger" type="button" (click)="menuOpen.set(true)" aria-label="Abrir navegación"><i class="pi pi-bars" aria-hidden="true"></i></button>
       <span class="page-name">{{ pageTitle() }}</span>
       <span class="company">Northline Logistics</span>
-      <span class="demo-flag" title="La empresa, sus puntos y los envíos son ficticios">Empresa de demostración</span>
     </header>
     <main class="page-content"><router-outlet /></main>
   </div>

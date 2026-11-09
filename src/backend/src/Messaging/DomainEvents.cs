@@ -15,6 +15,7 @@ public static class DomainEvents
     public const string ShipmentStatusChanged = nameof(ShipmentStatusChanged);
     public const string ShipmentDelivered = nameof(ShipmentDelivered);
     public const string ShipmentCancelled = nameof(ShipmentCancelled);
+    public const string ShipmentRouteCompleted = nameof(ShipmentRouteCompleted);
     public const string IncidentCreated = nameof(IncidentCreated);
     public const string IncidentStatusChanged = nameof(IncidentStatusChanged);
     public const string IncidentResolved = nameof(IncidentResolved);
@@ -29,6 +30,7 @@ public static class DomainEvents
         [ShipmentStatusChanged] = "shipment",
         [ShipmentDelivered] = "shipment",
         [ShipmentCancelled] = "shipment",
+        [ShipmentRouteCompleted] = "simulation",
         [IncidentCreated] = "incident",
         [IncidentStatusChanged] = "incident",
         [IncidentResolved] = "incident",
@@ -64,6 +66,7 @@ public sealed record ShipmentCreatedV1(Guid ShipmentId, string TrackingCode, str
 public sealed record ShipmentAssignedV1(Guid ShipmentId, Guid VehicleId, Guid DriverId, Guid ReservationId);
 public sealed record ShipmentStatusChangedV1(Guid ShipmentId, string Status, string? Note = null, Guid? VehicleId = null, Guid? ReservationId = null);
 public sealed record ShipmentClosedV1(Guid ShipmentId, string Status, Guid? ReservationId = null);
+public sealed record ShipmentRouteCompletedV1(Guid ShipmentId, Guid RunId);
 public sealed record IncidentCreatedV1(Guid IncidentId, string Type, string Severity, string Status, Guid? VehicleId = null, Guid? ShipmentId = null);
 public sealed record IncidentStatusChangedV1(Guid IncidentId, string Status, string? Note = null);
 public sealed record IncidentResolvedV1(Guid IncidentId, string Status, string? ResolutionNote = null);

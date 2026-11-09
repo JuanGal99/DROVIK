@@ -10,7 +10,7 @@ DROVIK es una plataforma demostrativa de gestión logística para centralizar op
 
 Es un proyecto de portafolio con ejecución local. El repositorio público contiene el código fuente y la documentación para clonar y ejecutar el sistema en un equipo propio. No se requiere ni contempla desplegar la aplicación completa públicamente.
 
-> **Demostración sintética:** DROVIK no se conecta a GPS ni representa tráfico vial real. Las posiciones, eventos y datos operativos son ficticios y la interfaz los identifica como simulados.
+> **Demostración sintética:** DROVIK no se conecta a GPS ni representa tráfico vial real. Las posiciones, eventos y datos operativos son ficticios, aunque la consola se presenta como una operación real.
 
 ## Características previstas
 
