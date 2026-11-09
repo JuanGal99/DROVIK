@@ -268,12 +268,18 @@ hierarchy, layout and relevant interaction states.
 -   No escribas secretos, contraseñas o tokens en el repositorio. No
     presentes datos simulados como reales.
 -   Usa `main` como rama estable y ramas cortas `feat/*` o `fix/*`;
-    revisa cambios antes de fusionar. No abras una rama `develop`.
+    el agente revisa su propio diff antes de fusionar. No abras una rama
+    `develop`.
 -   No declares una fase terminada hasta cumplir todos sus criterios
     verificables en `docs/13-roadmap.md`; distingue los shells técnicos
     de funcionalidades operativas.
--   No hagas commit, push, merge, reset, rebase ni elimines ramas o
-    worktrees salvo que el usuario lo solicite expresamente.
+-   Por ahora el propietario no revisa los cambios antes de fusionarlos.
+    Cuando un bloque pase las validaciones disponibles (pruebas, builds,
+    Docker Compose, `git diff --check` y revisión de secretos), haz
+    commit en una rama corta, fusiónala en `main` y haz push de ambas sin
+    pedir aprobación. Si una validación falla, no fusiones.
+-   No hagas reset, rebase ni force push, ni elimines ramas o worktrees,
+    salvo que el usuario lo solicite expresamente.
 -   No sobrescribas ni descartes cambios preexistentes del usuario.
     Inspecciona el estado de Git antes de modificar archivos y conserva
     los cambios ajenos a la tarea.
