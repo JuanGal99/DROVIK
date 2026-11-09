@@ -28,6 +28,7 @@ public sealed record ShipmentResponse(
     DateTime UpdatedAtUtc,
     IReadOnlyList<ShipmentHistoryResponse> StatusHistory);
 
+public sealed record StatusSummaryResponse(int TotalCount, IReadOnlyDictionary<string, int> ByStatus);
 public sealed record PagedResponse<T>(IReadOnlyList<T> Items, int TotalCount, int Page, int PageSize);
 
 public sealed record CreateShipmentRequest(

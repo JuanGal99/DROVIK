@@ -30,15 +30,15 @@ export class OverviewDataService {
     .filter((shipment) => shipment.originCustomerId)
     .map((shipment) => ({ id: shipment.id, originId: shipment.originCustomerId!, destinationId: shipment.customerId, tone: ROUTE_TONES[shipment.status]! })));
   readonly stages = computed(() => {
-    const shipments = this.shipmentsData.shipments();
-    const largest = Math.max(1, ...STAGES.map((status) => shipments.filter((item) => item.status === status).length));
+    const counts = this.shipmentsData.summary().byStatus;
+    const largest = Math.max(1, ...STAGES.map((status) => counts[status] ?? 0));
     return STAGES.map((status) => {
-      const count = shipments.filter((item) => item.status === status).length;
+      const count = counts[status] ?? 0;
       return { status, count, share: Math.round((count / largest) * 100) };
     });
   });
-  readonly vehiclesAvailable = computed(() => this.fleet.vehicles().filter((vehicle) => vehicle.status === 'Available').length);
-  readonly vehiclesInService = computed(() => this.fleet.vehicles().filter((vehicle) => vehicle.status !== 'Inactive').length);
+  readonly vehiclesAvailable = computed(() => this.fleet.summary().byStatus['Available'] ?? 0);
+  readonly vehiclesInService = computed(() => this.fleet.summary().totalCount - (this.fleet.summary().byStatus['Inactive'] ?? 0));
   readonly activity = computed<ActivityItem[]>(() => this.shipmentsData.shipments()
     .flatMap((shipment) => shipment.statusHistory.map((entry, index) => ({
       key: `${shipment.id}-${index}`, at: entry.occurredAt, trackingCode: shipment.trackingCode, status: entry.status, note: entry.note,
@@ -46,11 +46,12 @@ export class OverviewDataService {
     .sort((a, b) => b.at.localeCompare(a.at))
     .slice(0, 7));
 
-  load(): Observable<unknown> {
-    this.loading.set(true);
-    this.failed.set(false);
-    return forkJoin([this.shipmentsData.loadShipments(), this.customers.loadCustomers(), this.incidents.loadOpenCount()]).pipe(
-      finalize(() => this.loading.set(false)),
-    );
+  /** A background reload keeps the figures on screen, even if it fails. */
+  load(background = false): Observable<unknown> {
+    if (!background) { this.loading.set(true); this.failed.set(false); }
+    return forkJoin([
+      this.shipmentsData.loadShipments(), this.shipmentsData.loadSummary(), this.fleet.loadSummary(),
+      this.customers.loadCustomers(), this.incidents.loadOpenCount(),
+    ]).pipe(finalize(() => { if (!background) this.loading.set(false); }));
   }
 }

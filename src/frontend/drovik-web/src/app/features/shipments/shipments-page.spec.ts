@@ -1,11 +1,12 @@
 import { signal } from '@angular/core';
-import { of } from 'rxjs';
+import { EMPTY, of } from 'rxjs';
 import { TestBed } from '@angular/core/testing';
 import { ShipmentsPage } from './shipments-page';
 import { ShipmentsDataService } from '../../core/data/shipments-data.service';
 import { FleetDataService } from '../../core/data/fleet-data.service';
 import { DriversDataService } from '../../core/data/drivers-data.service';
 import { CustomersDataService } from '../../core/data/customers-data.service';
+import { OperationsHubService } from '../../core/realtime/operations-hub.service';
 
 const shipment = {
   id: 'shipment-1', trackingCode: 'SH-001', customerId: 'customer-1', customerName: 'Mercado Central', originCustomerId: 'customer-3', originName: 'Distribuidora Sabana',
@@ -18,8 +19,8 @@ const customersStub = { customers: signal([customer, origin]), loading: signal(f
 const fleetStub = { vehicles: signal([]), centers: signal([]) };
 const driversStub = { drivers: signal([]) };
 const shipmentStub = {
-  shipments: signal([shipment]), loading: signal(false), error: signal<string | null>(null), actionError: signal<string | null>(null),
-  loadShipments: () => of([shipment]),
+  shipments: signal([shipment]), pageItems: signal([shipment]), totalCount: signal(13), summary: signal({ totalCount: 40, byStatus: { Pending: 5, InTransit: 3, Delayed: 2 } as Record<string, number> }), loading: signal(false), error: signal<string | null>(null), actionError: signal<string | null>(null),
+  loadShipments: () => of([shipment]), loadPage: vi.fn(() => of(undefined)),
   availableVehicles: () => [], availableDrivers: () => [],
   vehicle: () => undefined, driver: () => undefined,
   getShipment: () => of(shipment), createDraft: () => of(shipment), updateShipment: () => of(shipment),
@@ -34,20 +35,27 @@ describe('ShipmentsPage', () => {
       { provide: FleetDataService, useValue: fleetStub },
       { provide: DriversDataService, useValue: driversStub },
       { provide: CustomersDataService, useValue: customersStub },
+      { provide: OperationsHubService, useValue: { changes: () => EMPTY } },
     ],
   }));
 
-  it('filters shipments by status', () => {
+  it('asks the server for the page, search and status on screen', () => {
+    vi.useFakeTimers();
     const page = TestBed.createComponent(ShipmentsPage).componentInstance;
+    shipmentStub.loadPage.mockClear();
+    page.query.set('mercado');
     page.statusFilter.set('Pending');
-    expect(page.filtered().length).toBe(1);
-    expect(page.filtered()[0].status).toBe('Pending');
+    page.updateFilter();
+    vi.advanceTimersByTime(300);
+    expect(shipmentStub.loadPage).toHaveBeenCalledWith({ page: 1, pageSize: 6, search: 'mercado', status: 'Pending' }, false);
+    vi.useRealTimers();
   });
 
-  it('finds shipments by customer name', () => {
+  it('takes its totals from the server, not from the page on screen', () => {
     const page = TestBed.createComponent(ShipmentsPage).componentInstance;
-    page.query.set('mercado');
-    expect(page.filtered().length).toBe(1);
+    expect(page.pageCount()).toBe(3);
+    expect(page.pendingCount()).toBe(5);
+    expect(page.inTransitCount()).toBe(5);
   });
 
   it('creates a shipment between two catalog points', () => {

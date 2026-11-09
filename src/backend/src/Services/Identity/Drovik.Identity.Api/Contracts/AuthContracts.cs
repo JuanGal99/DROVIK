@@ -7,4 +7,7 @@ public sealed record AuthResponse(string AccessToken, string TokenType, DateTime
 public sealed record CsrfResponse(string Token);
 public sealed record ManagedUserDto(Guid Id, string Email, IReadOnlyList<string> Roles, bool IsActive);
 public sealed record ChangeUserStatusRequest(bool IsActive);
+public sealed record ChangePasswordRequest(string CurrentPassword, string NewPassword);
+public sealed record ResetPasswordRequest(string NewPassword);
+public sealed record ChangeUserRoleRequest(string Role);
 public sealed record ApiProblem(string Type, string Title, int Status, string Detail);

@@ -24,6 +24,9 @@ El navegador usa `http://localhost:5200` (Gateway) como base. El access JWT apar
 | `POST /api/v1/users` | Bearer `Administrator` | `{ email, password, role }` (`Administrator` o `Operator`) | 201 `{ id, email, roles }` | 400 validación; 401 no autenticado; 403 rol insuficiente; 409 conflicto genérico de usuario |
 | `GET /api/v1/users` | Bearer `Administrator` | — | 200 `[{ id, email, roles, isActive }]` | 401; 403 |
 | `PATCH /api/v1/users/{id}/status` | Bearer `Administrator` | `{ isActive }` | 200; al desactivar revoca sus sesiones | 404; 409 sobre la propia cuenta |
+| `PATCH /api/v1/users/{id}/role` | Bearer `Administrator` | `{ role }` (`Administrator` o `Operator`) | 200 `{ id, email, roles, isActive }`; llega a una sesión abierta al renovar su token, en 15 minutos como máximo | 400 rol inválido; 404; 409 sobre la propia cuenta |
+| `POST /api/v1/users/{id}/password` | Bearer `Administrator` | `{ newPassword }` | 204; cierra las sesiones del usuario y levanta bloqueos por intentos fallidos, no una desactivación | 400 política; 404; 409 sobre la propia cuenta |
+| `POST /api/v1/auth/change-password` | Bearer | `{ currentPassword, newPassword }` | 204; cierra todas las sesiones del usuario | 400 contraseña actual incorrecta o política; 401; 429 |
 
 No existe autorregistro público ni endpoint de bootstrap. Login tiene rate limit local para mitigar intentos repetidos. Para login, el cliente solicita `/csrf` primero y envía cookie de CSRF y `X-CSRF-TOKEN` con credenciales incluidas. Respuestas usan Problem Details sin revelar existencia de cuenta, stack traces ni secretos. Las contraseñas siguen validadores de ASP.NET Core Identity. Los contratos no exponen refresh token en JSON.
 
@@ -36,6 +39,7 @@ Las rutas de Fleet se consumen únicamente a través de YARP y requieren el rol 
 | Método y ruta | Entrada | Éxito |
 |---|---|---|
 | `GET /api/v1/vehicles?search=&status=&type=&page=&pageSize=` | Query opcional | 200 paginado |
+| `GET /api/v1/vehicles/summary` | — | 200 `{ totalCount, byStatus }` sobre toda la flota |
 | `GET /api/v1/vehicles/{id}` | — | 200 `VehicleResponse` o 404 |
 | `POST /api/v1/vehicles` | `plate`, `model`, `type`, `capacityKg`, `currentOdometer`, `distributionCenterId` | 201; placa única y centro activo |
 | `PUT /api/v1/vehicles/{id}` | Mismos campos de creación | 200 o 409 |
@@ -56,6 +60,7 @@ Las rutas de Shipment requieren `Administrator` u `Operator`. El servicio conser
 | Método y ruta | Entrada | Éxito |
 |---|---|---|
 | `GET /api/v1/shipments?search=&status=&priority=&page=&pageSize=` | Query opcional | 200 paginado |
+| `GET /api/v1/shipments/summary` | — | 200 `{ totalCount, byStatus }` sobre todos los envíos |
 | `GET /api/v1/shipments/{id}` | — | 200 `ShipmentResponse` o 404 |
 | `POST /api/v1/shipments` | `originCustomerId` y `customerId` (puntos activos y distintos del catálogo), `weightKg`, `priority` | 201 como `Pending`; nombres, etiquetas y coordenadas de origen y destino salen del catálogo |
 | `PUT /api/v1/shipments/{id}` | `originCustomerId`, `customerId`, `weightKg`, `priority` | 200; solo pendiente |
@@ -90,6 +95,8 @@ Rutas mediante YARP con `Administrator` u `Operator`. Solo puede haber una opera
 | `POST /api/v1/simulations/demo-reset` (también `/shipments`, `/incidents`, `/vehicles`) | Solo `Administrator` | 204; cada servicio borra sus datos operativos |
 
 El hub `/hubs/operations` envía el mensaje `state` con cada avance, sin rutas. El JWT se acepta por `access_token` solo en esa ruta. Al terminar un recorrido, Simulation publica `ShipmentRouteCompleted` (`simulation.shipment-route-completed.v1`) y Shipment entrega el envío.
+
+El mismo hub envía `changed` con el área afectada: `shipments`, `fleet` o `incidents`. Es solo un aviso para que la pantalla vuelva a leer los datos de su servicio propietario, y se emite únicamente con eventos publicados después de confirmar el cambio (`Shipment*` salvo `ShipmentRouteCompleted`, `VehicleAvailabilityChanged`, `DriverAvailabilityChanged` e `Incident*`). Al reconectarse, el navegador vuelve a leer todas las áreas porque los avisos intermedios se pierden. Crear o editar los datos de catálogo de un vehículo no publica evento y por tanto no avisa a otras pantallas abiertas.
 
 ### Incident Service v1 — contrato implementado
 

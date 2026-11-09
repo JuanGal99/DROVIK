@@ -370,6 +370,36 @@ public sealed class DomainApiTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Shipment_pages_come_from_the_server_and_the_summary_counts_them_all()
+    {
+        await CreateShipment();
+        await CreateShipment();
+        await CreateShipment();
+
+        using var second = await _shipmentClient.GetAsync("/api/v1/shipments?page=2&pageSize=2");
+        var page = await ReadJson(second);
+        using var summary = await _shipmentClient.GetAsync("/api/v1/shipments/summary");
+        var totals = await ReadJson(summary);
+
+        Assert.Equal(1, page.GetProperty("items").GetArrayLength());
+        Assert.Equal(3, page.GetProperty("totalCount").GetInt32());
+        Assert.Equal(3, totals.GetProperty("totalCount").GetInt32());
+        Assert.Equal(3, totals.GetProperty("byStatus").GetProperty("Pending").GetInt32());
+    }
+
+    [Fact]
+    public async Task Vehicle_summary_counts_the_whole_fleet_whatever_the_page_size()
+    {
+        using var first = await _fleetClient.GetAsync("/api/v1/vehicles?pageSize=1");
+        var page = await ReadJson(first);
+        using var summary = await _fleetClient.GetAsync("/api/v1/vehicles/summary");
+        var totals = await ReadJson(summary);
+
+        Assert.Equal(page.GetProperty("totalCount").GetInt32(), totals.GetProperty("totalCount").GetInt32());
+        Assert.Equal(totals.GetProperty("totalCount").GetInt32(), totals.GetProperty("byStatus").EnumerateObject().Sum(item => item.Value.GetInt32()));
+    }
+
+    [Fact]
     public async Task Finished_route_delivers_the_shipment_once_and_frees_fleet()
     {
         var id = await CreateShipment();

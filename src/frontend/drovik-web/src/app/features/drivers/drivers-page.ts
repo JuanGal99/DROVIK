@@ -1,3 +1,5 @@
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { OperationsHubService } from '../../core/realtime/operations-hub.service';
 import { CommonModule } from '@angular/common';
 import { Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
@@ -45,6 +47,7 @@ export class DriversPage {
       error: () => this.data.loading.set(false),
     });
     this.fleet.loadVehicles().subscribe({ error: () => undefined });
+    inject(OperationsHubService).changes('fleet').pipe(takeUntilDestroyed()).subscribe(() => this.data.loadDrivers(true).subscribe({ error: () => undefined }));
   }
 
   closeOverlays(): void { this.editorOpen.set(false); this.selected.set(null); }

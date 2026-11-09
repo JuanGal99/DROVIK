@@ -1,14 +1,13 @@
 import { HttpClient } from '@angular/common/http';
 import { computed, Injectable, inject, signal } from '@angular/core';
-import { HubConnection, HubConnectionBuilder, LogLevel } from '@microsoft/signalr';
-import { Observable, tap } from 'rxjs';
+import { Observable, Subscription, tap } from 'rxjs';
 import { environment } from '../../../environments/environment';
-import { AuthService } from '../auth/auth.service';
+import { LiveConnection, OperationsHubService } from '../realtime/operations-hub.service';
 
 export type LiveRunStatus = 'Running' | 'Paused' | 'Completed' | 'Cancelled';
 export type LiveVehicleStatus = 'Moving' | 'Arrived';
 export type LiveScenario = 'Congestion' | 'Breakdown' | 'Detour' | 'Repair';
-export type LiveConnection = 'connecting' | 'live' | 'reconnecting' | 'offline';
+export type { LiveConnection };
 
 export interface LiveRun { id: string; status: LiveRunStatus; speedMultiplier: number; startedAtUtc: string; }
 export interface LiveVehicle {
@@ -34,13 +33,13 @@ type ApiError = { error?: { detail?: string; title?: string } };
 @Injectable({ providedIn: 'root' })
 export class LiveOperationsService {
   private readonly http = inject(HttpClient);
-  private readonly auth = inject(AuthService);
+  private readonly hub = inject(OperationsHubService);
   private readonly endpoint = `${environment.gatewayUrl}/api/v1/simulations`;
-  private hub: HubConnection | null = null;
+  private listening: Subscription | null = null;
 
   readonly run = signal<LiveRun | null>(null);
   readonly vehicles = signal<LiveVehicle[]>([]);
-  readonly connection = signal<LiveConnection>('connecting');
+  readonly connection = this.hub.connection;
   readonly loading = signal(false);
   readonly busy = signal(false);
   readonly error = signal<string | null>(null);
@@ -77,24 +76,14 @@ export class LiveOperationsService {
   }
 
   connect(): void {
-    if (this.hub) return;
-    this.connection.set('connecting');
-    const hub = new HubConnectionBuilder()
-      .withUrl(`${environment.gatewayUrl}/hubs/operations`, { accessTokenFactory: () => this.auth.token ?? '' })
-      .withAutomaticReconnect()
-      .configureLogging(LogLevel.None)
-      .build();
-    hub.on('state', (state: LiveState) => this.applyUpdate(state));
-    hub.onreconnecting(() => this.connection.set('reconnecting'));
-    hub.onreconnected(() => { this.connection.set('live'); this.load(); });
-    hub.onclose(() => this.connection.set('offline'));
-    this.hub = hub;
-    hub.start().then(() => this.connection.set('live')).catch(() => this.connection.set('offline'));
+    if (this.listening) return;
+    this.listening = this.hub.states.subscribe((state) => this.applyUpdate(state));
+    this.listening.add(this.hub.reconnected.subscribe(() => this.load()));
   }
 
   disconnect(): void {
-    void this.hub?.stop();
-    this.hub = null;
+    this.listening?.unsubscribe();
+    this.listening = null;
   }
 
   /** Position updates omit the routes to stay small, so the ones already received are kept. */

@@ -1,3 +1,5 @@
+import { createReloader } from '../../core/data/paged';
+import { OperationsHubService } from '../../core/realtime/operations-hub.service';
 import { Component, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -36,34 +38,27 @@ export class FleetPage {
     const call = vehicle.status === 'Inactive' ? this.data.reactivateVehicle(vehicle.id) : this.data.deactivateVehicle(vehicle.id);
     this.formError.set('');
     call.subscribe({
-      next: (updated) => this.selected.set(updated),
+      next: (updated) => { this.selected.set(updated); this.reloader.now(); },
       error: (error: { error?: { detail?: string } }) => this.formError.set(error.error?.detail ?? 'No se pudo cambiar el estado del vehículo.'),
     });
   }
-  readonly filtered = computed(() => {
-    const term = this.query().trim().toLocaleLowerCase('es');
-    return this.data.vehicles().filter((vehicle) =>
-      (this.statusFilter() === 'Todos' || vehicle.status === this.statusFilter()) &&
-      (this.typeFilter() === 'Todos' || vehicle.type === this.typeFilter()) &&
-      (!term || `${vehicle.plate} ${vehicle.model} ${vehicle.center} ${vehicle.type}`.toLocaleLowerCase('es').includes(term)),
-    );
-  });
-  readonly pageCount = computed(() => Math.max(1, Math.ceil(this.filtered().length / this.pageSize)));
-  readonly pageItems = computed(() => this.filtered().slice((this.page() - 1) * this.pageSize, this.page() * this.pageSize));
-  readonly availableCount = computed(() => this.data.vehicles().filter((vehicle) => vehicle.status === 'Available').length);
-  readonly serviceCount = computed(() => this.data.vehicles().filter((vehicle) => vehicle.status === 'Maintenance').length);
+  readonly pageItems = this.data.pageItems;
+  readonly pageCount = computed(() => Math.max(1, Math.ceil(this.data.totalCount() / this.pageSize)));
+  readonly availableCount = computed(() => this.data.summary().byStatus['Available'] ?? 0);
+  readonly serviceCount = computed(() => this.data.summary().byStatus['Maintenance'] ?? 0);
+  private readonly reloader = createReloader(
+    (background) => this.data.loadPage({ page: this.page(), pageSize: this.pageSize, search: this.query(), status: this.statusFilter(), type: this.typeFilter() }, background),
+    { changes: inject(OperationsHubService).changes('fleet'), loaded: () => this.afterLoad() },
+  );
 
-  constructor() {
-    this.data.loadVehicles().subscribe({
-      next: () => this.data.loading.set(false),
-      error: () => this.data.loading.set(false),
-    });
-  }
+  constructor() { this.reloader.now(); }
+
+  retry(): void { this.reloader.now(); }
 
   statusLabel(status: VehicleStatus): string { return STATUS_LABELS[status]; }
   statusClass(status: VehicleStatus): string { return status.toLocaleLowerCase(); }
-  updateFilter(): void { this.page.set(1); }
-  changePage(delta: number): void { this.page.set(Math.min(this.pageCount(), Math.max(1, this.page() + delta))); }
+  updateFilter(): void { this.page.set(1); this.reloader.afterTyping(); }
+  changePage(delta: number): void { this.page.set(Math.min(this.pageCount(), Math.max(1, this.page() + delta))); this.reloader.now(); }
   select(vehicle: Vehicle): void { this.selected.set(vehicle); }
   closeDetails(): void { this.selected.set(null); }
 
@@ -83,16 +78,22 @@ export class FleetPage {
 
   save(): void {
     const draft = this.draft();
-    const duplicate = this.data.vehicles().some((vehicle) => vehicle.plate.toLocaleUpperCase() === draft.plate.trim().toLocaleUpperCase() && vehicle.id !== this.editingId());
-    if (duplicate) { this.formError.set('Ya existe un vehículo con esa placa.'); return; }
     this.data.saveVehicle({ ...draft, plate: draft.plate.trim().toLocaleUpperCase(), model: draft.model.trim(), center: draft.center.trim() }, this.editingId() ?? undefined).subscribe({
-      next: () => { this.editorOpen.set(false); this.selected.set(null); },
+      next: () => { this.editorOpen.set(false); this.selected.set(null); this.reloader.now(); },
       error: (error: { error?: { detail?: string }; message?: string }) => this.formError.set(error.error?.detail ?? error.message ?? 'No se pudo guardar el vehículo.'),
     });
   }
 
   setDraft<K extends keyof VehicleDraft>(key: K, value: VehicleDraft[K]): void {
     this.draft.update((draft) => ({ ...draft, [key]: value }));
+  }
+
+  /** Records can disappear while the screen is open, leaving it past the last page or showing an outdated detail. */
+  private afterLoad(): void {
+    if (this.page() > this.pageCount()) { this.page.set(this.pageCount()); this.reloader.now(); return; }
+    const open = this.selected();
+    const current = open && this.data.pageItems().find((item) => item.id === open.id);
+    if (current) this.selected.set(current);
   }
 
   private emptyDraft(): VehicleDraft {

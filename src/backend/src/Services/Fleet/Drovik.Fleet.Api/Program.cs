@@ -84,6 +84,14 @@ app.MapGet("/api/v1/vehicles", async (
     return Results.Ok(new PagedResponse<VehicleResponse>(items, totalCount, page, pageSize));
 }).RequireAuthorization(fleetPolicy);
 
+// The screens page through the records, so their totals have to come from the whole table.
+app.MapGet("/api/v1/vehicles/summary", async (FleetDbContext database, CancellationToken cancellationToken) =>
+{
+    var counts = await database.Vehicles.AsNoTracking().GroupBy(item => item.Status)
+        .Select(group => new { Status = group.Key, Count = group.Count() }).ToListAsync(cancellationToken);
+    return Results.Ok(new StatusSummaryResponse(counts.Sum(item => item.Count), counts.ToDictionary(item => item.Status.ToString(), item => item.Count)));
+}).RequireAuthorization(fleetPolicy);
+
 app.MapGet("/api/v1/vehicles/{id:guid}", async (Guid id, FleetDbContext database, CancellationToken cancellationToken) =>
 {
     var vehicle = await database.Vehicles.AsNoTracking().Include(item => item.DistributionCenter)

@@ -1,3 +1,6 @@
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { OperationsHubService } from './core/realtime/operations-hub.service';
+import { ChangePasswordDialog } from './shared/change-password/change-password-dialog';
 import { Component, computed, effect, inject, signal, untracked } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
@@ -12,7 +15,7 @@ const ROLE_LABELS: Record<string, string> = { Administrator: 'Administrador', Op
 
 @Component({
   selector: 'app-root',
-  imports: [RouterLink, RouterLinkActive, RouterOutlet, BrandMark],
+  imports: [RouterLink, RouterLinkActive, RouterOutlet, BrandMark, ChangePasswordDialog],
   templateUrl: './app.html',
   styleUrl: './app.scss',
   standalone: true,
@@ -34,6 +37,8 @@ export class App {
   ];
   readonly visibleNavigation = computed(() => this.navigation.filter((item) => !item.adminOnly || this.auth.user()?.roles.includes('Administrator')));
   private readonly router = inject(Router);
+  private readonly hub = inject(OperationsHubService);
+  readonly passwordDialogOpen = signal(false);
   // Zoneless change detection does not re-read a getter after navigating, so the title has to be a signal.
   private readonly url = toSignal(this.router.events.pipe(filter((event) => event instanceof NavigationEnd), map(() => this.router.url)), { initialValue: this.router.url });
   readonly pageTitle = computed(() => this.navigation.find((item) => this.url().startsWith(item.route))?.label ?? 'Resumen');
@@ -42,8 +47,10 @@ export class App {
   constructor() {
     this.auth.initialize().subscribe();
     effect(() => {
-      if (this.auth.user()) untracked(() => this.incidents.loadOpenCount().subscribe({ error: () => undefined }));
+      if (this.auth.user()) untracked(() => { this.hub.start(); this.incidents.loadOpenCount().subscribe({ error: () => undefined }); });
+      else this.hub.stop();
     });
+    this.hub.changes('incidents').pipe(takeUntilDestroyed()).subscribe(() => this.incidents.loadOpenCount().subscribe({ error: () => undefined }));
   }
   closeMenu(): void { this.menuOpen.set(false); }
   toggleSidebar(): void { this.sidebarCollapsed.update((collapsed) => !collapsed); }

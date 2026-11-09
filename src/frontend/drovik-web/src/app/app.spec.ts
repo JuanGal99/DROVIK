@@ -1,3 +1,5 @@
+import { EMPTY } from 'rxjs';
+import { OperationsHubService } from './core/realtime/operations-hub.service';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter, Router } from '@angular/router';
 import { provideHttpClient } from '@angular/common/http';
@@ -21,7 +23,7 @@ describe('App', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [App],
-      providers: [provideRouter(routes), provideHttpClient(), { provide: AuthService, useValue: fakeAuth }],
+      providers: [provideRouter(routes), provideHttpClient(), { provide: AuthService, useValue: fakeAuth }, { provide: OperationsHubService, useValue: { start: () => undefined, stop: () => undefined, changes: () => EMPTY } }],
     }).compileComponents();
   });
 

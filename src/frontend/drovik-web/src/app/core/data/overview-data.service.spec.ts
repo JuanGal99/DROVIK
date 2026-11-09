@@ -13,11 +13,12 @@ const shipment = (id: string, status: ShipmentStatus, originCustomerId?: string,
 
 describe('OverviewDataService', () => {
   const shipments = signal<Shipment[]>([]);
+  const summary = signal({ totalCount: 0, byStatus: {} as Record<string, number> });
 
   beforeEach(() => TestBed.configureTestingModule({
     providers: [
-      { provide: ShipmentsDataService, useValue: { shipments } },
-      { provide: FleetDataService, useValue: { vehicles: signal([{ status: 'Available' }, { status: 'Assigned' }, { status: 'Inactive' }]) } },
+      { provide: ShipmentsDataService, useValue: { shipments, summary } },
+      { provide: FleetDataService, useValue: { summary: signal({ totalCount: 3, byStatus: { Available: 1, Assigned: 1, Inactive: 1 } }) } },
       { provide: CustomersDataService, useValue: { customers: signal([]) } },
       { provide: IncidentsDataService, useValue: { openCount: signal(2) } },
     ],
@@ -29,7 +30,7 @@ describe('OverviewDataService', () => {
   });
 
   it('counts shipments per stage and the fleet still in service', () => {
-    shipments.set([shipment('1', 'Pending'), shipment('2', 'Pending'), shipment('3', 'Delivered')]);
+    summary.set({ totalCount: 3, byStatus: { Pending: 2, Delivered: 1 } });
     const service = TestBed.inject(OverviewDataService);
     expect(service.stages().find((stage) => stage.status === 'Pending')).toEqual({ status: 'Pending', count: 2, share: 100 });
     expect(service.stages().find((stage) => stage.status === 'Delivered')?.share).toBe(50);

@@ -1,8 +1,10 @@
 import { Injectable, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { catchError, finalize, map, Observable, of, shareReplay, switchMap, tap, throwError } from 'rxjs';
+import { catchError, finalize, firstValueFrom, map, Observable, of, shareReplay, switchMap, tap, throwError } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { AuthResponse, AuthUser, CsrfResponse } from './auth.models';
+
+const TOKEN_RENEWAL_MARGIN_MS = 30000;
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
@@ -10,7 +12,9 @@ export class AuthService {
   readonly ready = signal(false);
   readonly busy = signal(false);
   readonly error = signal<string | null>(null);
+  readonly notice = signal<string | null>(null);
   private accessToken: string | null = null;
+  private accessTokenExpiresAt = 0;
   private csrfToken: string | null = null;
   private readonly initialization$: Observable<void>;
   private refreshInFlight$: Observable<AuthUser> | null = null;
@@ -21,6 +25,23 @@ export class AuthService {
 
   get isAuthenticated(): boolean { return this.user() !== null && this.accessToken !== null; }
   get token(): string | null { return this.accessToken; }
+
+  /** For connections that outlive an access token and reconnect on their own, without passing through the HTTP interceptor. */
+  async freshToken(): Promise<string> {
+    if (this.accessTokenExpiresAt - Date.now() < TOKEN_RENEWAL_MARGIN_MS) {
+      try {
+        await firstValueFrom(this.refresh());
+      } catch {
+        return '';
+      }
+    }
+    return this.accessToken ?? '';
+  }
+
+  /** Identity closes every session afterwards, including this one. */
+  changePassword(currentPassword: string, newPassword: string): Observable<void> {
+    return this.http.post<void>(`${environment.gatewayUrl}/api/v1/auth/change-password`, { currentPassword, newPassword });
+  }
 
   initialize(): Observable<void> {
     return this.initialization$;
@@ -113,6 +134,7 @@ export class AuthService {
 
   private setSession(response: AuthResponse): void {
     this.accessToken = response.accessToken;
+    this.accessTokenExpiresAt = Date.parse(response.expiresAtUtc);
     this.user.set(response.user);
     this.error.set(null);
   }

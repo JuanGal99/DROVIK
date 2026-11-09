@@ -1,3 +1,6 @@
+import { forkJoin } from 'rxjs';
+import { createReloader } from '../../core/data/paged';
+import { OperationsHubService } from '../../core/realtime/operations-hub.service';
 import { CommonModule } from '@angular/common';
 import { Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
@@ -39,12 +42,16 @@ export class IncidentsPage {
   readonly severities: IncidentSeverity[] = ['Low', 'Medium', 'High', 'Critical'];
   readonly types: IncidentType[] = ['MechanicalFailure', 'Delay', 'Safety', 'Delivery', 'Other'];
 
+  private readonly reloader = createReloader((background) => {
+    const incidents = this.data.load({ status: this.statusFilter(), severity: this.severityFilter() }, background);
+    // A new incident can refer to a shipment this screen has not seen yet.
+    return background ? forkJoin([incidents, this.shipmentData.loadShipments()]) : incidents;
+  }, { changes: inject(OperationsHubService).changes('incidents') });
+
   constructor() {
     this.shipmentData.loadShipments().subscribe({ error: () => undefined }); this.load(); }
 
-  load(): void {
-    this.data.load({ status: this.statusFilter(), severity: this.severityFilter() }).subscribe({ error: () => undefined });
-  }
+  load(): void { this.reloader.now(); }
 
   closeOverlays(): void { this.editorOpen.set(false); this.selected.set(null); }
   vehiclePlate(id?: string | null): string { return id ? this.vehicles().find((vehicle) => vehicle.id === id)?.plate ?? 'No disponible' : 'No asociado'; }
