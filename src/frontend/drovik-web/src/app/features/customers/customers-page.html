@@ -18,7 +18,7 @@
     </div>
 
     @if (data.loading()) {
-      <div class="state-message"><i class="pi pi-spin pi-spinner" aria-hidden="true"></i> Cargando puntos…</div>
+      <div class="state-message" role="status"><i class="pi pi-spin pi-spinner" aria-hidden="true"></i> Cargando puntos…</div>
     } @else if (data.error()) {
       <div class="state-message error-state" role="alert"><i class="pi pi-exclamation-triangle" aria-hidden="true"></i>{{ data.error() }}<button type="button" (click)="load()">Reintentar</button></div>
     } @else {

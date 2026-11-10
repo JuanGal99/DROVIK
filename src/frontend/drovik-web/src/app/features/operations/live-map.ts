@@ -96,6 +96,7 @@ export class LiveMap implements OnDestroy {
       layer.marker.getElement()?.classList.toggle('is-selected', selected);
       layer.marker.setZIndexOffset(selected ? 1000 : 500);
       const label = plateOf(vehicle);
+      layer.marker.getElement()?.setAttribute('aria-label', `Vehículo ${label}`);
       if (label !== layer.label) {
         layer.marker.setTooltipContent(escapeHtml(label));
         layer.label = label;

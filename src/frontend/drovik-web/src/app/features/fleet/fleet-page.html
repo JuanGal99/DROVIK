@@ -15,7 +15,7 @@
       <label class="filter-field"><span>Estado</span><select aria-label="Filtrar vehículos por estado" [ngModel]="statusFilter()" (ngModelChange)="statusFilter.set($event); updateFilter()"><option>Todos</option>@for (status of statuses; track status) { <option [value]="status">{{ statusLabel(status) }}</option> }</select></label>
       <label class="filter-field"><span>Tipo</span><select aria-label="Filtrar vehículos por tipo" [ngModel]="typeFilter()" (ngModelChange)="typeFilter.set($event); updateFilter()"><option>Todos</option>@for (type of types; track type) { <option [value]="type">{{ type }}</option> }</select></label>
     </div>
-    @if (data.loading()) { <div class="state-message"><i class="pi pi-spin pi-spinner" aria-hidden="true"></i> Cargando vehículos…</div> }
+    @if (data.loading()) { <div class="state-message" role="status"><i class="pi pi-spin pi-spinner" aria-hidden="true"></i> Cargando vehículos…</div> }
     @else if (data.error()) { <div class="state-message error-state" role="alert"><i class="pi pi-exclamation-triangle" aria-hidden="true"></i>{{ data.error() }}<button type="button" (click)="retry()">Reintentar</button></div> }
     @else {
       <div class="table-scroll"><table><thead><tr><th>Vehículo</th><th>Tipo</th><th>Capacidad</th><th>Base</th><th>Odómetro</th><th>Estado</th><th><span class="sr-only">Acciones</span></th></tr></thead><tbody>

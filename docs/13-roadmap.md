@@ -63,9 +63,9 @@ Sustituyen a las antiguas Fases 5 y 6, según las dependencias analizadas en ADR
 - **Fuera de alcance:** una incidencia registrada a mano por un operador no lleva clave de idempotencia; es una acción humana, no una entrega repetida.
 - **Salida verificable:** flujo autenticado de resolución e historial en la prueba de navegador; publicación con credenciales reales; envío a DLQ con pruebas automatizadas de resultado y, el 2026-11-09, con un mensaje inválido publicado en RabbitMQ real que llegó a `incident.domain-events.dlq`.
 
-## Fase 8 — Dashboard y experiencia (en progreso)
+## Fase 8 — Dashboard y experiencia (completada)
 - KPIs, filtros, escenarios guiados, estados vacíos/error y responsive.
-- **Salida verificable:** métricas reconciliables con datos de dominio y flujos demostrables localmente, ya cumplidos. **Pendiente:** revisión de accesibilidad básica.
+- **Salida verificable:** métricas reconciliables con datos de dominio y flujos demostrables localmente. Accesibilidad revisada el 2026-11-09 con axe (WCAG 2.1 A y AA) en todas las pantallas y formularios, en escritorio y móvil; teclado y foco en diálogos cubiertos por pruebas. No incluye una revisión manual con lector de pantalla.
 
 ## Fase 9 — Endurecimiento (completada)
 - Pruebas de integración, contratos y navegador; límites de intentos de sesión; resiliencia con Outbox, Inbox y DLQ; logs, trazas y métricas (ADR 0013).

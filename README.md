@@ -98,7 +98,7 @@ cd src/frontend/drovik-web && npm test -- --watch=false
 
 ## Estado del proyecto
 
-Los módulos descritos arriba están implementados e integrados. Cada cambio en `main` pasa por GitHub Actions: pruebas de backend y frontend, construcción de imágenes y una prueba de navegador sobre la aplicación completa. Queda pendiente la revisión de accesibilidad de la Fase 8. El detalle está en el [estado de implementación](docs/current-implementation-status.md) y en el [roadmap](docs/13-roadmap.md).
+Los módulos descritos arriba están implementados e integrados. Cada cambio en `main` pasa por GitHub Actions: pruebas de backend y frontend, construcción de imágenes y pruebas de navegador sobre la aplicación completa, incluida la accesibilidad (WCAG 2.1 AA). El detalle está en el [estado de implementación](docs/current-implementation-status.md) y en el [roadmap](docs/13-roadmap.md).
 
 ## Documentación
 

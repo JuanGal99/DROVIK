@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { expectAccessible } from './accessibility';
 
 const email = process.env['E2E_EMAIL'];
 const password = process.env['E2E_PASSWORD'];
@@ -49,6 +50,7 @@ test('un envío sale a ruta, se avería y la incidencia aparece sin recargar', a
     await page.getByRole('link', { name: 'Operación en vivo', exact: true }).click();
     await page.getByRole('button', { name: 'Iniciar operación' }).click();
     await page.getByRole('group', { name: `Eventos para ${code}` }).getByRole('button', { name: 'Avería' }).click();
+    await expectAccessible(page, 'Operación en vivo con vehículos en ruta');
   });
 
   const description = `Avería del vehículo durante la ruta del envío ${code}`;

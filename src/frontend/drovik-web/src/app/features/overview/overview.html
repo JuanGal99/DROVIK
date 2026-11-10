@@ -8,7 +8,7 @@
   </div>
 
   @if (data.loading() && !data.points().length) {
-    <div class="state-message"><i class="pi pi-spin pi-spinner" aria-hidden="true"></i> Cargando la operación…</div>
+    <div class="state-message" role="status"><i class="pi pi-spin pi-spinner" aria-hidden="true"></i> Cargando la operación…</div>
   } @else if (data.failed()) {
     <div class="state-message error-state" role="alert"><i class="pi pi-exclamation-triangle" aria-hidden="true"></i> No se pudo cargar la operación. <button type="button" (click)="load()">Reintentar</button></div>
   } @else {

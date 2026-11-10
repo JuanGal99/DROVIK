@@ -1,3 +1,4 @@
+import { DialogFocus } from '../../shared/dialog-focus/dialog-focus';
 import { Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
@@ -10,7 +11,7 @@ type ApiError = { error?: { detail?: string; title?: string } };
 
 @Component({
   selector: 'app-admin-page',
-  imports: [FormsModule, RouterLink],
+  imports: [FormsModule, RouterLink, DialogFocus],
   templateUrl: './admin-page.html',
   styleUrl: './admin-page.scss',
   standalone: true,
