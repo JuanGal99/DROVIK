@@ -37,3 +37,8 @@ test-results/
 # Logs and local data
 *.log
 /data/
+
+# Local assistant configuration, kept out of the repository
+AGENTS.md
+.agents/
+skills-lock.json
