@@ -1,3 +1,4 @@
+import { IncidentsDataService } from './incidents-data.service';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting, TestRequest } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
@@ -53,6 +54,10 @@ describe('DemoSeedService', () => {
     await finished;
     expect(service.finished()).toContain('lista');
     expect(service.running()).toBe(false);
+    const recount = http.match((item) => item.url.endsWith('/api/v1/incidents'));
+    expect(recount.map((item) => item.request.params.get('status'))).toEqual(['Open', 'InProgress']);
+    recount.forEach((item) => item.flush({ items: [], totalCount: 0, page: 1, pageSize: 1 }));
+    expect(TestBed.inject(IncidentsDataService).openCount()).toBe(0);
     http.verify();
   });
 

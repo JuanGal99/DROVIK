@@ -48,8 +48,10 @@ export class IncidentsPage {
       switchMap((items) => this.shipmentData.loadCodes(items.flatMap((item) => item.shipmentId ?? []))),
       tap((codes) => this.shipmentCodes.set(codes)),
     );
+    // The page shows the open total next to the list, so both are read together.
+    const counted = forkJoin([incidents, this.data.loadOpenCount()]);
     // The form's list of shipments and the vehicle plates can have changed too.
-    return background ? forkJoin([incidents, this.shipmentData.loadShipments()]) : incidents;
+    return background ? forkJoin([counted, this.shipmentData.loadShipments()]) : counted;
   }, {
     changes: inject(OperationsHubService).changes('incidents'),
     loaded: () => { if (this.page() > this.pageCount()) { this.page.set(this.pageCount()); this.reloader.now(); } },
