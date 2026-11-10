@@ -8,7 +8,8 @@ export default defineConfig({
   expect: { timeout: 20_000 },
   workers: 1,
   forbidOnly: !!process.env['CI'],
-  reporter: [['list'], ['html', { open: 'never' }]],
+  // On CI the failures also become annotations on the run, readable without downloading the report.
+  reporter: process.env['CI'] ? [['github'], ['list'], ['html', { open: 'never' }]] : [['list'], ['html', { open: 'never' }]],
   use: {
     ...devices['Desktop Chrome'],
     baseURL: process.env['E2E_BASE_URL'] ?? 'http://localhost:4200',
