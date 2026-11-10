@@ -35,6 +35,8 @@ test('todas las pantallas y formularios cumplen WCAG 2.1 AA', async ({ page }) =
   test.setTimeout(300_000);
   expect(email, 'define E2E_EMAIL').toBeTruthy();
   expect(password, 'define E2E_PASSWORD').toBeTruthy();
+  const scriptErrors: string[] = [];
+  page.on('pageerror', (error) => scriptErrors.push(error.message));
 
   await page.goto('/login');
   await expect(page.getByLabel('Correo electrónico')).toBeVisible();
@@ -74,6 +76,8 @@ test('todas las pantallas y formularios cumplen WCAG 2.1 AA', async ({ page }) =
   await test.step('el teclado llega al contenido y queda dentro de los diálogos', async () => {
     await page.reload();
     await expect(page.getByRole('heading', { name: 'Administración', level: 1 })).toBeVisible();
+    // Right after a reload the session and the user list are still arriving; keys pressed before that can be lost.
+    await expect(page.getByRole('region', { name: 'Lista de usuarios' })).toBeVisible();
     await page.keyboard.press('Tab');
     const skip = page.getByRole('button', { name: 'Saltar al contenido' });
     await expect(skip).toBeFocused();
@@ -89,6 +93,7 @@ test('todas las pantallas y formularios cumplen WCAG 2.1 AA', async ({ page }) =
       expect(await dialog.evaluate((element) => element.contains(document.activeElement))).toBe(true);
     }
     await page.keyboard.press('Escape');
+    await expect(dialog).toHaveCount(0);
     await expect(opener).toBeFocused();
   });
 
@@ -99,4 +104,6 @@ test('todas las pantallas y formularios cumplen WCAG 2.1 AA', async ({ page }) =
     await open(page, screen);
     await expectAccessible(page, `${screen.link} en móvil`);
   }
+
+  expect(scriptErrors, 'Errores de JavaScript en la página').toEqual([]);
 });
