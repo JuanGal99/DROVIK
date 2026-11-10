@@ -4,28 +4,23 @@ import { CustomersDataService } from './customers-data.service';
 import { FleetDataService } from './fleet-data.service';
 import { IncidentsDataService } from './incidents-data.service';
 import { OverviewDataService } from './overview-data.service';
-import { Shipment, ShipmentsDataService, ShipmentStatus } from './shipments-data.service';
-
-const shipment = (id: string, status: ShipmentStatus, originCustomerId?: string, history: Shipment['statusHistory'] = []) => ({
-  id, trackingCode: `SH-${id}`, customerId: 'b', customerName: 'B', originCustomerId, destination: 'B', destinationLatitude: 4.6, destinationLongitude: -74,
-  weightKg: 1, priority: 'Normal', status, createdAt: '2026-11-09T00:00:00Z', statusHistory: history,
-}) as Shipment;
+import { ShipmentOverview, ShipmentsDataService } from './shipments-data.service';
 
 describe('OverviewDataService', () => {
-  const shipments = signal<Shipment[]>([]);
+  const overview = signal<ShipmentOverview>({ routes: [], activity: [] });
   const summary = signal({ totalCount: 0, byStatus: {} as Record<string, number> });
 
   beforeEach(() => TestBed.configureTestingModule({
     providers: [
-      { provide: ShipmentsDataService, useValue: { shipments, summary } },
+      { provide: ShipmentsDataService, useValue: { overview, summary } },
       { provide: FleetDataService, useValue: { summary: signal({ totalCount: 3, byStatus: { Available: 1, Assigned: 1, Inactive: 1 } }) } },
       { provide: CustomersDataService, useValue: { customers: signal([]) } },
       { provide: IncidentsDataService, useValue: { openCount: signal(2) } },
     ],
   }));
 
-  it('draws only open shipments that know their origin', () => {
-    shipments.set([shipment('1', 'InTransit', 'a'), shipment('2', 'Delivered', 'a'), shipment('3', 'Pending')]);
+  it('draws each open route with the tone of its status', () => {
+    overview.set({ routes: [{ id: '1', originCustomerId: 'a', customerId: 'b', status: 'InTransit' }], activity: [] });
     expect(TestBed.inject(OverviewDataService).routes()).toEqual([{ id: '1', originId: 'a', destinationId: 'b', tone: 'moving' }]);
   });
 
@@ -38,11 +33,11 @@ describe('OverviewDataService', () => {
     expect(service.vehiclesInService()).toBe(2);
   });
 
-  it('lists the most recent movements first', () => {
-    shipments.set([shipment('1', 'Assigned', 'a', [
-      { status: 'Pending', occurredAt: '2026-11-09T08:00:00Z', actor: 'x', source: 'Created' },
-      { status: 'Assigned', occurredAt: '2026-11-09T09:00:00Z', actor: 'x', source: 'Assigned' },
-    ])]);
-    expect(TestBed.inject(OverviewDataService).activity().map((item) => item.status)).toEqual(['Assigned', 'Pending']);
+  it('shows the movements in the order the server sent them', () => {
+    overview.set({ routes: [], activity: [
+      { id: 'b', occurredAtUtc: '2026-11-09T09:00:00Z', trackingCode: 'SH-1', status: 'Assigned' },
+      { id: 'a', occurredAtUtc: '2026-11-09T08:00:00Z', trackingCode: 'SH-1', status: 'Pending', note: 'Creado' },
+    ] });
+    expect(TestBed.inject(OverviewDataService).activity().map((item) => item.key)).toEqual(['b', 'a']);
   });
 });

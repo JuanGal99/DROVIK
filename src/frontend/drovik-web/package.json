@@ -11,6 +11,24 @@
     "e2e": "playwright test"
   },
   "private": true,
+  "overrides": {
+    "pacote": {
+      "glob": "14.0.4",
+      "minimatch": "11.0.5"
+    },
+    "ignore-walk": {
+      "minimatch": "11.0.5"
+    },
+    "@tufjs/models": {
+      "minimatch": "11.0.5"
+    },
+    "cacache": {
+      "glob": "14.0.4"
+    },
+    "@npmcli/package-json": {
+      "glob": "14.0.4"
+    }
+  },
   "packageManager": "npm@11.6.2",
   "dependencies": {
     "@angular/common": "21.2.26",
@@ -22,10 +40,8 @@
     "@fontsource/barlow": "5.3.0",
     "@fontsource/barlow-semi-condensed": "5.3.0",
     "@microsoft/signalr": "10.0.11",
-    "@primeuix/themes": "3.1.0",
     "leaflet": "1.9.4",
     "primeicons": "8.0.2",
-    "primeng": "21.1.10",
     "rxjs": "~7.8.0",
     "tslib": "^2.3.0"
   },

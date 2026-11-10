@@ -416,6 +416,39 @@ public sealed class DomainApiTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Overview_lists_open_routes_and_the_latest_movements()
+    {
+        var open = await CreateShipment();
+        var cancelled = await CreateShipment();
+        using (await ChangeStatus(cancelled, "Cancelled")) { }
+
+        using var response = await _shipmentClient.GetAsync("/api/v1/shipments/overview");
+        var body = await ReadJson(response);
+
+        var route = Assert.Single(body.GetProperty("routes").EnumerateArray());
+        Assert.Equal(open, route.GetProperty("id").GetGuid());
+        Assert.Equal("Pending", route.GetProperty("status").GetString());
+        Assert.Equal("Cancelled", body.GetProperty("activity")[0].GetProperty("status").GetString());
+    }
+
+    [Fact]
+    public async Task Tracking_codes_are_found_by_id_within_a_limit()
+    {
+        var id = await CreateShipment();
+
+        using var found = await _shipmentClient.GetAsync($"/api/v1/shipments/codes?ids={id},{Guid.NewGuid()}");
+        var entry = Assert.Single((await ReadJson(found)).EnumerateArray());
+        Assert.Equal(id, entry.GetProperty("id").GetGuid());
+        Assert.StartsWith("SH-", entry.GetProperty("trackingCode").GetString());
+
+        using var invalid = await _shipmentClient.GetAsync("/api/v1/shipments/codes?ids=no-es-un-id");
+        Assert.Equal(HttpStatusCode.BadRequest, invalid.StatusCode);
+        var tooMany = string.Join(',', Enumerable.Range(0, 101).Select(_ => Guid.NewGuid()));
+        using var excessive = await _shipmentClient.GetAsync($"/api/v1/shipments/codes?ids={tooMany}");
+        Assert.Equal(HttpStatusCode.BadRequest, excessive.StatusCode);
+    }
+
+    [Fact]
     public async Task Vehicle_summary_counts_the_whole_fleet_whatever_the_page_size()
     {
         using var first = await _fleetClient.GetAsync("/api/v1/vehicles?pageSize=1");

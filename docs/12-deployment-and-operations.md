@@ -6,7 +6,7 @@ DROVIK es un proyecto de portafolio con repositorio público y ejecución en el 
 
 ## 12.2 Requisitos de desarrollo
 
-Versiones fijadas en 2026-11-06: .NET SDK 10.0.403 y EF Core 10.0.14; Angular runtime/compiler 21.2.26, CLI/build 21.2.29, TypeScript 5.9.3, PrimeNG 21.1.10, PrimeUIX Themes 3.1.0, PrimeIcons 8.0.2, RxJS 7.8.2, Node.js 24.11.1 y npm 11.6.2; SQL Server 2022 CU23; RabbitMQ 4.4.0 management. Angular 21 acepta Node 24.x; se eligió esa rama en lugar de Angular 22 porque la matriz de Angular 22 exige Node 24.15+ y el entorno de desarrollo tiene Node 24.11.1. No se usan versiones preliminares. Fuentes y razonamiento: ADR 0007.
+Versiones fijadas en 2026-11-06: .NET SDK 10.0.403 y EF Core 10.0.14; Angular runtime/compiler 21.2.26, CLI/build 21.2.29, TypeScript 5.9.3, PrimeIcons 8.0.2, RxJS 7.8.2, Node.js 24.11.1 y npm 11.6.2; SQL Server 2022 CU23; RabbitMQ 4.4.0 management. Angular 21 acepta Node 24.x; se eligió esa rama en lugar de Angular 22 porque la matriz de Angular 22 exige Node 24.15+ y el entorno de desarrollo tiene Node 24.11.1. No se usan versiones preliminares. Fuentes y razonamiento: ADR 0007.
 
 Requisitos: Git, .NET SDK fijado por `global.json`, Node/npm fijados por `.nvmrc` y `package.json`, Docker Desktop con Compose v2 y recursos suficientes para SQL Server/RabbitMQ. En Windows se recomienda Docker Desktop con WSL2. CI y desarrolladores deben ejecutar el build/test y mantener los lockfiles.
 

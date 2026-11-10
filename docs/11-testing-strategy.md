@@ -31,6 +31,10 @@ E2E_EMAIL=correo E2E_PASSWORD=clave npm run e2e
 
 `screens-accessibility.spec.ts` recorre cada pantalla y formulario, en escritorio y a 375 px, comprobando WCAG 2.1 A y AA con axe, y verifica el salto al contenido y que el foco no escape de los diálogos. Solo lee y abre formularios sin enviarlos.
 
+### Revisión con lector de pantalla
+
+Las pruebas automáticas no sustituyen a un lector de pantalla. Para hacerla con [NVDA](https://www.nvaccess.org/) en Windows: inicia sesión solo con teclado; recorre el menú con Tab; abre Crear envío y confirma que anuncia el título del diálogo y cada campo; provoca un error de formulario y confirma que se lee; en Operación en vivo, confirma que cada vehículo se anuncia con su placa.
+
 ## 11.4 Estado de pruebas de Fase 1
 
 La solución contiene `Drovik.Foundation.Tests` con xUnit. Las pruebas de migración inspeccionan que cada contexto de servicio descubre sus migraciones propias sin necesitar una instancia SQL activa. Las pruebas de integración del Gateway verifican que cada prefijo de API se proxya a su servicio propietario, conserva la ruta y deja sin proxyar las rutas desconocidas. Angular cubre servicios HTTP, autenticación, Incident y estados del shell. Estas comprobaciones no sustituyen la prueba HTTP con todos los procesos levantados; las migraciones aplicadas, readiness y conectividad con SQL Server deben validarse localmente según `12-deployment-and-operations.md`.

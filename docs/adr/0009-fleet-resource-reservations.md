@@ -8,3 +8,11 @@
 - Concurrencia: Fleet usa transacción local y actualización condicional/concurrencia optimista de los recursos, evitando que dos reservas adquieran el mismo vehículo o conductor. La reserva de ambos recursos es indivisible.
 - Expiración: reserva no confirmada tiene TTL configurable (`Fleet:ReservationTtlMinutes`, 10 por defecto) y un worker la expira cada `Fleet:ReservationSweepSeconds` (30 por defecto), liberando recursos atómicamente; reserva confirmada no expira automáticamente. `Expired` y `Released` son estados terminales: un evento tardío no los altera. Al expirar, Fleet publica `ReservationExpired` y Shipment devuelve a `Pending` la asignación que aún no había avanzado, con su registro en el historial. El TTL numérico se determina por prueba local y no cambia reglas de negocio.
 - Consistencia: no transacciones distribuidas. Reintentos idempotentes, expiración y Release compensan fallos parciales; Outbox se usa si el evento de cambio de disponibilidad debe ser atómico con el estado Fleet.
+
+## Revisión 2026-11-09: contención en SQL Server
+
+Una prueba con 25 reservas simultáneas del mismo vehículo mostró que la transacción `Serializable` mantenía la integridad, pero SQL Server resolvía los choques con interbloqueos: los perdedores recibían `500` y, con reintentos, superaban el tiempo de espera de Shipment (`503`).
+
+- **Decisión:** antes de leer, cada reserva toma un bloqueo exclusivo de aplicación (`sp_getapplock`) sobre el vehículo y después sobre el conductor, siempre en ese orden, por lo que dos reservas no pueden esperarse mutuamente. Si el bloqueo no llega en 5 segundos, o si aun así ocurre un interbloqueo tras cinco intentos, la respuesta es `409`. Shipment, al perder una carrera contra una repetición de la misma petición, devuelve el envío ya asignado en lugar de liberar la reserva ganadora.
+- **Alternativas consideradas:** solo reintentar (seguía superando el tiempo de espera con muchas peticiones); bajar el aislamiento (reabriría la doble reserva); bloquear filas con `UPDLOCK` en consultas manuales (depende del plan de consulta y no cubre la búsqueda de reservas activas).
+- **Consecuencias:** las reservas de un mismo recurso se atienden una por una; las de recursos distintos siguen en paralelo. En las pruebas con SQLite el bloqueo de aplicación no se usa.

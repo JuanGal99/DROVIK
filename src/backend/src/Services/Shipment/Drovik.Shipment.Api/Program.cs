@@ -94,6 +94,39 @@ app.MapGet("/api/v1/shipments/summary", async (ShipmentDbContext database, Cance
     return Results.Ok(new StatusSummaryResponse(counts.Sum(item => item.Count), counts.ToDictionary(item => item.Status.ToString(), item => item.Count)));
 }).RequireAuthorization(shipmentPolicy);
 
+const int OverviewRouteLimit = 200;
+const int OverviewActivityLimit = 7;
+const int TrackingCodeLookupLimit = 100;
+
+// Shipments on the road come first: past the limit, only the ones still waiting are left off the map.
+app.MapGet("/api/v1/shipments/overview", async (ShipmentDbContext database, CancellationToken cancellationToken) =>
+{
+    ShipmentStatus[] open = [ShipmentStatus.Pending, ShipmentStatus.Assigned, ShipmentStatus.InTransit, ShipmentStatus.Delayed];
+    var routes = await database.Shipments.AsNoTracking()
+        .Where(item => open.Contains(item.Status) && item.OriginCustomerId != null)
+        .OrderBy(item => item.Status == ShipmentStatus.Pending ? 1 : 0).ThenByDescending(item => item.CreatedAtUtc)
+        .Take(OverviewRouteLimit)
+        .Select(item => new OverviewRouteResponse(item.Id, item.OriginCustomerId!.Value, item.CustomerId, item.Status))
+        .ToListAsync(cancellationToken);
+    var activity = await database.StatusHistory.AsNoTracking()
+        .OrderByDescending(item => item.OccurredAtUtc).Take(OverviewActivityLimit)
+        .Select(item => new OverviewActivityResponse(item.Id, item.OccurredAtUtc, item.Shipment.TrackingCode, item.Status, item.Note))
+        .ToListAsync(cancellationToken);
+    return Results.Ok(new ShipmentOverviewResponse(routes, activity));
+}).RequireAuthorization(shipmentPolicy);
+
+app.MapGet("/api/v1/shipments/codes", async (string? ids, ShipmentDbContext database, CancellationToken cancellationToken) =>
+{
+    var values = (ids ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+    var parsed = values.Select(value => Guid.TryParse(value, out var id) ? id : (Guid?)null).ToList();
+    if (parsed.Count > TrackingCodeLookupLimit || parsed.Any(id => id is null))
+        return Results.Problem(statusCode: StatusCodes.Status400BadRequest, title: "Solicitud inválida", detail: $"Envía hasta {TrackingCodeLookupLimit} identificadores válidos.");
+    var wanted = parsed.Select(id => id!.Value).Distinct().ToList();
+    var codes = await database.Shipments.AsNoTracking().Where(item => wanted.Contains(item.Id))
+        .Select(item => new ShipmentCodeResponse(item.Id, item.TrackingCode)).ToListAsync(cancellationToken);
+    return Results.Ok(codes);
+}).RequireAuthorization(shipmentPolicy);
+
 app.MapGet("/api/v1/shipments/{id:guid}", async (Guid id, ShipmentDbContext database, CancellationToken cancellationToken) =>
 {
     var shipment = await database.Shipments.AsNoTracking().Include(item => item.Customer).Include(item => item.OriginCustomer).Include(item => item.StatusHistory)
@@ -175,6 +208,11 @@ app.MapPost("/api/v1/shipments/{id:guid}/assign", async (Guid id, AssignShipment
     }
     catch (DbUpdateConcurrencyException)
     {
+        // A simultaneous retry of this same request gets the same reservation from Fleet; releasing it would undo the one that won.
+        database.ChangeTracker.Clear();
+        var current = await database.Shipments.AsNoTracking().Include(item => item.Customer).Include(item => item.OriginCustomer).Include(item => item.StatusHistory)
+            .AsSplitQuery().SingleAsync(item => item.Id == id, cancellationToken);
+        if (current.ReservationId == reservation.Value.ReservationId) return Results.Ok(ToResponse(current));
         await NotifyFleet(fleet, context, $"/api/v1/reservations/{reservation.Value.ReservationId}/release", logger);
         return Conflict("El envío cambió mientras se asignaba; consulta su estado actual.");
     }

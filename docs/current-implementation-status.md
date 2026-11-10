@@ -4,9 +4,9 @@ Fecha de verificación: 2026-11-08.
 
 ## Resumen
 
-DROVIK puede ejecutarse localmente con SQL Server, RabbitMQ, los cinco procesos ASP.NET Core, YARP y Angular. La primera integración real es Identity: Angular llama exclusivamente al Gateway para obtener CSRF, iniciar sesión, renovar la sesión y cerrar sesión. El access token permanece en memoria y el refresh viaja en cookie HttpOnly.
+DROVIK se ejecuta localmente con SQL Server, RabbitMQ, los cinco servicios ASP.NET Core, YARP y Angular, todo en contenedores con un comando.
 
-La aplicación todavía no es una plataforma logística completa. Fleet, el primer flujo de Shipment e Incident ya tienen integración real parcial; Simulation sigue siendo un shell de servicio con migración y readiness.
+Los módulos de los requisitos están implementados e integrados. Los datos son sintéticos.
 
 ## Implementado y verificado
 
@@ -115,13 +115,21 @@ La navegación lateral puede plegarse en escritorio para ampliar el área de tra
 - **Observabilidad:** logs JSON, trazas que cruzan el broker y métricas en las seis APIs; panel opcional (ADR 0013).
 - **Accesibilidad:** WCAG 2.1 A y AA comprobado con axe en cada pantalla y formulario; salto al contenido, foco retenido en diálogos y estados de carga anunciados.
 - **Actualización en vivo:** Resumen, Envíos, Flota, Conductores, Incidencias y el contador del menú vuelven a leer sus datos cuando llega el aviso `changed` del hub. El navegador mantiene una sola conexión por sesión.
-- **Paginación:** Envíos y Flota piden cada página, búsqueda y filtro al servidor; sus totales salen de `/summary`. Los selectores y las búsquedas de placa o conductor recorren todas las páginas. Resumen e Incidencias siguen usando los 100 envíos más recientes para el mapa, la actividad y nombrar el envío de una incidencia.
+- **Paginación:** Envíos y Flota piden cada página, búsqueda y filtro al servidor; sus totales salen de `/summary`. Los selectores y las búsquedas de placa o conductor recorren todas las páginas. Incidencias también pagina en el servidor. Resumen dibuja hasta 200 rutas abiertas, primero las que están en camino.
 - **Cuentas:** cambio de contraseña propia, restablecimiento por administrador, cambio de rol y recuperación desde el host.
 - **Leaflet/mapa:** integrado en Operación en vivo con teselas de OpenStreetMap; si no cargan, las capas siguen funcionando y se avisa.
 - **CORS:** Gateway e Identity permiten explícitamente `http://localhost:4200` con credenciales y headers CSRF; la prueba de navegador lo ejercita en cada ejecución de CI.
 - **Sesión frontend:** el interceptor mantiene el access token solo en memoria, envía `withCredentials` para las cookies y reconstruye el encabezado `Bearer` con el token vigente después de una renovación; no usa `localStorage` ni `sessionStorage`.
 
 ## Pruebas ejecutadas
+
+### Sesión y concurrencia (2026-11-09)
+
+Manuales sobre una pila desechable con SQL Server real, ya eliminada:
+
+- **Sesión:** una pestaña abierta 15 minutos y 45 segundos después de iniciar sesión recibió `401`, renovó el token sola sin volver al login, siguió cargando datos y aún recibió un cambio en vivo por SignalR.
+- **Contención:** 25 asignaciones simultáneas del mismo vehículo y conductor dejan una reserva y 24 rechazos `409`; 15 repeticiones simultáneas de la misma petición devuelven `200` con una sola reserva. Resultado igual en tres corridas y sin errores en los logs. La primera medición encontró interbloqueos de SQL Server que acababan en `500` y `503`; se corrigió serializando por recurso (ADR 0009).
+- **Lecturas:** 200 lecturas simultáneas de listados y resúmenes, todas `200`; con la pila ya en marcha, p95 de 2,4 s en Docker Desktop con 4 GB de memoria. Es una referencia local, no una prueba de rendimiento.
 
 ### Observabilidad y prueba de navegador (2026-11-09)
 
@@ -211,7 +219,7 @@ No verificado de forma real: la reversión de una asignación expirada (solo aut
 - `dotnet ef migrations has-pending-model-changes`: sin cambios en los servicios. Los tokens de concurrencia de `Status` no requieren DDL.
 - Pila real con SQL Server y RabbitMQ en Compose, usando bases y vhost temporales ya eliminados: login, asignación, entrega y liberación de recursos, y creación, atención y resolución de incidencias mediante Gateway; eventos Outbox publicados, 9 eventos registrados en `ProcessedEvents` y un mensaje inválido enrutado a la DLQ.
 - Navegador manual en `http://localhost:4200`: login, restauración de sesión al recargar, `/shipments` e `/incidents` con carga diferida, y registro de una incidencia desde la interfaz.
-- No verificado de forma real: la expiración de 15 minutos del access token en navegador (la renovación concurrente y el CSRF vigente están cubiertos por pruebas unitarias) y la concurrencia bajo carga contra SQL Server.
+- Verificado después, el 2026-11-09: la expiración de 15 minutos del access token y la concurrencia contra SQL Server (ver "Sesión y concurrencia").
 
 ### Validaciones anteriores (2026-11-07)
 

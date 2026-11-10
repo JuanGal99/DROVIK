@@ -1,5 +1,5 @@
 import { DialogFocus } from '../../shared/dialog-focus/dialog-focus';
-import { forkJoin } from 'rxjs';
+import { forkJoin, switchMap, tap } from 'rxjs';
 import { createReloader } from '../../core/data/paged';
 import { OperationsHubService } from '../../core/realtime/operations-hub.service';
 import { CommonModule } from '@angular/common';
@@ -34,29 +34,37 @@ export class IncidentsPage {
   readonly formError = signal('');
   readonly resolutionNote = signal('');
   readonly draft = signal({ type: 'Other' as IncidentType, severity: 'Medium' as IncidentSeverity, description: '', vehicleId: '', shipmentId: '' });
-  readonly filtered = computed(() => {
-    const status = this.statusFilter();
-    const severity = this.severityFilter();
-    return this.data.incidents().filter((item) => (!status || item.status === status) && (!severity || item.severity === severity));
-  });
+  readonly filtered = this.data.incidents;
+  readonly page = signal(1);
+  readonly pageSize = 10;
+  readonly pageCount = computed(() => Math.max(1, Math.ceil(this.data.totalCount() / this.pageSize)));
+  private readonly shipmentCodes = signal<Record<string, string>>({});
   readonly statuses: IncidentStatus[] = ['Open', 'InProgress', 'Resolved', 'Closed'];
   readonly severities: IncidentSeverity[] = ['Low', 'Medium', 'High', 'Critical'];
   readonly types: IncidentType[] = ['MechanicalFailure', 'Delay', 'Safety', 'Delivery', 'Other'];
 
   private readonly reloader = createReloader((background) => {
-    const incidents = this.data.load({ status: this.statusFilter(), severity: this.severityFilter() }, background);
-    // A new incident can refer to a shipment this screen has not seen yet.
+    const incidents = this.data.load({ status: this.statusFilter(), severity: this.severityFilter(), page: this.page(), pageSize: this.pageSize }, background).pipe(
+      switchMap((items) => this.shipmentData.loadCodes(items.flatMap((item) => item.shipmentId ?? []))),
+      tap((codes) => this.shipmentCodes.set(codes)),
+    );
+    // The form's list of shipments and the vehicle plates can have changed too.
     return background ? forkJoin([incidents, this.shipmentData.loadShipments()]) : incidents;
-  }, { changes: inject(OperationsHubService).changes('incidents') });
+  }, {
+    changes: inject(OperationsHubService).changes('incidents'),
+    loaded: () => { if (this.page() > this.pageCount()) { this.page.set(this.pageCount()); this.reloader.now(); } },
+  });
 
   constructor() {
     this.shipmentData.loadShipments().subscribe({ error: () => undefined }); this.load(); }
 
   load(): void { this.reloader.now(); }
+  applyFilter(): void { this.page.set(1); this.reloader.now(); }
+  changePage(delta: number): void { this.page.set(Math.min(this.pageCount(), Math.max(1, this.page() + delta))); this.reloader.now(); }
 
   closeOverlays(): void { this.editorOpen.set(false); this.selected.set(null); }
   vehiclePlate(id?: string | null): string { return id ? this.vehicles().find((vehicle) => vehicle.id === id)?.plate ?? 'No disponible' : 'No asociado'; }
-  shipmentCode(id?: string | null): string { return id ? this.shipments().find((shipment) => shipment.id === id)?.trackingCode ?? 'No disponible' : 'No asociado'; }
+  shipmentCode(id?: string | null): string { return id ? this.shipmentCodes()[id] ?? 'No disponible' : 'No asociado'; }
   relatedLabel(incident: Incident): string {
     if (incident.vehicleId) return `Vehículo ${this.vehiclePlate(incident.vehicleId)}`;
     return incident.shipmentId ? `Envío ${this.shipmentCode(incident.shipmentId)}` : 'Sin recurso asociado';
@@ -75,7 +83,7 @@ export class IncidentsPage {
     if (!draft.description.trim()) { this.formError.set('Describe lo ocurrido.'); return; }
     this.formError.set('');
     this.data.create({ ...draft, description: draft.description.trim(), vehicleId: draft.vehicleId.trim() || undefined, shipmentId: draft.shipmentId.trim() || undefined }).subscribe({
-      next: (incident) => { this.editorOpen.set(false); this.selected.set(incident); this.draft.set({ type: 'Other', severity: 'Medium', description: '', vehicleId: '', shipmentId: '' }); },
+      next: (incident) => { this.reloader.now(); this.editorOpen.set(false); this.selected.set(incident); this.draft.set({ type: 'Other', severity: 'Medium', description: '', vehicleId: '', shipmentId: '' }); },
       error: () => this.formError.set(this.data.actionError() ?? 'No se pudo registrar la incidencia.'),
     });
   }

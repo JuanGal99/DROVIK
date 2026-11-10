@@ -40,6 +40,15 @@ Cinco microservicios con base de datos propia (Identity, Fleet, Shipment, Simula
 
 La arquitectura detallada está en [docs/03-architecture.md](docs/03-architecture.md).
 
+## Decisiones técnicas
+
+- **Consistencia sin transacciones distribuidas.** Reservar un vehículo cruza dos servicios: Fleet reserva con una clave de idempotencia y expiración, y Shipment confirma. Si algo falla a mitad de camino, la reserva expira y el envío vuelve a pendiente.
+- **Eventos que no se pierden ni se aplican dos veces.** Cada cambio y su evento se guardan en la misma transacción (Outbox), y cada consumidor registra lo que ya procesó (Inbox). Lo que no se puede aplicar pasa a una cola de error propia.
+- **El servidor manda en la simulación.** Angular solo dibuja lo que recibe. Si el proceso se reinicia, la operación vuelve en pausa, desde la última posición guardada.
+- **Una sola traza por operación.** La traza se guarda con el evento, así que sigue una asignación desde el Gateway hasta los consumidores aunque el evento se publique segundos después.
+- **Sin dependencias externas para funcionar.** Los 56 trayectos por calle están guardados con el servicio y no hace falta ningún servicio en la nube.
+- **Probado bajo contención.** Peticiones simultáneas sobre el mismo vehículo contra SQL Server real dejan una sola reserva y rechazos limpios para las demás.
+
 ## Tecnologías
 
 Angular 21, TypeScript, Leaflet y SignalR en el frontend; ASP.NET Core sobre .NET 10, Entity Framework Core, SQL Server 2022, RabbitMQ 4.4 y YARP en el backend; Docker Compose para la infraestructura y xUnit y Vitest para las pruebas. Las versiones exactas están en [ADR 0007](docs/adr/0007-technical-versions.md).

@@ -34,7 +34,7 @@ aprobada.
 
 ## Decisiones técnicas vigentes
 
--   Frontend: Angular + TypeScript + PrimeNG.
+-   Frontend: Angular + TypeScript, con sistema de diseño propio e íconos PrimeIcons.
 -   Backend: ASP.NET Core Web API.
 -   Arquitectura: microservicios con límites de dominio claros.
 -   Persistencia: Microsoft SQL Server + Entity Framework Core.
@@ -228,8 +228,8 @@ precise, technical, efficient and trustworthy.
 ### Implementation Constraints
 
 -   Use Angular and TypeScript.
--   Use PrimeNG where appropriate, but customize its appearance to match
-    DROVIK's design system.
+-   Build interface components on DROVIK's own design system; PrimeIcons
+    is the icon set.
 -   Do not replace the selected frontend stack.
 -   Reuse components and design tokens instead of duplicating styles.
 -   Maintain visual consistency across all modules.

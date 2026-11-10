@@ -279,6 +279,12 @@ app.MapPost("/api/v1/reservations", async (ReserveResourcesRequest request, Flee
     var validation = Validate(request);
     if (validation is not null) return validation;
     await using var transaction = await database.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken);
+    // Requests for the same vehicle or driver wait their turn instead of deadlocking. The vehicle is always locked first, so two requests cannot wait on each other.
+    if (database.Database.IsSqlServer())
+        foreach (var resource in new[] { $"fleet:vehicle:{request.VehicleId}", $"fleet:driver:{request.DriverId}" })
+            await database.Database.ExecuteSqlInterpolatedAsync(
+                $"DECLARE @result int; EXEC @result = sp_getapplock @Resource = {resource}, @LockMode = 'Exclusive', @LockOwner = 'Transaction', @LockTimeout = 5000; IF @result < 0 THROW 51000, 'Resource busy', 1;",
+                cancellationToken);
     var idempotencyKey = request.IdempotencyKey.Trim();
     var existing = await database.Reservations.AsNoTracking()
         .SingleOrDefaultAsync(item => item.IdempotencyKey == idempotencyKey, cancellationToken);
@@ -406,11 +412,32 @@ static IResult Conflict(string detail) => Results.Problem(statusCode: 409, title
 // Serializable reservations resolve races with deadlocks or unique-index violations: the loser is a conflict, not a 500.
 static async ValueTask<object?> TranslateConcurrencyFailure(EndpointFilterInvocationContext context, EndpointFilterDelegate next)
 {
-    try { return await next(context); }
-    catch (Exception ex) when (ex is DbUpdateException or SqlException { Number: 1205 })
+    const int attempts = 5;
+    for (var attempt = 1; ; attempt++)
     {
-        return Conflict("Otra operación modificó estos recursos al mismo tiempo; inténtalo de nuevo.");
+        try
+        {
+            return await next(context);
+        }
+        // SQL Server picks a victim when serializable transactions collide. Nothing was saved, so the whole request can run again.
+        catch (Exception ex) when (IsDeadlock(ex) && attempt < attempts)
+        {
+            context.HttpContext.RequestServices.GetRequiredService<FleetDbContext>().ChangeTracker.Clear();
+            await Task.Delay(Random.Shared.Next(20, 120) * attempt, context.HttpContext.RequestAborted);
+        }
+        catch (Exception ex) when (ex is DbUpdateException || IsDeadlock(ex) || ex is SqlException { Number: 51000 })
+        {
+            return Conflict("Otra operación modificó estos recursos al mismo tiempo; inténtalo de nuevo.");
+        }
     }
+}
+
+// EF wraps the SQL error differently depending on whether it happened while reading or saving.
+static bool IsDeadlock(Exception exception)
+{
+    for (var current = exception; current is not null; current = current.InnerException)
+        if (current is SqlException { Number: 1205 }) return true;
+    return false;
 }
 static IResult Problem(int status, string title, string detail) => Results.Problem(statusCode: status, title: title, detail: detail);
 static VehicleResponse ToVehicleResponse(Vehicle item) => new(item.Id, item.Plate, item.Model, item.Type, item.CapacityKg, item.Status,
