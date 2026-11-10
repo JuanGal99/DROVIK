@@ -1,6 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, inject, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
+import { IncidentsDataService } from './incidents-data.service';
 import { environment } from '../../../environments/environment';
 import { newIdempotencyKey } from '../id/idempotency-key';
 
@@ -33,6 +34,7 @@ export const DEMO_PRESETS: DemoPreset[] = [
 @Injectable({ providedIn: 'root' })
 export class DemoSeedService {
   private readonly http = inject(HttpClient);
+  private readonly incidents = inject(IncidentsDataService);
   private readonly api = `${environment.gatewayUrl}/api/v1`;
   readonly running = signal(false);
   readonly progress = signal('');
@@ -54,6 +56,8 @@ export class DemoSeedService {
     } finally {
       this.progress.set('');
       this.running.set(false);
+      // The reset deleted incidents without publishing events, so the counter in the menu would keep the old figure.
+      this.incidents.loadOpenCount().subscribe({ error: () => undefined });
     }
   }
 

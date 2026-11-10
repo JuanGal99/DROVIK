@@ -47,6 +47,8 @@ export class App {
   constructor() {
     this.auth.initialize().subscribe();
     effect(() => {
+      // Reading the URL here recounts on every navigation: a data reset deletes incidents without any event announcing it.
+      this.url();
       if (this.auth.user()) untracked(() => { this.hub.start(); this.incidents.loadOpenCount().subscribe({ error: () => undefined }); });
       else this.hub.stop();
     });
