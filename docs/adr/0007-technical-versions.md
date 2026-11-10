@@ -20,8 +20,6 @@
 | Angular CLI y build | 21.2.29 |
 | TypeScript | 5.9.3 |
 | RxJS | 7.8.2 |
-| PrimeNG | 21.1.10 |
-| PrimeUIX Themes | 3.1.0 |
 | PrimeIcons | 8.0.2 |
 | Fontsource Barlow / Barlow Semi Condensed | 5.3.0 / 5.3.0 |
 | Leaflet / @types/leaflet | 1.9.4 / 1.9.22 |
@@ -33,6 +31,12 @@
 | Panel opcional Aspire Dashboard (contenedor) | 13.6.4 |
 | SQL Server container | 2022-CU23-ubuntu-22.04 |
 | RabbitMQ container | 4.4.0-management |
+
+## Revisión 2026-11-09
+
+PrimeNG y PrimeUIX Themes se retiraron: ninguna pantalla los usaba, porque la interfaz se construyó con un sistema de diseño propio. PrimeIcons se mantiene como juego de íconos. Se descartó adaptar pantallas a PrimeNG, que habría añadido peso y reescritura sin aportar nada a lo que ya funciona.
+
+La herramienta `@angular/cli` 21 arrastra versiones de `glob` y `minimatch` con avisos moderados que solo afectan a las herramientas de desarrollo. `package.json` las fija con `overrides` a versiones corregidas, en lugar de adelantar Angular a una versión mayor.
 
 ## Compatibilidad y motivo
 
@@ -49,7 +53,5 @@ Parches deben actualizarse de manera coordinada y verificando matrices/lockfiles
 - [Angular releases and support](https://angular.dev/reference/releases)
 - [Angular core 21.2.26 release](https://github.com/angular/angular/releases/tag/21.2.26)
 - [Angular CLI 21.2.29 package](https://www.npmjs.com/package/@angular/cli/v/21.2.29)
-- [PrimeNG changelog](https://primeng.dev/changelog)
-- [PrimeNG 21.1.10 package metadata](https://www.npmjs.com/package/primeng/v/21.1.10)
 - [SQL Server official container image](https://hub.docker.com/r/microsoft/mssql-server)
 - [RabbitMQ release information](https://www.rabbitmq.com/release-information)

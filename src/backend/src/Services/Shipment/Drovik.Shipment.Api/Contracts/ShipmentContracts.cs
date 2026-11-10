@@ -28,6 +28,10 @@ public sealed record ShipmentResponse(
     DateTime UpdatedAtUtc,
     IReadOnlyList<ShipmentHistoryResponse> StatusHistory);
 
+public sealed record OverviewRouteResponse(Guid Id, Guid OriginCustomerId, Guid CustomerId, ShipmentStatus Status);
+public sealed record OverviewActivityResponse(Guid Id, DateTime OccurredAtUtc, string TrackingCode, ShipmentStatus Status, string? Note);
+public sealed record ShipmentOverviewResponse(IReadOnlyList<OverviewRouteResponse> Routes, IReadOnlyList<OverviewActivityResponse> Activity);
+public sealed record ShipmentCodeResponse(Guid Id, string TrackingCode);
 public sealed record StatusSummaryResponse(int TotalCount, IReadOnlyDictionary<string, int> ByStatus);
 public sealed record PagedResponse<T>(IReadOnlyList<T> Items, int TotalCount, int Page, int PageSize);
 

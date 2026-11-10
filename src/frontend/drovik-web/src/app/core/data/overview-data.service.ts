@@ -4,13 +4,12 @@ import { NetworkRoute } from '../../shared/network-map/network-map';
 import { CustomersDataService } from './customers-data.service';
 import { FleetDataService } from './fleet-data.service';
 import { IncidentsDataService } from './incidents-data.service';
-import { Shipment, ShipmentsDataService, ShipmentStatus } from './shipments-data.service';
+import { ShipmentsDataService, ShipmentStatus } from './shipments-data.service';
 
 export interface ActivityItem { key: string; at: string; trackingCode: string; status: ShipmentStatus; note?: string; }
 
 const ROUTE_TONES: Partial<Record<ShipmentStatus, NetworkRoute['tone']>> = { Pending: 'waiting', Assigned: 'waiting', InTransit: 'moving', Delayed: 'delayed' };
 const STAGES: ShipmentStatus[] = ['Pending', 'Assigned', 'InTransit', 'Delayed', 'Delivered'];
-const isOpen = (shipment: Shipment) => shipment.status in ROUTE_TONES;
 
 /** Everything on the overview is derived from the same APIs as the detail screens, so the figures always reconcile. */
 @Injectable({ providedIn: 'root' })
@@ -25,10 +24,8 @@ export class OverviewDataService {
   readonly points = this.customers.customers;
   readonly openIncidents = this.incidents.openCount;
 
-  readonly openShipments = computed(() => this.shipmentsData.shipments().filter(isOpen));
-  readonly routes = computed<NetworkRoute[]>(() => this.openShipments()
-    .filter((shipment) => shipment.originCustomerId)
-    .map((shipment) => ({ id: shipment.id, originId: shipment.originCustomerId!, destinationId: shipment.customerId, tone: ROUTE_TONES[shipment.status]! })));
+  readonly routes = computed<NetworkRoute[]>(() => this.shipmentsData.overview().routes
+    .map((route) => ({ id: route.id, originId: route.originCustomerId, destinationId: route.customerId, tone: ROUTE_TONES[route.status]! })));
   readonly stages = computed(() => {
     const counts = this.shipmentsData.summary().byStatus;
     const largest = Math.max(1, ...STAGES.map((status) => counts[status] ?? 0));
@@ -39,18 +36,14 @@ export class OverviewDataService {
   });
   readonly vehiclesAvailable = computed(() => this.fleet.summary().byStatus['Available'] ?? 0);
   readonly vehiclesInService = computed(() => this.fleet.summary().totalCount - (this.fleet.summary().byStatus['Inactive'] ?? 0));
-  readonly activity = computed<ActivityItem[]>(() => this.shipmentsData.shipments()
-    .flatMap((shipment) => shipment.statusHistory.map((entry, index) => ({
-      key: `${shipment.id}-${index}`, at: entry.occurredAt, trackingCode: shipment.trackingCode, status: entry.status, note: entry.note,
-    })))
-    .sort((a, b) => b.at.localeCompare(a.at))
-    .slice(0, 7));
+  readonly activity = computed<ActivityItem[]>(() => this.shipmentsData.overview().activity
+    .map((item) => ({ key: item.id, at: item.occurredAtUtc, trackingCode: item.trackingCode, status: item.status, note: item.note ?? undefined })));
 
   /** A background reload keeps the figures on screen, even if it fails. */
   load(background = false): Observable<unknown> {
     if (!background) { this.loading.set(true); this.failed.set(false); }
     return forkJoin([
-      this.shipmentsData.loadShipments(), this.shipmentsData.loadSummary(), this.fleet.loadSummary(),
+      this.shipmentsData.loadOverview(), this.shipmentsData.loadSummary(), this.fleet.loadSummary(),
       this.customers.loadCustomers(), this.incidents.loadOpenCount(),
     ]).pipe(finalize(() => { if (!background) this.loading.set(false); }));
   }

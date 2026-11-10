@@ -4,9 +4,9 @@
 
 La dirección aprobada es una arquitectura de cinco microservicios con límites de dominio y propiedad de datos independientes. El proyecto se ejecuta localmente; el repositorio público no implica alojamiento público. Ver ADR 0001, 0003 y 0006.
 
-**Aprobado:** Angular + TypeScript + PrimeNG; ASP.NET Core Web API; Identity, Fleet, Shipment, Simulation e Incident; SQL Server y EF Core; YARP; RabbitMQ; SignalR; Docker Compose para infraestructura local; xUnit; OpenTelemetry + Serilog; Leaflet + OpenStreetMap. Redis se omite en la primera versión.
+**Aprobado:** Angular + TypeScript con sistema de diseño propio; ASP.NET Core Web API; Identity, Fleet, Shipment, Simulation e Incident; SQL Server y EF Core; YARP; RabbitMQ; SignalR; Docker Compose para infraestructura local; xUnit; OpenTelemetry + Serilog; Leaflet + OpenStreetMap. Redis se omite en la primera versión.
 
-**Versiones fijadas para Fase 1 (2026-11-06):** .NET SDK 10.0.403 / target `net10.0`; EF Core SQL Server 10.0.14; Angular runtime/compiler 21.2.26 y CLI/build 21.2.29; TypeScript 5.9.3; PrimeNG 21.1.10; Node.js 24.11.1 y npm 11.6.2; RxJS 7.8.2; PrimeUIX Themes 3.1.0; PrimeIcons 8.0.2; SQL Server 2022 CU23; RabbitMQ 4.4.0. Angular 21 se selecciona porque sigue soportado en LTS y acepta Node 24.0+, que corresponde al entorno disponible; Angular 22 requiere Node 24.15+ y no sería compatible con Node 24.11.1. Las versiones de npm se bloquean en package-lock.json y las dependencias NuGet mediante lockfiles.
+**Versiones fijadas para Fase 1 (2026-11-06):** .NET SDK 10.0.403 / target `net10.0`; EF Core SQL Server 10.0.14; Angular runtime/compiler 21.2.26 y CLI/build 21.2.29; TypeScript 5.9.3; Node.js 24.11.1 y npm 11.6.2; RxJS 7.8.2; PrimeUIX Themes 3.1.0; PrimeIcons 8.0.2; SQL Server 2022 CU23; RabbitMQ 4.4.0. Angular 21 se selecciona porque sigue soportado en LTS y acepta Node 24.0+, que corresponde al entorno disponible; Angular 22 requiere Node 24.15+ y no sería compatible con Node 24.11.1. Las versiones de npm se bloquean en package-lock.json y las dependencias NuGet mediante lockfiles.
 
 **Aprobado adicionalmente:** sesión mediante cookies y reglas CSRF/CORS; reserva explícita Fleet para asignaciones; frecuencia inicial de simulación de un segundo configurable, recuperada pausada; HTTP `/api/v1`; envelopes de eventos versionados e idempotencia. Ver ADR 0007–0010.
 

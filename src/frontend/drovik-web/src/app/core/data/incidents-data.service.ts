@@ -43,16 +43,15 @@ export class IncidentsDataService {
 
   constructor(private readonly http: HttpClient) {}
 
-  load(filters: { status?: IncidentStatus | ''; severity?: IncidentSeverity | ''; page?: number } = {}, background = false): Observable<Incident[]> {
+  load(filters: { status?: IncidentStatus | ''; severity?: IncidentSeverity | ''; page?: number; pageSize?: number } = {}, background = false): Observable<Incident[]> {
     if (!background) { this.loading.set(true); this.error.set(null); }
-    let params = new HttpParams().set('page', filters.page ?? 1).set('pageSize', 100);
+    let params = new HttpParams().set('page', filters.page ?? 1).set('pageSize', filters.pageSize ?? 100);
     if (filters.status) params = params.set('status', filters.status);
     if (filters.severity) params = params.set('severity', filters.severity);
     return this.http.get<PagedResponse>(`${environment.gatewayUrl}/api/v1/incidents`, { params }).pipe(
       tap((response) => {
         this.incidents.set(response.items);
         this.totalCount.set(response.totalCount);
-        if (!filters.status && !filters.severity) this.openCount.set(response.items.filter((item) => this.isOpen(item)).length);
       }),
       map((response) => response.items),
       catchError((error) => background ? throwError(() => error) : this.handleError(error, 'No se pudieron cargar las incidencias.')),

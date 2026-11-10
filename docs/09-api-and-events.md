@@ -61,6 +61,8 @@ Las rutas de Shipment requieren `Administrator` u `Operator`. El servicio conser
 |---|---|---|
 | `GET /api/v1/shipments?search=&status=&priority=&page=&pageSize=` | Query opcional | 200 paginado |
 | `GET /api/v1/shipments/summary` | — | 200 `{ totalCount, byStatus }` sobre todos los envíos |
+| `GET /api/v1/shipments/overview` | — | 200 `{ routes, activity }`: hasta 200 rutas abiertas, primero las que están en camino, y los 7 últimos movimientos |
+| `GET /api/v1/shipments/codes?ids=` | Hasta 100 identificadores separados por comas | 200 `[{ id, trackingCode }]`; 400 si son más o alguno no es válido |
 | `GET /api/v1/shipments/{id}` | — | 200 `ShipmentResponse` o 404 |
 | `POST /api/v1/shipments` | `originCustomerId` y `customerId` (puntos activos y distintos del catálogo), `weightKg`, `priority` | 201 como `Pending`; nombres, etiquetas y coordenadas de origen y destino salen del catálogo |
 | `PUT /api/v1/shipments/{id}` | `originCustomerId`, `customerId`, `weightKg`, `priority` | 200; solo pendiente |

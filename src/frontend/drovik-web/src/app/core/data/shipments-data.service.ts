@@ -1,6 +1,6 @@
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject, signal } from '@angular/core';
-import { catchError, forkJoin, finalize, map, Observable, tap, throwError } from 'rxjs';
+import { catchError, forkJoin, finalize, map, Observable, of, tap, throwError } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { newIdempotencyKey } from '../id/idempotency-key';
 import { Driver, DriversDataService } from './drivers-data.service';
@@ -40,6 +40,9 @@ export interface Shipment {
 
 export interface ShipmentDraft extends Pick<Shipment, 'customerId' | 'weightKg' | 'priority'> { originCustomerId: string; }
 export type ShipmentEdit = ShipmentDraft;
+export interface OverviewRoute { id: string; originCustomerId: string; customerId: string; status: ShipmentStatus; }
+export interface OverviewActivity { id: string; occurredAtUtc: string; trackingCode: string; status: ShipmentStatus; note?: string | null; }
+export interface ShipmentOverview { routes: OverviewRoute[]; activity: OverviewActivity[]; }
 export interface ShipmentPageQuery { page: number; pageSize: number; search: string; status: string; }
 interface ShipmentResponse extends Omit<Shipment, 'createdAt' | 'statusHistory'> {
   createdAtUtc: string;
@@ -60,8 +63,9 @@ export class ShipmentsDataService {
   readonly pageItems = signal<Shipment[]>([]);
   readonly totalCount = signal(0);
   readonly summary = signal<StatusSummary>(NO_SUMMARY);
+  readonly overview = signal<ShipmentOverview>({ routes: [], activity: [] });
 
-  /** The most recent shipments, for the overview and for naming the shipment an incident refers to. */
+  /** The most recent shipments, to pick one when registering an incident. */
   loadShipments(): Observable<Shipment[]> {
     this.loading.set(true);
     this.error.set(null);
@@ -98,6 +102,19 @@ export class ShipmentsDataService {
       }),
       catchError((error) => background ? throwError(() => error) : this.handleError(error, 'No se pudo cargar los envíos desde el Gateway.')),
       finalize(() => { if (!background) this.loading.set(false); }),
+    );
+  }
+
+  loadOverview(): Observable<ShipmentOverview> {
+    return this.http.get<ShipmentOverview>(`${environment.gatewayUrl}/api/v1/shipments/overview`).pipe(tap((overview) => this.overview.set(overview)));
+  }
+
+  /** Tracking codes by shipment id, whatever the age of the shipment. */
+  loadCodes(ids: string[]): Observable<Record<string, string>> {
+    if (!ids.length) return of({});
+    const params = new HttpParams().set('ids', [...new Set(ids)].join(','));
+    return this.http.get<Array<{ id: string; trackingCode: string }>>(`${environment.gatewayUrl}/api/v1/shipments/codes`, { params }).pipe(
+      map((codes) => Object.fromEntries(codes.map((item) => [item.id, item.trackingCode]))),
     );
   }
 
