@@ -25,7 +25,7 @@
     @if (finished()) { <p class="run-note success">Todos los envíos llegaron a su destino.</p> }
 
     @if (live.loading()) {
-      <div class="state-message"><i class="pi pi-spin pi-spinner" aria-hidden="true"></i> Cargando la operación…</div>
+      <div class="state-message" role="status"><i class="pi pi-spin pi-spinner" aria-hidden="true"></i> Cargando la operación…</div>
     } @else if (live.error()) {
       <div class="state-message error-state" role="alert"><i class="pi pi-exclamation-triangle" aria-hidden="true"></i>{{ live.error() }}<button type="button" (click)="live.load()">Reintentar</button></div>
     } @else {

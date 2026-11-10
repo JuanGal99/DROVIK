@@ -2,10 +2,11 @@ import { Component, inject, output, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { AuthService } from '../../core/auth/auth.service';
+import { DialogFocus } from '../dialog-focus/dialog-focus';
 
 @Component({
   selector: 'app-change-password-dialog',
-  imports: [FormsModule],
+  imports: [FormsModule, DialogFocus],
   host: { '(document:keydown.escape)': 'closed.emit()' },
   styles: ':host, .dialog-root { display: contents; }',
   template: `

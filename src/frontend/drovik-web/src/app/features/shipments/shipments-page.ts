@@ -1,3 +1,4 @@
+import { DialogFocus } from '../../shared/dialog-focus/dialog-focus';
 import { createReloader } from '../../core/data/paged';
 import { OperationsHubService } from '../../core/realtime/operations-hub.service';
 import { CommonModule } from '@angular/common';
@@ -20,7 +21,7 @@ const STATUS_CLASSES: Record<ShipmentStatus, string> = {
 
 @Component({
   selector: 'app-shipments-page',
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, DialogFocus],
   templateUrl: './shipments-page.html',
   styleUrl: './shipments-page.scss',
   standalone: true,

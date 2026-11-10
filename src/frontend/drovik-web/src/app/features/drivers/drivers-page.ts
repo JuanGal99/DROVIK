@@ -1,3 +1,4 @@
+import { DialogFocus } from '../../shared/dialog-focus/dialog-focus';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { OperationsHubService } from '../../core/realtime/operations-hub.service';
 import { CommonModule } from '@angular/common';
@@ -11,7 +12,7 @@ const AVAILABILITY_LABELS: Record<DriverAvailability, string> = { Available: 'Di
 
 @Component({
   selector: 'app-drivers-page',
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, DialogFocus],
   templateUrl: './drivers-page.html',
   styleUrl: './drivers-page.scss',
   standalone: true,

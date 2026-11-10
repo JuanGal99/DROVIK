@@ -1,3 +1,4 @@
+import { DialogFocus } from '../../shared/dialog-focus/dialog-focus';
 import { forkJoin } from 'rxjs';
 import { createReloader } from '../../core/data/paged';
 import { OperationsHubService } from '../../core/realtime/operations-hub.service';
@@ -14,7 +15,7 @@ const TYPE_LABELS: Record<IncidentType, string> = { MechanicalFailure: 'Falla me
 
 @Component({
   selector: 'app-incidents-page',
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, DialogFocus],
   templateUrl: './incidents-page.html',
   styleUrl: './incidents-page.scss',
   standalone: true,

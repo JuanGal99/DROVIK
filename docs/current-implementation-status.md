@@ -113,6 +113,7 @@ La navegación lateral puede plegarse en escritorio para ampliar el área de tra
 - **RabbitMQ:** topología de ADR 0003, dispatchers Outbox y consumidores idempotentes en Fleet, Shipment e Incident implementados. Cada consumidor tiene su propia DLQ, y el reproceso está en `12-deployment-and-operations.md`.
 - **SignalR:** hub de Operación en vivo en Simulation, expuesto por YARP y consumido por Angular.
 - **Observabilidad:** logs JSON, trazas que cruzan el broker y métricas en las seis APIs; panel opcional (ADR 0013).
+- **Accesibilidad:** WCAG 2.1 A y AA comprobado con axe en cada pantalla y formulario; salto al contenido, foco retenido en diálogos y estados de carga anunciados.
 - **Actualización en vivo:** Resumen, Envíos, Flota, Conductores, Incidencias y el contador del menú vuelven a leer sus datos cuando llega el aviso `changed` del hub. El navegador mantiene una sola conexión por sesión.
 - **Paginación:** Envíos y Flota piden cada página, búsqueda y filtro al servidor; sus totales salen de `/summary`. Los selectores y las búsquedas de placa o conductor recorren todas las páginas. Resumen e Incidencias siguen usando los 100 envíos más recientes para el mapa, la actividad y nombrar el envío de una incidencia.
 - **Cuentas:** cambio de contraseña propia, restablecimiento por administrador, cambio de rol y recuperación desde el host.
@@ -284,4 +285,4 @@ La contraseña debe tener al menos 12 caracteres, mayúscula, minúscula, dígit
 
 ## Próximos pasos
 
-El orden y los criterios de salida están en [13-roadmap.md](./13-roadmap.md) y su justificación en [ADR 0011](./adr/0011-module-delivery-sequence.md). Queda la revisión de accesibilidad de la Fase 8.
+El orden y los criterios de salida están en [13-roadmap.md](./13-roadmap.md) y su justificación en [ADR 0011](./adr/0011-module-delivery-sequence.md). Las fases del roadmap están cerradas.

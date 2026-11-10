@@ -1,5 +1,6 @@
 @if (auth.isAuthenticated) {
 <div class="app-frame" [class.sidebar-collapsed]="sidebarCollapsed()">
+  <button class="skip-link" type="button" (click)="mainContent.focus()">Saltar al contenido</button>
   <button class="mobile-scrim" [class.is-visible]="menuOpen()" (click)="closeMenu()" aria-label="Cerrar navegación"></button>
   <aside class="sidebar" [class.is-open]="menuOpen()" aria-label="Navegación principal">
     <div class="sidebar-header">
@@ -29,7 +30,7 @@
       <span class="page-name">{{ pageTitle() }}</span>
       <span class="company">Northline Logistics</span>
     </header>
-    <main class="page-content"><router-outlet /></main>
+    <main class="page-content" #mainContent tabindex="-1"><router-outlet /></main>
   </div>
   @if (passwordDialogOpen()) { <app-change-password-dialog (closed)="passwordDialogOpen.set(false)" /> }
 </div>

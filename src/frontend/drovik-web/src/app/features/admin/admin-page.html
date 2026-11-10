@@ -8,11 +8,11 @@
   @if (rowNotice()) { <p class="done" role="status">{{ rowNotice() }}</p> }
   <section class="table-panel" aria-label="Usuarios">
     @if (data.loading()) {
-      <div class="state-message"><i class="pi pi-spin pi-spinner" aria-hidden="true"></i> Cargando usuarios…</div>
+      <div class="state-message" role="status"><i class="pi pi-spin pi-spinner" aria-hidden="true"></i> Cargando usuarios…</div>
     } @else if (data.error()) {
       <div class="state-message error-state" role="alert"><i class="pi pi-exclamation-triangle" aria-hidden="true"></i>{{ data.error() }}<button type="button" (click)="data.load()">Reintentar</button></div>
     } @else {
-      <div class="table-scroll"><table>
+      <div class="table-scroll" tabindex="0" role="region" aria-label="Lista de usuarios"><table>
         <thead><tr><th>Correo</th><th>Rol</th><th>Estado</th><th><span class="sr-only">Acciones</span></th></tr></thead>
         <tbody class="read-only">
           @for (user of data.users(); track user.id) {

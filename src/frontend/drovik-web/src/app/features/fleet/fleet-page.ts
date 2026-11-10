@@ -1,3 +1,4 @@
+import { DialogFocus } from '../../shared/dialog-focus/dialog-focus';
 import { createReloader } from '../../core/data/paged';
 import { OperationsHubService } from '../../core/realtime/operations-hub.service';
 import { Component, computed, inject, signal } from '@angular/core';
@@ -11,7 +12,7 @@ const STATUS_LABELS: Record<VehicleStatus, string> = {
 
 @Component({
   selector: 'app-fleet-page',
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, DialogFocus],
   templateUrl: './fleet-page.html',
   styleUrl: './fleet-page.scss',
   standalone: true,
