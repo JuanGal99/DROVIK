@@ -123,6 +123,10 @@ La navegación lateral puede plegarse en escritorio para ampliar el área de tra
 
 ## Pruebas ejecutadas
 
+### Instalación desde el ZIP público (2026-11-12)
+
+Se descargó el ZIP de GitHub en una carpeta nueva y se ejecutó `start.cmd` con volúmenes vacíos, como lo haría alguien que prueba el proyecto. El primer intento falló: el chequeo de salud de SQL Server usaba `localhost`, que en ese contenedor solo resolvía a `::1`, y SQL Server no escucha en IPv6. Se cambió a `127.0.0.1` y se amplió el tiempo de espera. Con eso arrancó en 134 s y se completó el recorrido del README: inicio de sesión, semilla "Operación corta" y operación con 3 vehículos avanzando, sin errores de JavaScript. La instalación de prueba se eliminó.
+
 ### Sesión y concurrencia (2026-11-09)
 
 Manuales sobre una pila desechable con SQL Server real, ya eliminada:
