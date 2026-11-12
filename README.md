@@ -12,6 +12,8 @@ DROVIK es una consola de operaciones logísticas: gestiona flota, conductores y 
 
 Es un proyecto de portafolio pensado para ejecutarse en local. Empresa, datos, posiciones y eventos son ficticios: no hay GPS ni tráfico real, aunque la consola se presenta como una operación real.
 
+**Para probarlo** basta Docker y un comando: ver [Pruébalo en tu equipo](#pruébalo-en-tu-equipo).
+
 ## Qué hace
 
 - **Resumen:** esquema de la red con los envíos en curso, envíos por estado, flota disponible, incidencias abiertas y actividad reciente.
@@ -55,11 +57,30 @@ Angular 21, TypeScript, Leaflet y SignalR en el frontend; ASP.NET Core sobre .NE
 
 Los servicios escriben logs JSON con Serilog y generan trazas y métricas con OpenTelemetry; una misma traza sigue una petición desde el Gateway hasta los consumidores de eventos. Para verlas hay un panel opcional, descrito en [operaciones](docs/12-deployment-and-operations.md#126-observabilidad-y-ci). Las pruebas usan xUnit, Vitest y Playwright.
 
-## Ejecución local
+## Pruébalo en tu equipo
 
-Solo necesitas [Docker Desktop](https://www.docker.com/products/docker-desktop/) con Compose v2 en marcha. Clona el repositorio y ejecuta un comando:
+Solo necesitas Docker. No hace falta instalar .NET, Node ni SQL Server.
 
-En Windows:
+### Requisitos
+
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/) en marcha, o Docker Engine con Compose v2 en Linux.
+- Al menos 4 GB de memoria asignada a Docker y unos 10 GB de disco libres.
+- Libres los puertos 4200, 5200, 1433, 5672 y 15672.
+- En un Mac con chip Apple, activa en Docker Desktop la opción *Use Rosetta for x86_64/amd64 emulation*: la imagen de SQL Server solo existe para amd64. Este caso no se ha probado.
+
+### 1. Descarga el proyecto
+
+Con Git:
+
+```bash
+git clone https://github.com/JuanGal99/DROVIK.git
+```
+
+O, sin Git, en GitHub pulsa **Code → Download ZIP** y descomprime la carpeta.
+
+### 2. Arráncalo
+
+Abre una terminal en la carpeta del proyecto y ejecuta, en Windows:
 
 ```bat
 .\start.cmd
@@ -68,32 +89,51 @@ En Windows:
 En macOS, Linux o Git Bash:
 
 ```bash
-./start.sh
+bash start.sh
 ```
 
-La primera vez tarda varios minutos porque compila las imágenes. Al terminar muestra la dirección, [http://localhost:4200](http://localhost:4200), y el correo y la contraseña del administrador. Las contraseñas y claves se generan solas en el archivo local `.env`, que no se sube al repositorio.
+La primera vez tarda entre 5 y 10 minutos, porque descarga y compila las imágenes; las siguientes, uno o dos. Al terminar verás algo así:
 
-Si olvidas una contraseña, un administrador la restablece en Administración. Si no queda ninguno con acceso, sigue [Recuperar el acceso](docs/12-deployment-and-operations.md#recuperar-el-acceso).
+```
+DROVIK está listo en http://localhost:4200
+  Correo:     admin@drovik.local
+  Contraseña: (una generada para tu equipo)
+```
 
-Para detener la aplicación:
+Esa contraseña, y las demás claves, se generan en un archivo `.env` local que nunca se sube al repositorio. Para volver a verla, ejecuta de nuevo el mismo comando: no borra nada.
+
+### 3. Recorrido de 5 minutos
+
+1. Abre http://localhost:4200 y entra con el correo y la contraseña que mostró la terminal.
+2. Ve a **Administración → Reiniciar datos**, elige **Operación corta** y pulsa **Borrar y cargar**.
+3. En **Operación en vivo**, pulsa **Iniciar operación**: los vehículos avanzan por calles reales.
+4. Abre **Incidencias** en otra pestaña. Vuelve a la primera, pulsa **Avería** en un vehículo y mira cómo la incidencia aparece en la otra pestaña sin recargar.
+5. Recorre **Resumen**, **Envíos** y **Flota**: también se actualizan solos.
+
+Las otras semillas son **Hora pico**, con 12 envíos en ruta a la vez, y **Operación completa**, con 31 envíos en todos los estados y 6 incidencias. Reiniciar borra los envíos, incidencias y operaciones actuales; los puntos de la red, la flota y las cuentas se conservan.
+
+### Detener o desinstalar
+
+Para detenerla y conservar los datos:
 
 ```bash
 docker compose --profile app down
 ```
 
-Los datos se conservan entre reinicios. Para desarrollar los servicios desde un IDE y ver otras opciones, consulta [la guía de ejecución](docs/12-deployment-and-operations.md).
+Para borrarlo todo, datos incluidos:
 
-## Cómo probar una operación
+```bash
+docker compose --profile app down -v
+```
 
-1. Entrar con una cuenta de administrador e ir a **Administración**.
-2. En **Reiniciar datos**, elegir una semilla y confirmar:
-   - **Operación corta:** 3 envíos en ruta, ideal para probar los escenarios.
-   - **Hora pico:** 12 envíos en ruta al mismo tiempo.
-   - **Operación completa:** 31 envíos en todos los estados y 6 incidencias.
-3. Ir a **Operación en vivo** y pulsar **Iniciar operación**.
-4. Usar **Congestión**, **Avería** o **Desvío** en cualquier vehículo y revisar el resultado en **Envíos** e **Incidencias**.
+### Si algo falla
 
-Reiniciar borra los envíos, incidencias y operaciones actuales. Los puntos de la red, la flota y las cuentas se conservan.
+- **"port is already allocated":** otro programa usa uno de los puertos de la lista, por ejemplo un SQL Server instalado en el equipo. Ciérralo y vuelve a ejecutar el comando.
+- **"Inicia Docker y vuelve a ejecutar este comando":** abre Docker Desktop y espera a que indique que está en marcha.
+- **Un servicio no llega a estar sano:** vuelve a ejecutar el comando; conserva lo que ya se creó. Si persiste, `docker compose --profile app logs <servicio>` muestra el motivo.
+- **Contraseña olvidada:** un administrador la restablece en Administración. Si no queda ninguno con acceso, sigue [Recuperar el acceso](docs/12-deployment-and-operations.md#recuperar-el-acceso).
+
+Para desarrollar los servicios desde un IDE y ver otras opciones, consulta [la guía de ejecución](docs/12-deployment-and-operations.md).
 
 ## Pruebas
 
