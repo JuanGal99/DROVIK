@@ -100,6 +100,20 @@ public sealed class IdentityServiceTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Ending_all_sessions_signs_out_every_open_browser()
+    {
+        await CreateUser("operator@example.test", "Operator");
+        using var login = await Login("operator@example.test");
+        var refresh = CookieValue(login, "drovik.refresh");
+
+        await using (var scope = _factory.Services.CreateAsyncScope())
+            await UserAccounts.EndAllSessionsAsync(scope.ServiceProvider.GetRequiredService<IdentityDbContext>(), CancellationToken.None);
+
+        using var renewed = await SendCsrfRequest(HttpMethod.Post, "/api/v1/auth/refresh", await GetCsrf(), refresh);
+        Assert.Equal(HttpStatusCode.Unauthorized, renewed.StatusCode);
+    }
+
+    [Fact]
     public async Task Session_cookie_ends_with_the_browser()
     {
         await CreateUser("operator@example.test", "Operator");
