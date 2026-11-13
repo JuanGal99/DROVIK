@@ -20,7 +20,7 @@ Las fases se completan localmente. Capturas/video son materiales de portafolio; 
 
 ## Fase 2 — Gateway e Identity Service (completada)
 - **Gateway (integrado en `main`):** YARP 2.3.0 enruta prefijos versionados a los cinco servicios, configura CORS explícito para Angular local y tiene pruebas de proxy y ruta desconocida.
-- **Identity (integrado y validado en `main`):** ASP.NET Core Identity, roles Administrator/Operator, creación administrada de cuentas, login, access JWT RS256 de 15 minutos, refresh hash de siete días con rotación/familia, logout, `/me`, CSRF y bootstrap explícito de primer administrador. Migración aplicada a SQL Server; readiness y pruebas xUnit 25/25.
+- **Identity (integrado y validado en `main`):** ASP.NET Core Identity, roles Administrator/Operator, creación administrada de cuentas, login, access JWT RS256 de 15 minutos, refresh hash de 12 horas en cookie de sesión del navegador con rotación/familia, logout, `/me`, CSRF y bootstrap explícito de primer administrador. Migración aplicada a SQL Server; readiness y pruebas xUnit 25/25.
 - **Contratos:** tabla Identity de `09-api-and-events.md`; Angular usa el Gateway, access token en memoria y refresh por cookie HttpOnly. Las claves se configuran localmente.
 - **Validado (2026-11-09):** la prueba de navegador automatizada recorre Angular → Gateway → Identity con cookies, CSRF y CORS reales, y después usa el JWT contra Fleet, Shipment, Simulation e Incident sobre una pila creada desde un clon limpio.
 

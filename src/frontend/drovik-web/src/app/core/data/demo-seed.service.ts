@@ -7,7 +7,8 @@ import { newIdempotencyKey } from '../id/idempotency-key';
 
 type SeedState = 'Pending' | 'CancelledFromPending' | 'Assigned' | 'CancelledFromAssigned' | 'InTransit' | 'Delayed' | 'Delivered';
 export type DemoPresetId = 'small' | 'onRoute' | 'complete';
-export interface DemoPreset { id: DemoPresetId; name: string; description: string; plan: SeedState[]; withIncidents: boolean; }
+export type IncidentPlan = 'one' | 'peak' | 'full';
+export interface DemoPreset { id: DemoPresetId; name: string; description: string; plan: SeedState[]; incidents: IncidentPlan; }
 
 interface Page<T> { items: T[]; }
 interface Point { id: string; }
@@ -21,10 +22,11 @@ const WEIGHTS = [120, 340, 760, 1250, 2100, 480, 95, 3200, 640, 1480, 210, 2750,
 const DELAYS = ['Obras en la calzada', 'Congestión en la entrada a la ciudad', 'Control de tránsito', 'Lluvia intensa en la zona'];
 
 export const DEMO_PRESETS: DemoPreset[] = [
-  { id: 'small', name: 'Operación corta', description: '3 envíos en ruta, ideal para probar los escenarios.', plan: repeat('InTransit', 3), withIncidents: false },
-  { id: 'onRoute', name: 'Hora pico', description: '12 envíos en ruta al mismo tiempo.', plan: [...repeat('InTransit', 10), ...repeat('Delayed', 2)], withIncidents: false },
+  { id: 'small', name: 'Operación corta', description: '3 envíos en ruta y 1 incidencia abierta. Ideal para probar los escenarios.', plan: repeat('InTransit', 3), incidents: 'one' },
+  { id: 'onRoute', name: 'Hora pico', description: '12 envíos en ruta, 2 de ellos con retraso, y 3 incidencias abiertas.', plan: [...repeat('InTransit', 10), ...repeat('Delayed', 2)], incidents: 'peak' },
   {
-    id: 'complete', name: 'Operación completa', description: '31 envíos en todos los estados y 6 incidencias.', withIncidents: true,
+    id: 'complete', name: 'Operación completa', incidents: 'full',
+    description: '31 envíos: 7 en ruta, 3 asignados, 6 pendientes, 12 entregados y 3 cancelados. Solo los que están en ruta se mueven en el mapa. 6 incidencias en distintos estados.',
     // Finished shipments go first so their vehicles and drivers are free for the ones still open.
     plan: [...repeat('Delivered', 12), 'CancelledFromPending', 'CancelledFromAssigned', 'CancelledFromPending', ...repeat('InTransit', 5), ...repeat('Delayed', 2), ...repeat('Assigned', 3), ...repeat('Pending', 6)],
   },
@@ -68,7 +70,7 @@ export class DemoSeedService {
       this.progress.set(`Creando envío ${index + 1} de ${preset.plan.length}…`);
       created.push({ state, shipment: await this.reach(state, index, points) });
     }
-    if (preset.withIncidents) await this.createIncidents(created);
+    await this.createIncidents(preset.incidents, created);
   }
 
   private async reach(state: SeedState, index: number, points: Point[]): Promise<Shipment> {
@@ -96,19 +98,28 @@ export class DemoSeedService {
     return this.post<Shipment>(`shipments/${shipment.id}/assign`, { vehicleId: vehicle.id, driverId: drivers[0].id, idempotencyKey: newIdempotencyKey() });
   }
 
-  private async createIncidents(created: { state: SeedState; shipment: Shipment }[]): Promise<void> {
+  private async createIncidents(plan: IncidentPlan, created: { state: SeedState; shipment: Shipment }[]): Promise<void> {
     this.progress.set('Creando incidencias…');
     const of = (state: SeedState) => created.filter((item) => item.state === state).map((item) => item.shipment);
-    const delayed = of('Delayed');
-    const delivered = of('Delivered');
-    const maintenance = (await this.items<Vehicle>('vehicles?status=Maintenance'))[0];
     const incident = (body: object) => this.post<Incident>('incidents', body);
+    const start = async (id: string, note: string) => firstValueFrom(this.http.patch(`${this.api}/incidents/${id}/status`, { status: 'InProgress', note }));
 
-    const inProgress = await incident({ type: 'Delay', severity: 'High', description: 'El vehículo avanza con retraso por obras en la vía', shipmentId: delayed[0].id, vehicleId: delayed[0].vehicleId });
-    await firstValueFrom(this.http.patch(`${this.api}/incidents/${inProgress.id}/status`, { status: 'InProgress', note: 'Se informó al punto de destino' }));
-    await incident({ type: 'Delay', severity: 'Medium', description: 'Congestión prolongada en la ruta asignada', shipmentId: delayed[1].id });
+    if (plan === 'one') {
+      const onRoad = of('InTransit')[0];
+      await incident({ type: 'Delivery', severity: 'Medium', description: 'El punto de destino pidió cambiar la ventana de entrega', shipmentId: onRoad.id, vehicleId: onRoad.vehicleId });
+      return;
+    }
+
+    const delayed = of('Delayed');
+    const late = await incident({ type: 'Delay', severity: 'High', description: 'El vehículo avanza con retraso por obras en la vía', shipmentId: delayed[0].id, vehicleId: delayed[0].vehicleId });
+    await start(late.id, 'Se informó al punto de destino');
+    await incident({ type: 'Delay', severity: 'Medium', description: 'Congestión prolongada en la ruta asignada', shipmentId: delayed[1].id, vehicleId: delayed[1].vehicleId });
+    const maintenance = (await this.items<Vehicle>('vehicles?status=Maintenance'))[0];
     await incident({ type: 'MechanicalFailure', severity: 'Critical', description: 'Falla en el sistema de frenos detectada en revisión', vehicleId: maintenance?.id });
+    if (plan === 'peak') return;
+
     await incident({ type: 'Safety', severity: 'Medium', description: 'Reporte de carga mal asegurada antes de la salida', shipmentId: of('Assigned')[0].id });
+    const delivered = of('Delivered');
     const resolved = await incident({ type: 'Delivery', severity: 'Low', description: 'El punto de destino reportó un empaque golpeado', shipmentId: delivered[0].id });
     await this.post(`incidents/${resolved.id}/resolve`, { resolutionNote: 'Se verificó la mercancía y el cliente aceptó la entrega' });
     const closed = await incident({ type: 'Other', severity: 'Low', description: 'Documento de entrega con datos incompletos', shipmentId: delivered[1].id });

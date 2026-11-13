@@ -15,6 +15,8 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using System.Threading.RateLimiting;
 
+// A shared console: a session never outlives a working day, even if the browser restores its cookies.
+var SessionLifetime = TimeSpan.FromHours(12);
 var bootstrapMode = args.Contains("--bootstrap-admin", StringComparer.Ordinal);
 var recoverMode = args.Contains("--recover-password", StringComparer.Ordinal);
 var builder = WebApplication.CreateBuilder(args);
@@ -121,10 +123,10 @@ app.MapPost("/api/v1/auth/login", async (LoginRequest request, UserManager<Appli
     database.RefreshTokens.Add(new RefreshToken
     {
         UserId = user.Id, FamilyId = Guid.NewGuid(), TokenHash = TokenIssuer.HashToken(rawToken),
-        CreatedAtUtc = now, ExpiresAtUtc = now.AddDays(7)
+        CreatedAtUtc = now, ExpiresAtUtc = now.Add(SessionLifetime)
     });
     await database.SaveChangesAsync(cancellationToken);
-    context.Response.Cookies.Append("drovik.refresh", rawToken, CookieOptions(context, httpOnly: true, TimeSpan.FromDays(7)));
+    context.Response.Cookies.Append("drovik.refresh", rawToken, CookieOptions(context, httpOnly: true, lifetime: null));
     return Results.Ok(await tokenIssuer.IssueAsync(user, cancellationToken));
 }).RequireRateLimiting("login");
 
@@ -151,7 +153,7 @@ app.MapPost("/api/v1/auth/refresh", async (HttpContext context, IdentityDbContex
     var next = new RefreshToken
     {
         UserId = oldToken.UserId, FamilyId = oldToken.FamilyId, TokenHash = TokenIssuer.HashToken(replacement),
-        CreatedAtUtc = now, ExpiresAtUtc = now.AddDays(7)
+        CreatedAtUtc = now, ExpiresAtUtc = now.Add(SessionLifetime)
     };
     oldToken.ReplacedByTokenId = next.Id;
     try
@@ -172,7 +174,7 @@ app.MapPost("/api/v1/auth/refresh", async (HttpContext context, IdentityDbContex
 
     var user = await users.FindByIdAsync(oldToken.UserId.ToString());
     if (user is null) return Results.Unauthorized();
-    context.Response.Cookies.Append("drovik.refresh", replacement, CookieOptions(context, httpOnly: true, TimeSpan.FromDays(7)));
+    context.Response.Cookies.Append("drovik.refresh", replacement, CookieOptions(context, httpOnly: true, lifetime: null));
     return Results.Ok(await tokenIssuer.IssueAsync(user, cancellationToken));
 });
 
@@ -340,7 +342,8 @@ static bool ValidCsrf(HttpContext context)
         && CryptographicOperations.FixedTimeEquals(System.Text.Encoding.UTF8.GetBytes(header), System.Text.Encoding.UTF8.GetBytes(cookie));
 }
 
-static CookieOptions CookieOptions(HttpContext context, bool httpOnly, TimeSpan lifetime) => new()
+// Without a lifetime the cookie is a browser-session cookie: closing the browser ends the session.
+static CookieOptions CookieOptions(HttpContext context, bool httpOnly, TimeSpan? lifetime) => new()
 {
     HttpOnly = httpOnly,
     Secure = context.Request.IsHttps,

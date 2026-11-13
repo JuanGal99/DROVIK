@@ -82,7 +82,7 @@ public sealed class IdentityServiceTests : IAsyncLifetime
             var storedToken = await database.RefreshTokens.SingleAsync();
             Assert.NotEqual(rawRefreshToken, storedToken.TokenHash);
             Assert.Equal(TokenIssuer.HashToken(rawRefreshToken), storedToken.TokenHash);
-            Assert.InRange((storedToken.ExpiresAtUtc - DateTime.UtcNow).TotalDays, 6.999, 7.0);
+            Assert.InRange((storedToken.ExpiresAtUtc - DateTime.UtcNow).TotalHours, 11.99, 12.0);
             var storedUser = await scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>().FindByIdAsync(user.Id.ToString());
             Assert.NotNull(storedUser?.PasswordHash);
             Assert.NotEqual("Strong-Pass-2026", storedUser.PasswordHash);
@@ -97,6 +97,18 @@ public sealed class IdentityServiceTests : IAsyncLifetime
         using var invalid = await _client.GetAsync("/api/v1/auth/me");
         Assert.Equal(HttpStatusCode.Unauthorized, invalid.StatusCode);
         _client.DefaultRequestHeaders.Authorization = null;
+    }
+
+    [Fact]
+    public async Task Session_cookie_ends_with_the_browser()
+    {
+        await CreateUser("operator@example.test", "Operator");
+        using var login = await Login("operator@example.test");
+
+        var refresh = login.Headers.GetValues("Set-Cookie").Single(value => value.StartsWith("drovik.refresh=", StringComparison.Ordinal));
+
+        Assert.DoesNotContain("max-age", refresh, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("expires", refresh, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
