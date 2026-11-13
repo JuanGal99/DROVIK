@@ -104,13 +104,13 @@ Esa contraseña, y las demás claves, se generan en un archivo `.env` local que 
 
 ### 3. Recorrido de 5 minutos
 
-1. Abre http://localhost:4200 y entra con el correo y la contraseña que mostró la terminal.
+1. Abre http://localhost:4200 y entra con el correo y la contraseña que mostró la terminal. La sesión se cierra al cerrar el navegador.
 2. Ve a **Administración → Reiniciar datos**, elige **Operación corta** y pulsa **Borrar y cargar**.
 3. En **Operación en vivo**, pulsa **Iniciar operación**: los vehículos avanzan por calles reales.
 4. Abre **Incidencias** en otra pestaña. Vuelve a la primera, pulsa **Avería** en un vehículo y mira cómo la incidencia aparece en la otra pestaña sin recargar.
 5. Recorre **Resumen**, **Envíos** y **Flota**: también se actualizan solos.
 
-Las otras semillas son **Hora pico**, con 12 envíos en ruta a la vez, y **Operación completa**, con 31 envíos en todos los estados y 6 incidencias. Reiniciar borra los envíos, incidencias y operaciones actuales; los puntos de la red, la flota y las cuentas se conservan.
+Cada semilla trae sus incidencias. **Operación corta** deja 3 envíos en ruta y 1 incidencia; **Hora pico**, 12 envíos en ruta y 3 incidencias; **Operación completa**, 31 envíos en todos los estados y 6 incidencias. En el mapa solo se mueven los envíos que están en ruta: en Operación completa son 7, y el resto aparece en Envíos. Reiniciar borra los envíos, incidencias y operaciones actuales; los puntos de la red, la flota y las cuentas se conservan.
 
 ### Detener o desinstalar
 

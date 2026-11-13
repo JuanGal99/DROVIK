@@ -31,6 +31,11 @@ describe('DemoSeedService', () => {
     expect(DEMO_PRESETS.every((preset) => preset.plan.some((state) => state === 'InTransit'))).toBe(true);
   });
 
+  it('gives every plan its own incidents and says what moves on the map', () => {
+    expect(DEMO_PRESETS.map((preset) => preset.incidents)).toEqual(['one', 'peak', 'full']);
+    expect(DEMO_PRESETS.find((preset) => preset.id === 'complete')?.description).toContain('7 en ruta');
+  });
+
   it('clears every service before creating data and starts shipments on the road', async () => {
     const small = { ...DEMO_PRESETS[0], plan: DEMO_PRESETS[0].plan.slice(0, 1) };
     const finished = service.restart(small);
@@ -51,6 +56,10 @@ describe('DemoSeedService', () => {
     const status = take('/shipments/s-1/status');
     expect(status.request.body.status).toBe('InTransit');
     status.flush({ id: 's-1', weightKg: 120 });
+    await tick();
+    const incident = take('/api/v1/incidents');
+    expect(incident.request.body.shipmentId).toBe('s-1');
+    incident.flush({ id: 'i-1' });
     await finished;
     expect(service.finished()).toContain('lista');
     expect(service.running()).toBe(false);
