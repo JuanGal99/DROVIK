@@ -77,6 +77,8 @@ if (app.Environment.IsDevelopment() || bootstrapMode)
     foreach (var roleName in new[] { "Administrator", "Operator" })
         if (!await roles.RoleExistsAsync(roleName))
             await roles.CreateAsync(new IdentityRole<Guid>(roleName));
+    // Starting the application starts signed out, even if a browser still holds a session cookie.
+    if (!bootstrapMode && !recoverMode) await UserAccounts.EndAllSessionsAsync(database, CancellationToken.None);
 }
 if (recoverMode)
 {

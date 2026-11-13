@@ -17,6 +17,13 @@ public static class UserAccounts
             .ExecuteUpdateAsync(setters => setters.SetProperty(item => item.RevokedAtUtc, now), cancellationToken);
     }
 
+    public static Task EndAllSessionsAsync(IdentityDbContext database, CancellationToken cancellationToken)
+    {
+        var now = DateTime.UtcNow;
+        return database.RefreshTokens.Where(item => item.RevokedAtUtc == null)
+            .ExecuteUpdateAsync(setters => setters.SetProperty(item => item.RevokedAtUtc, now), cancellationToken);
+    }
+
     /// <summary>Sets a password without knowing the old one. If the new one is rejected the old one stays, and on success every session ends.</summary>
     public static async Task<IdentityResult> ReplacePasswordAsync(
         UserManager<ApplicationUser> users, IdentityDbContext database, ApplicationUser user, string password, CancellationToken cancellationToken)

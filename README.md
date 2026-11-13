@@ -104,7 +104,7 @@ Esa contraseña, y las demás claves, se generan en un archivo `.env` local que 
 
 ### 3. Recorrido de 5 minutos
 
-1. Abre http://localhost:4200 y entra con el correo y la contraseña que mostró la terminal. La sesión se cierra al cerrar el navegador.
+1. Abre http://localhost:4200 y entra con el correo y la contraseña que mostró la terminal. La sesión se cierra al cerrar el navegador o al reiniciar la aplicación.
 2. Ve a **Administración → Reiniciar datos**, elige **Operación corta** y pulsa **Borrar y cargar**.
 3. En **Operación en vivo**, pulsa **Iniciar operación**: los vehículos avanzan por calles reales.
 4. Abre **Incidencias** en otra pestaña. Vuelve a la primera, pulsa **Avería** en un vehículo y mira cómo la incidencia aparece en la otra pestaña sin recargar.
